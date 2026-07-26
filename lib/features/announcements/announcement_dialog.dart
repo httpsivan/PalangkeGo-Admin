@@ -45,9 +45,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       return;
     }
     setState(() => loading = true);
-    await ref
-        .read(appDataProvider.notifier)
-        .addAnnouncement(
+    await ref.read(appDataProvider.notifier).addAnnouncement(
           Announcement(
             title: title.text.trim(),
             summary: body.text.trim(),

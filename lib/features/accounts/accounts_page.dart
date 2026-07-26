@@ -45,12 +45,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(32, 26, 32, 30),
-            child: customers
-                ? _customerPanel(data.customers)
-                : _vendorPanel(data.vendors),
-          ),
+          child: customers
+              ? SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(32, 26, 32, 30),
+                  child: _customerPanel(data.customers),
+                )
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 26, 32, 30),
+                  child: _vendorPanel(data.vendors),
+                ),
         ),
       ],
     );
@@ -129,6 +132,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               page: page,
               pageCount: (visible.length / 10).ceil(),
               onPageChanged: (value) => setState(() => page = value),
+              showSummary: search.text.trim().isNotEmpty,
             )
           else
             const EmptyState(),
@@ -183,6 +187,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               page: page,
               pageCount: (visible.length / 10).ceil(),
               onPageChanged: (value) => setState(() => page = value),
+              showSummary: search.text.trim().isNotEmpty,
             )
           else
             const EmptyState(),
@@ -285,8 +290,8 @@ class _VendorTable extends StatelessWidget {
                         Text(
                           vendor.name,
                           style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(vendor.email, style: const TextStyle(fontSize: 9)),
@@ -317,21 +322,62 @@ class _VendorTable extends StatelessWidget {
           ),
         )
         .toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          semanticColors(context).tableHeader,
-        ),
-        columns: const [
-          DataColumn(label: Text('TENANTS DETAILS')),
-          DataColumn(label: Text('STALL TYPE')),
-          DataColumn(label: Text('REGISTRATION')),
-          DataColumn(label: Text('ACCOUNT STATUS')),
-          DataColumn(label: Text('ACTIONS')),
-        ],
-        rows: rows,
+    const columns = [
+      DataColumn(
+        columnWidth: FlexColumnWidth(2.2),
+        label: Text('TENANTS DETAILS'),
       ),
+      DataColumn(
+        columnWidth: FlexColumnWidth(1.25),
+        label: Text('STALL TYPE'),
+      ),
+      DataColumn(
+        columnWidth: FlexColumnWidth(1.25),
+        label: Text('REGISTRATION'),
+      ),
+      DataColumn(
+        columnWidth: FlexColumnWidth(1.35),
+        label: Text('ACCOUNT STATUS'),
+      ),
+      DataColumn(
+        columnWidth: FlexColumnWidth(.7),
+        label: Text('ACTIONS'),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget table({required List<DataRow> rows, double headingHeight = 0}) =>
+            SizedBox(
+              width: constraints.maxWidth,
+              child: DataTable(
+                showCheckboxColumn: false,
+                headingRowColor: WidgetStatePropertyAll(
+                  semanticColors(context).tableHeader,
+                ),
+                headingRowHeight: headingHeight,
+                dataRowMinHeight: 68,
+                dataRowMaxHeight: 68,
+                columnSpacing: 20,
+                columns: columns,
+                rows: rows,
+              ),
+            );
+
+        return Column(
+          children: [
+            table(rows: const [], headingHeight: 48),
+            SizedBox(
+              height: 350,
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  child: table(rows: rows),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -357,8 +403,8 @@ class _CustomerTable extends StatelessWidget {
                         Text(
                           customer.name,
                           style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
@@ -393,20 +439,41 @@ class _CustomerTable extends StatelessWidget {
           ),
         )
         .toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          semanticColors(context).tableHeader,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: constraints.maxWidth,
+          child: DataTable(
+            headingRowColor: WidgetStatePropertyAll(
+              semanticColors(context).tableHeader,
+            ),
+            columnSpacing: 20,
+            columns: const [
+              DataColumn(
+                columnWidth: FlexColumnWidth(2.2),
+                label: Text('CUSTOMER NAME'),
+              ),
+              DataColumn(
+                columnWidth: FlexColumnWidth(1.35),
+                label: Text('REGISTRATION DATE'),
+              ),
+              DataColumn(
+                columnWidth: FlexColumnWidth(1),
+                label: Text('TRANSACTIONS'),
+              ),
+              DataColumn(
+                columnWidth: FlexColumnWidth(1.35),
+                label: Text('ACCOUNT STATUS'),
+              ),
+              DataColumn(
+                columnWidth: FlexColumnWidth(.7),
+                label: Text('ACTIONS'),
+              ),
+            ],
+            rows: rows,
+          ),
         ),
-        columns: const [
-          DataColumn(label: Text('CUSTOMER NAME')),
-          DataColumn(label: Text('REGISTRATION DATE')),
-          DataColumn(label: Text('TRANSACTIONS')),
-          DataColumn(label: Text('ACCOUNT STATUS')),
-          DataColumn(label: Text('ACTIONS')),
-        ],
-        rows: rows,
       ),
     );
   }

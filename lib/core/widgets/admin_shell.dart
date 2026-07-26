@@ -46,8 +46,8 @@ class _TopNavigation extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final compact = MediaQuery.sizeOf(context).width < 900;
     return Container(
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 34),
+      height: 76,
+      padding: const EdgeInsets.symmetric(horizontal: 36),
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
         border: Border(

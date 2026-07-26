@@ -11,42 +11,14 @@ class AppLogo extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: compact ? 26 : 31,
-          height: compact ? 26 : 31,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(.15),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(
-            Icons.shopping_basket_rounded,
-            color: Colors.white,
-            size: compact ? 16 : 20,
-          ),
-        ),
-        if (!compact) ...[
-          const SizedBox(width: 9),
-          const Text(
-            'PalengkeGo',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const Icon(
-            Icons.shopping_cart_rounded,
-            color: Colors.white,
-            size: 15,
-          ),
-        ],
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Image.asset(
+        'assets/images/palengkego_admin_logo.png',
+        width: compact ? 128 : 150,
+        height: compact ? 32 : 36,
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
+        semanticLabel: 'PalengkeGo - Skip the Roam, Order from Home',
+      );
 }
 
 class AvatarCircle extends StatelessWidget {
@@ -148,7 +120,7 @@ class PageHeader extends StatelessWidget {
                     mainAxisExtent: 63,
                   ),
                   itemBuilder: (context, index) =>
-                      MetricCard(data: metrics[index]),
+                      MetricCard(data: metrics[index], compact: true),
                 );
               },
             ),
@@ -166,69 +138,35 @@ class MetricCardData {
     required this.icon,
     required this.accent,
     this.onTap,
+    this.valueStyle,
   });
   final String value;
   final String label;
   final IconData icon;
   final Color accent;
   final VoidCallback? onTap;
+  final TextStyle? valueStyle;
 }
 
 class MetricCard extends StatelessWidget {
-  const MetricCard({super.key, required this.data});
+  const MetricCard({super.key, required this.data, this.compact = false});
   final MetricCardData data;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+    final icon = Container(
+      width: compact ? 33 : 34,
+      height: compact ? 33 : 34,
       decoration: BoxDecoration(
-        color: colors.elevatedSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.subtleBorder),
+        color: data.accent.withOpacity(.13),
+        borderRadius: BorderRadius.circular(9),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 33,
-            height: 33,
-            decoration: BoxDecoration(
-              color: data.accent.withOpacity(.13),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Icon(data.icon, color: data.accent, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.value,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withOpacity(.64),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
+      child: Icon(data.icon, color: data.accent, size: 18),
+    );
+    final arrow = compact
+        ? IconButton(
             tooltip: 'Open',
             onPressed: data.onTap,
             icon: Icon(
@@ -236,9 +174,87 @@ class MetricCard extends StatelessWidget {
               size: 14,
               color: Theme.of(context).colorScheme.onSurface.withOpacity(.72),
             ),
-          ),
-        ],
+          )
+        : InkWell(
+            onTap: data.onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.subtleBorder),
+              ),
+              child: Icon(
+                Icons.arrow_outward_rounded,
+                size: 15,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(.72),
+              ),
+            ),
+          );
+    final value = Text(
+      data.value,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: compact ? 21 : 26,
+        fontWeight: FontWeight.w800,
+      ).merge(data.valueStyle),
+    );
+    final label = Text(
+      data.label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(.64),
+        fontSize: compact ? 11 : 11.5,
       ),
+    );
+    return Container(
+      padding: compact
+          ? const EdgeInsets.symmetric(horizontal: 14)
+          : const EdgeInsets.fromLTRB(14, 16, 12, 14),
+      decoration: BoxDecoration(
+        color: colors.elevatedSurface,
+        borderRadius: BorderRadius.circular(compact ? 12 : 14),
+        border: Border.all(color: colors.subtleBorder),
+        boxShadow: compact
+            ? const []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: compact
+          ? Row(
+              children: [
+                icon,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [value, const SizedBox(height: 4), label],
+                  ),
+                ),
+                arrow,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [icon, const Spacer(), arrow],
+                ),
+                const Spacer(),
+                value,
+                const SizedBox(height: 3),
+                label,
+              ],
+            ),
     );
   }
 }
@@ -477,6 +493,62 @@ class DataPanel extends StatelessWidget {
   }
 }
 
+class ScrollableDataTable extends StatelessWidget {
+  const ScrollableDataTable({
+    super.key,
+    required this.columns,
+    required this.rows,
+    this.height = 360,
+    this.columnSpacing = 18,
+    this.rowHeight = 68,
+  });
+
+  final List<DataColumn> columns;
+  final List<DataRow> rows;
+  final double height;
+  final double columnSpacing;
+  final double rowHeight;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          Widget table({
+            required List<DataRow> tableRows,
+            required double headingHeight,
+          }) =>
+              SizedBox(
+                width: constraints.maxWidth,
+                child: DataTable(
+                  showCheckboxColumn: false,
+                  headingRowColor: WidgetStatePropertyAll(
+                    semanticColors(context).tableHeader,
+                  ),
+                  headingRowHeight: headingHeight,
+                  dataRowMinHeight: rowHeight,
+                  dataRowMaxHeight: rowHeight,
+                  columnSpacing: columnSpacing,
+                  columns: columns,
+                  rows: tableRows,
+                ),
+              );
+
+          return Column(
+            children: [
+              table(tableRows: const [], headingHeight: 48),
+              SizedBox(
+                height: height,
+                child: Scrollbar(
+                  child: SingleChildScrollView(
+                    child: table(tableRows: rows, headingHeight: 0),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+}
+
 class PaginationBar extends StatelessWidget {
   const PaginationBar({
     super.key,
@@ -486,6 +558,7 @@ class PaginationBar extends StatelessWidget {
     required this.page,
     required this.pageCount,
     required this.onPageChanged,
+    this.showSummary = true,
   });
   final int total;
   final int start;
@@ -493,20 +566,25 @@ class PaginationBar extends StatelessWidget {
   final int page;
   final int pageCount;
   final ValueChanged<int> onPageChanged;
+  final bool showSummary;
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                'Showing $start to $end of $total results',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(.62),
-                ),
-              ),
+              child: showSummary
+                  ? Text(
+                      'Showing $start to $end of $total results',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(.62),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
             Wrap(
               spacing: 5,
@@ -516,12 +594,20 @@ class PaginationBar extends StatelessWidget {
                   Icons.chevron_left_rounded,
                   page > 0 ? () => onPageChanged(page - 1) : null,
                 ),
-                for (var i = 0; i < pageCount && i < 4; i++)
+                for (var i = 0; i < pageCount && i < 3; i++)
                   _button(
                     context,
                     i + 1,
                     () => onPageChanged(i),
                     active: i == page,
+                  ),
+                if (pageCount > 4) _button(context, '...', null),
+                if (pageCount > 3)
+                  _button(
+                    context,
+                    pageCount,
+                    () => onPageChanged(pageCount - 1),
+                    active: page == pageCount - 1,
                   ),
                 _button(
                   context,
@@ -553,9 +639,9 @@ class PaginationBar extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(7),
-              border: active
-                  ? null
-                  : Border.all(color: semanticColors(context).subtleBorder),
+              border: !active && label is IconData
+                  ? Border.all(color: semanticColors(context).subtleBorder)
+                  : null,
             ),
             child: label is IconData
                 ? Icon(

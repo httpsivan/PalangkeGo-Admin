@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/csv_exporter.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -74,7 +75,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Recent Reports',
@@ -98,6 +99,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       FilterButton(
                         label: 'Export',
                         icon: Icons.download_outlined,
+                        onTap: () => _export(values),
                       ),
                     ],
                   ),
@@ -146,6 +148,27 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       if (value != null) onChanged(value);
     },
   );
+
+  void _export(List<Report> values) {
+    final csv = buildCsv([
+      ['Type', 'Account / Issue', 'Submitted By', 'Reason', 'Date', 'Status', 'Priority'],
+      ...values.map(
+        (item) => [
+          item.type,
+          item.accountIssue,
+          item.submittedBy,
+          item.reason,
+          item.date.toIso8601String(),
+          enumLabel(item.status),
+          enumLabel(item.priority),
+        ],
+      ),
+    ]);
+    downloadCsv(csv, 'palengkego-reports.csv');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reports CSV downloaded.')),
+    );
+  }
 }
 
 class _ReportTable extends StatelessWidget {
@@ -198,23 +221,39 @@ class _ReportTable extends StatelessWidget {
           ),
         )
         .toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          semanticColors(context).tableHeader,
+    return ScrollableDataTable(
+      columnSpacing: 18,
+      columns: const [
+        DataColumn(
+          columnWidth: FlexColumnWidth(.85),
+          label: Text('TYPE'),
         ),
-        columns: const [
-          DataColumn(label: Text('TYPE')),
-          DataColumn(label: Text('ACCOUNT / ISSUE')),
-          DataColumn(label: Text('SUBMITTED BY')),
-          DataColumn(label: Text('REASON')),
-          DataColumn(label: Text('DATE')),
-          DataColumn(label: Text('STATUS')),
-          DataColumn(label: Text('PRIORITY')),
-        ],
-        rows: rows,
-      ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.4),
+          label: Text('ACCOUNT / ISSUE'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.2),
+          label: Text('SUBMITTED BY'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.4),
+          label: Text('REASON'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.9),
+          label: Text('DATE'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.1),
+          label: Text('STATUS'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.8),
+          label: Text('PRIORITY'),
+        ),
+      ],
+      rows: rows,
     );
   }
 }

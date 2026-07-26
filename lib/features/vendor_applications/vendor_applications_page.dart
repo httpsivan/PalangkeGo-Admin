@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/csv_exporter.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -75,7 +76,7 @@ class _VendorApplicationsPageState
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Recent Applications',
@@ -99,6 +100,7 @@ class _VendorApplicationsPageState
                       FilterButton(
                         label: 'Export',
                         icon: Icons.download_outlined,
+                        onTap: () => _export(values),
                       ),
                     ],
                   ),
@@ -147,6 +149,33 @@ class _VendorApplicationsPageState
       if (value != null) onChanged(value);
     },
   );
+
+  void _export(List<VendorApplication> values) {
+    final csv = buildCsv([
+      [
+        'Application ID',
+        'Applicant',
+        'Stall Name',
+        'Category',
+        'Date Submitted',
+        'KYC Status',
+      ],
+      ...values.map(
+        (item) => [
+          item.id,
+          item.applicant,
+          item.stallName,
+          item.category,
+          item.submittedAt.toIso8601String(),
+          enumLabel(item.status),
+        ],
+      ),
+    ]);
+    downloadCsv(csv, 'palengkego-vendor-applications.csv');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Vendor applications CSV downloaded.')),
+    );
+  }
 }
 
 class _ApplicationTable extends StatelessWidget {
@@ -203,23 +232,39 @@ class _ApplicationTable extends StatelessWidget {
           ),
         )
         .toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          semanticColors(context).tableHeader,
+    return ScrollableDataTable(
+      columnSpacing: 18,
+      columns: const [
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.15),
+          label: Text('APPLICATION ID'),
         ),
-        columns: const [
-          DataColumn(label: Text('APPLICATION ID')),
-          DataColumn(label: Text('APPLICANT')),
-          DataColumn(label: Text('STALL NAME')),
-          DataColumn(label: Text('CATEGORY')),
-          DataColumn(label: Text('DATE SUBMITTED')),
-          DataColumn(label: Text('KYC STATUS')),
-          DataColumn(label: Text('ACTIONS')),
-        ],
-        rows: rows,
-      ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.35),
+          label: Text('APPLICANT'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.5),
+          label: Text('STALL NAME'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.9),
+          label: Text('CATEGORY'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.25),
+          label: Text('DATE SUBMITTED'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.2),
+          label: Text('KYC STATUS'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.7),
+          label: Text('ACTIONS'),
+        ),
+      ],
+      rows: rows,
     );
   }
 }

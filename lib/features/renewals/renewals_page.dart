@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/csv_exporter.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -77,7 +79,7 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Renewal',
@@ -101,6 +103,7 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
                       FilterButton(
                         label: 'Export',
                         icon: Icons.download_outlined,
+                        onTap: () => _export(values),
                       ),
                     ],
                   ),
@@ -149,6 +152,34 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
       if (v != null) onChanged(v);
     },
   );
+
+  void _export(List<RenewalRequest> values) {
+    final csv = buildCsv([
+      [
+        'Application ID',
+        'Applicant',
+        'Stall Name',
+        'Category',
+        'Expiry Date',
+        'KYC Status',
+      ],
+      ...values.map(
+        (item) => [
+          item.id,
+          item.applicant,
+          item.stallName,
+          item.category,
+          item.expiryDate.toIso8601String(),
+          enumLabel(item.status),
+        ],
+      ),
+    ]);
+    downloadCsv(csv, 'palengkego-renewals.csv');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Renewals CSV downloaded.')),
+    );
+  }
+
   String _status(RenewalStatus value) => switch (value) {
     RenewalStatus.approved => 'Approved',
     RenewalStatus.reviewing => 'Reviewing',
@@ -161,80 +192,100 @@ class _Table extends StatelessWidget {
   final List<RenewalRequest> values;
   final ValueChanged<RenewalRequest> open;
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: DataTable(
-      headingRowColor: WidgetStatePropertyAll(
-        semanticColors(context).tableHeader,
-      ),
-      columns: const [
-        DataColumn(label: Text('APPLICATION ID')),
-        DataColumn(label: Text('APPLICANT')),
-        DataColumn(label: Text('STALL NAME')),
-        DataColumn(label: Text('CATEGORY')),
-        DataColumn(label: Text('EXPIRY DATE')),
-        DataColumn(label: Text('KYC STATUS')),
-        DataColumn(label: Text('ACTIONS')),
-      ],
-      rows: values.map((v) {
-        final days = v.expiryDate.difference(DateTime.now()).inDays;
-        return DataRow(
-          onSelectChanged: (_) => open(v),
-          cells: [
-            DataCell(
-              Text(
-                v.id,
-                style: TextStyle(
-                  color: semanticColors(context).heroBackground,
-                  fontWeight: FontWeight.w800,
-                ),
+  Widget build(BuildContext context) {
+    final rows = values.map((v) {
+      final days = v.expiryDate.difference(DateTime.now()).inDays;
+      return DataRow(
+        onSelectChanged: (_) => open(v),
+        cells: [
+          DataCell(
+            Text(
+              v.id,
+              style: TextStyle(
+                color: semanticColors(context).heroBackground,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            DataCell(
-              Row(
-                children: [
-                  AvatarCircle(name: v.applicant, size: 28),
-                  const SizedBox(width: 7),
-                  Text(v.applicant),
-                ],
-              ),
+          ),
+          DataCell(
+            Row(
+              children: [
+                AvatarCircle(name: v.applicant, size: 28),
+                const SizedBox(width: 7),
+                Text(v.applicant),
+              ],
             ),
-            DataCell(Text(v.stallName)),
-            DataCell(StatusBadge(label: v.category, kind: BadgeKind.info)),
-            DataCell(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(shortDate.format(v.expiryDate)),
-                  Text(
-                    days < 0 ? 'Expired ${days.abs()}d ago' : '$days days left',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: days < 0
-                          ? semanticColors(context).danger
-                          : semanticColors(context).warning,
-                    ),
+          ),
+          DataCell(Text(v.stallName)),
+          DataCell(StatusBadge(label: v.category, kind: BadgeKind.info)),
+          DataCell(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(shortDate.format(v.expiryDate)),
+                Text(
+                  days < 0 ? 'Expired ${days.abs()}d ago' : '$days days left',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: days < 0
+                        ? semanticColors(context).danger
+                        : semanticColors(context).warning,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            DataCell(
-              StatusBadge(
-                label: v.status.toString().split('.').last,
-                kind: v.status == RenewalStatus.approved
-                    ? BadgeKind.success
-                    : v.status == RenewalStatus.reviewing
-                    ? BadgeKind.info
-                    : BadgeKind.danger,
-              ),
+          ),
+          DataCell(
+            StatusBadge(
+              label: v.status.toString().split('.').last,
+              kind: v.status == RenewalStatus.approved
+                  ? BadgeKind.success
+                  : v.status == RenewalStatus.reviewing
+                  ? BadgeKind.info
+                  : BadgeKind.danger,
             ),
-            DataCell(
-              TextButton(onPressed: () => open(v), child: const Text('Review')),
-            ),
-          ],
-        );
-      }).toList(),
-    ),
-  );
+          ),
+          DataCell(
+            TextButton(onPressed: () => open(v), child: const Text('Review')),
+          ),
+        ],
+      );
+    }).toList();
+
+    return ScrollableDataTable(
+      columnSpacing: 18,
+      columns: const [
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.15),
+          label: Text('APPLICATION ID'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.35),
+          label: Text('APPLICANT'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.5),
+          label: Text('STALL NAME'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.9),
+          label: Text('CATEGORY'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.25),
+          label: Text('EXPIRY DATE'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.2),
+          label: Text('KYC STATUS'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(.7),
+          label: Text('ACTIONS'),
+        ),
+      ],
+      rows: rows,
+    );
+  }
 }

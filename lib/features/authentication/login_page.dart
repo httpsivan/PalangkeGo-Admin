@@ -24,7 +24,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     'assets/images/fish_market.jpg',
     'assets/images/dried_fish_stall.jpg',
     'assets/images/vegetable_stall.jpg',
-    'assets/images/market_background.png',
   ];
 
   final formKey = GlobalKey<FormState>();
@@ -82,12 +81,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               children: [_market(context, true), _loginForm(context)],
             ),
           )
-        : Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(flex: 51, child: _market(context, false)),
-              Expanded(flex: 49, child: _loginForm(context)),
-            ],
+        : SizedBox.expand(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(flex: 51, child: _market(context, false)),
+                Expanded(flex: 49, child: _loginForm(context)),
+              ],
+            ),
           );
     return Scaffold(
       body: Column(
@@ -111,9 +112,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         children: [
           Positioned.fill(
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 1200),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
+              duration: const Duration(milliseconds: 1600),
+              switchInCurve: Curves.easeIn,
+              switchOutCurve: Curves.easeOut,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation.drive(
+                  CurveTween(curve: Curves.easeInOut),
+                ),
+                child: child,
+              ),
               layoutBuilder: (currentChild, previousChildren) => Stack(
                 fit: StackFit.expand,
                 children: [
@@ -149,7 +156,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Text(
                   'NAGA CITY PEOPLE’S MALL',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: const Color(0xB3FFFFFF),
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: .7,
@@ -178,6 +185,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final form = Form(
       key: formKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
@@ -306,7 +314,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ],
       ),
     );
-    return Container(
+    final panel = Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 42),
       child: Center(
@@ -316,6 +324,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
+    return MediaQuery.sizeOf(context).width >= 820
+        ? SizedBox.expand(child: panel)
+        : panel;
   }
 
   Future<void> _forgot(BuildContext context) async {
@@ -368,15 +379,21 @@ class _Header extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const AppLogo(compact: true),
-            const SizedBox(width: 9),
-            Text(
-              'PalengkeGo',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+            Image.asset(
+              'assets/images/market_basket.png',
+              width: 64,
+              height: 48,
+              fit: BoxFit.contain,
+              semanticLabel: 'Market basket',
+            ),
+            const SizedBox(width: 8),
+            Image.asset(
+              'assets/images/palengkego_logo.png',
+              width: 180,
+              height: 48,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              semanticLabel: 'PalengkeGo',
             ),
             const Spacer(),
             TextButton(onPressed: () {}, child: const Text('Home')),
