@@ -182,6 +182,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _loginForm(BuildContext context) {
     final colors = semanticColors(context);
+    final profile = ref.watch(adminProfileProvider);
     final form = Form(
       key: formKey,
       child: Column(
@@ -191,7 +192,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           Text(
             'Welcome Back, Admin!',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: GoogleFonts.plusJakartaSans(
               color: colors.heroBackground,
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -305,14 +306,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   : const Text('Log In'),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Mock credentials: admin@palengkego.gov.ph / Admin123!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10),
-          ),
         ],
-      ),
+      )
     );
     final panel = Container(
       color: Theme.of(context).scaffoldBackgroundColor,

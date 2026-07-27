@@ -15,12 +15,36 @@ class ReportsPage extends ConsumerStatefulWidget {
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
   final search = TextEditingController();
+  final tableScrollController = ScrollController();
   String status = 'All Statuses';
   int page = 0;
   @override
   void dispose() {
     search.dispose();
+    tableScrollController.dispose();
     super.dispose();
+  }
+
+  void _resetTable() {
+    setState(() => page = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.jumpTo(0);
+      }
+    });
+  }
+
+  void _goToPage(int value) {
+    setState(() => page = value);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -29,15 +53,18 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final values = data.reports
         .where(
           (item) =>
-              (search.text.isEmpty ||
+              (search.text.trim().isEmpty ||
                   '${item.id} ${item.accountIssue} ${item.submittedBy} ${item.reason}'
                       .toLowerCase()
-                      .contains(search.text.toLowerCase())) &&
+                      .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' ||
                   item.status.toString().split('.').last ==
                       status.toLowerCase().replaceAll(' ', '')),
         )
         .toList();
+    final int totalPages = (values.length / 10).ceil();
+    final int safePage =
+        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
     return Column(
       children: [
         PageHeader(
@@ -79,49 +106,61 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Recent Reports',
-              child: Column(
-                children: [
-                  Toolbar(
-                    controller: search,
-                    onChanged: (_) => setState(() => page = 0),
-                    onClear: () => setState(() {
-                      search.clear();
-                      status = 'All Statuses';
-                    }),
-                    trailing: [
-                      _filter(context, status, [
-                        'All Statuses',
-                        'Pending',
-                        'Under Review',
-                        'Resolved',
-                      ], (value) => setState(() => status = value)),
-                      FilterButton(label: 'Stall Category'),
-                      FilterButton(
-                        label: 'Export',
-                        icon: Icons.download_outlined,
-                        onTap: () => _export(values),
-                      ),
-                    ],
-                  ),
-                  _ReportTable(
-                    values: values.skip(page * 10).take(10).toList(),
-                    onOpen: (item) => showBlurredDialog(
-                      context,
-                      (context) => ReportReviewDialog(report: item),
+              child: Expanded(
+                child: Column(
+                  children: [
+                    Toolbar(
+                      controller: search,
+                      onChanged: (_) => _resetTable(),
+                      onClear: () {
+                        search.clear();
+                        status = 'All Statuses';
+                        _resetTable();
+                      },
+                      trailing: [
+                        _filter(
+                            context,
+                            status,
+                            [
+                              'All Statuses',
+                              'Pending',
+                              'Under Review',
+                              'Resolved',
+                            ],
+                            (value) {
+                              status = value;
+                              _resetTable();
+                            }),
+                        FilterButton(label: 'Stall Category'),
+                        FilterButton(
+                          label: 'Export',
+                          icon: Icons.download_outlined,
+                          onTap: () => _export(values),
+                        ),
+                      ],
                     ),
-                  ),
-                  if (values.isNotEmpty)
-                    PaginationBar(
-                      total: values.length,
-                      start: page * 10 + 1,
-                      end: ((page + 1) * 10).clamp(0, values.length),
-                      page: page,
-                      pageCount: (values.length / 10).ceil(),
-                      onPageChanged: (value) => setState(() => page = value),
-                    )
-                  else
-                    const EmptyState(),
-                ],
+                    Expanded(
+                      child: _ReportTable(
+                        values: values.skip(safePage * 10).take(10).toList(),
+                        verticalController: tableScrollController,
+                        onOpen: (item) => showBlurredDialog(
+                          context,
+                          (context) => ReportReviewDialog(report: item),
+                        ),
+                      ),
+                    ),
+                    if (values.isNotEmpty)
+                      PaginationBar(
+                        total: values.length,
+                        start: safePage * 10 + 1,
+                        end: ((safePage + 1) * 10).clamp(0, values.length),
+                        page: safePage,
+                        pageCount: totalPages,
+                        onPageChanged: _goToPage,
+                        showSummary: search.text.trim().isNotEmpty,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -135,23 +174,32 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
-  ) => FilterButton(
-    label: label,
-    onTap: () async {
-      final value = await showMenu<String>(
-        context: context,
-        position: const RelativeRect.fromLTRB(400, 300, 0, 0),
-        items: values
-            .map((item) => PopupMenuItem(value: item, child: Text(item)))
-            .toList(),
+  ) =>
+      FilterButton(
+        label: label,
+        onTap: () async {
+          final value = await showMenu<String>(
+            context: context,
+            position: const RelativeRect.fromLTRB(400, 300, 0, 0),
+            items: values
+                .map((item) => PopupMenuItem(value: item, child: Text(item)))
+                .toList(),
+          );
+          if (value != null) onChanged(value);
+        },
       );
-      if (value != null) onChanged(value);
-    },
-  );
 
   void _export(List<Report> values) {
     final csv = buildCsv([
-      ['Type', 'Account / Issue', 'Submitted By', 'Reason', 'Date', 'Status', 'Priority'],
+      [
+        'Type',
+        'Account / Issue',
+        'Submitted By',
+        'Reason',
+        'Date',
+        'Status',
+        'Priority'
+      ],
       ...values.map(
         (item) => [
           item.type,
@@ -172,8 +220,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 }
 
 class _ReportTable extends StatelessWidget {
-  const _ReportTable({required this.values, required this.onOpen});
+  const _ReportTable({
+    required this.values,
+    required this.verticalController,
+    required this.onOpen,
+  });
   final List<Report> values;
+  final ScrollController verticalController;
   final ValueChanged<Report> onOpen;
   @override
   Widget build(BuildContext context) {
@@ -201,8 +254,8 @@ class _ReportTable extends StatelessWidget {
                   kind: item.status == ReportStatus.resolved
                       ? BadgeKind.success
                       : item.status == ReportStatus.underReview
-                      ? BadgeKind.info
-                      : BadgeKind.danger,
+                          ? BadgeKind.info
+                          : BadgeKind.danger,
                 ),
               ),
               DataCell(
@@ -212,8 +265,8 @@ class _ReportTable extends StatelessWidget {
                     color: item.priority == Priority.high
                         ? semanticColors(context).danger
                         : item.priority == Priority.medium
-                        ? semanticColors(context).warning
-                        : semanticColors(context).mutedText,
+                            ? semanticColors(context).warning
+                            : semanticColors(context).mutedText,
                   ),
                 ),
               ),
@@ -222,6 +275,8 @@ class _ReportTable extends StatelessWidget {
         )
         .toList();
     return ScrollableDataTable(
+      verticalController: verticalController,
+      minWidth: 1300,
       columnSpacing: 18,
       columns: const [
         DataColumn(
@@ -284,9 +339,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       return;
     }
     setState(() => processing = true);
-    await ref
-        .read(appDataProvider.notifier)
-        .updateReport(
+    await ref.read(appDataProvider.notifier).updateReport(
           widget.report.id,
           ReportStatus.resolved,
           notes.text.trim(),
@@ -451,9 +504,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                       onPressed: processing
                           ? null
                           : () => action(
-                              'Send warning',
-                              ReportStatus.underReview,
-                            ),
+                                'Send warning',
+                                ReportStatus.underReview,
+                              ),
                       child: const Text('Send Warning'),
                     ),
                   ),
@@ -467,9 +520,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                       onPressed: processing
                           ? null
                           : () => action(
-                              'Suspend vendor',
-                              ReportStatus.underReview,
-                            ),
+                                'Suspend vendor',
+                                ReportStatus.underReview,
+                              ),
                       style: FilledButton.styleFrom(
                         backgroundColor: semanticColors(context).danger,
                       ),
@@ -482,9 +535,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                       onPressed: processing
                           ? null
                           : () => action(
-                              'Dismiss report',
-                              ReportStatus.dismissed,
-                            ),
+                                'Dismiss report',
+                                ReportStatus.dismissed,
+                              ),
                       child: const Text('Dismiss Report'),
                     ),
                   ),
@@ -508,120 +561,122 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
   }
 
   Widget _info(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Row(
-          children: [
-            const AvatarCircle(name: 'Maria Santos', size: 34),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Row(
               children: [
-                const Text(
-                  'Maria Santos',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  widget.report.reporterEmail,
-                  style: const TextStyle(fontSize: 9),
+                const AvatarCircle(name: 'Maria Santos', size: 34),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Maria Santos',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      widget.report.reporterEmail,
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-      Expanded(
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: semanticColors(context).infoContainer,
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Icon(
-                Icons.storefront_outlined,
-                color: semanticColors(context).info,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          Expanded(
+            child: Row(
               children: [
-                Text(
-                  widget.report.vendorName,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: semanticColors(context).infoContainer,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Icon(
+                    Icons.storefront_outlined,
+                    color: semanticColors(context).info,
                   ),
                 ),
-                Text(
-                  'Vendor: ${widget.report.owner}',
-                  style: const TextStyle(fontSize: 9),
-                ),
-                const StatusBadge(
-                  label: '2 PREVIOUS VIOLATIONS',
-                  kind: BadgeKind.danger,
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.report.vendorName,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Vendor: ${widget.report.owner}',
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                    const StatusBadge(
+                      label: '2 PREVIOUS VIOLATIONS',
+                      kind: BadgeKind.danger,
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    ],
-  );
-  Widget _evidence(String asset, String label) => Expanded(
-    child: InkWell(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (context) =>
-            Dialog(child: InteractiveViewer(child: Image.asset(asset))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: AspectRatio(
-              aspectRatio: 1.7,
-              child: Image.asset(asset, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
           ),
         ],
-      ),
-    ),
-  );
+      );
+  Widget _evidence(String asset, String label) => Expanded(
+        child: InkWell(
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (context) =>
+                Dialog(child: InteractiveViewer(child: Image.asset(asset))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: AspectRatio(
+                  aspectRatio: 1.7,
+                  child: Image.asset(asset, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style:
+                    const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      );
   Widget _history(BuildContext context) => Table(
-    border: TableBorder.all(color: semanticColors(context).subtleBorder),
-    children: [
-      TableRow(children: [
-        _cell('Date'),
-        _cell('Violation Type'),
-        _cell('Action Taken'),
-        _cell('Status'),
-      ]),
-      TableRow(children: [
-        _cell('Sep 15, 2023'),
-        _cell('Late Delivery'),
-        _cell('Warning Issued'),
-        _cell('Closed'),
-      ]),
-      TableRow(children: [
-        _cell('Aug 02, 2023'),
-        _cell('Incorrect Pricing'),
-        _cell('System Flag'),
-        _cell('Closed'),
-      ]),
-    ],
-  );
+        border: TableBorder.all(color: semanticColors(context).subtleBorder),
+        children: [
+          TableRow(children: [
+            _cell('Date'),
+            _cell('Violation Type'),
+            _cell('Action Taken'),
+            _cell('Status'),
+          ]),
+          TableRow(children: [
+            _cell('Sep 15, 2023'),
+            _cell('Late Delivery'),
+            _cell('Warning Issued'),
+            _cell('Closed'),
+          ]),
+          TableRow(children: [
+            _cell('Aug 02, 2023'),
+            _cell('Incorrect Pricing'),
+            _cell('System Flag'),
+            _cell('Closed'),
+          ]),
+        ],
+      );
   Widget _cell(String value) => Padding(
-    padding: const EdgeInsets.all(8),
-    child: Text(value, style: const TextStyle(fontSize: 9.5)),
-  );
+        padding: const EdgeInsets.all(8),
+        child: Text(value, style: const TextStyle(fontSize: 9.5)),
+      );
 }

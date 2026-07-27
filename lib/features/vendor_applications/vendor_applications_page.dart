@@ -18,12 +18,36 @@ class VendorApplicationsPage extends ConsumerStatefulWidget {
 class _VendorApplicationsPageState
     extends ConsumerState<VendorApplicationsPage> {
   final search = TextEditingController();
+  final tableScrollController = ScrollController();
   String status = 'All Statuses';
   int page = 0;
   @override
   void dispose() {
     search.dispose();
+    tableScrollController.dispose();
     super.dispose();
+  }
+
+  void _resetTable() {
+    setState(() => page = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.jumpTo(0);
+      }
+    });
+  }
+
+  void _goToPage(int value) {
+    setState(() => page = value);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -32,15 +56,18 @@ class _VendorApplicationsPageState
     final values = data.applications
         .where(
           (item) =>
-              (search.text.isEmpty ||
+              (search.text.trim().isEmpty ||
                   '${item.id} ${item.applicant} ${item.stallName}'
                       .toLowerCase()
-                      .contains(search.text.toLowerCase())) &&
+                      .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' ||
                   item.status.toString().split('.').last ==
                       status.toLowerCase().replaceAll(' ', '')),
         )
         .toList();
+    final int totalPages = (values.length / 10).ceil();
+    final int safePage =
+        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
     return Column(
       children: [
         PageHeader(
@@ -80,49 +107,61 @@ class _VendorApplicationsPageState
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Recent Applications',
-              child: Column(
-                children: [
-                  Toolbar(
-                    controller: search,
-                    onChanged: (_) => setState(() => page = 0),
-                    onClear: () => setState(() {
-                      search.clear();
-                      status = 'All Statuses';
-                    }),
-                    trailing: [
-                      _filter(context, status, [
-                        'All Statuses',
-                        'Verified',
-                        'Reviewing',
-                        'Invalid Docs',
-                      ], (value) => setState(() => status = value)),
-                      FilterButton(label: 'Stall Category'),
-                      FilterButton(
-                        label: 'Export',
-                        icon: Icons.download_outlined,
-                        onTap: () => _export(values),
-                      ),
-                    ],
-                  ),
-                  _ApplicationTable(
-                    values: values.skip(page * 10).take(10).toList(),
-                    onOpen: (item) => showBlurredDialog(
-                      context,
-                      (context) => VerificationDialog.application(item),
+              child: Expanded(
+                child: Column(
+                  children: [
+                    Toolbar(
+                      controller: search,
+                      onChanged: (_) => _resetTable(),
+                      onClear: () {
+                        search.clear();
+                        status = 'All Statuses';
+                        _resetTable();
+                      },
+                      trailing: [
+                        _filter(
+                            context,
+                            status,
+                            [
+                              'All Statuses',
+                              'Verified',
+                              'Reviewing',
+                              'Invalid Docs',
+                            ],
+                            (value) {
+                              status = value;
+                              _resetTable();
+                            }),
+                        FilterButton(label: 'Stall Category'),
+                        FilterButton(
+                          label: 'Export',
+                          icon: Icons.download_outlined,
+                          onTap: () => _export(values),
+                        ),
+                      ],
                     ),
-                  ),
-                  if (values.isNotEmpty)
-                    PaginationBar(
-                      total: values.length,
-                      start: page * 10 + 1,
-                      end: ((page + 1) * 10).clamp(0, values.length),
-                      page: page,
-                      pageCount: (values.length / 10).ceil(),
-                      onPageChanged: (value) => setState(() => page = value),
-                    )
-                  else
-                    const EmptyState(),
-                ],
+                    Expanded(
+                      child: _ApplicationTable(
+                        values: values.skip(safePage * 10).take(10).toList(),
+                        verticalController: tableScrollController,
+                        onOpen: (item) => showBlurredDialog(
+                          context,
+                          (context) => VerificationDialog.application(item),
+                        ),
+                      ),
+                    ),
+                    if (values.isNotEmpty)
+                      PaginationBar(
+                        total: values.length,
+                        start: safePage * 10 + 1,
+                        end: ((safePage + 1) * 10).clamp(0, values.length),
+                        page: safePage,
+                        pageCount: totalPages,
+                        onPageChanged: _goToPage,
+                        showSummary: search.text.trim().isNotEmpty,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -136,19 +175,20 @@ class _VendorApplicationsPageState
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
-  ) => FilterButton(
-    label: label,
-    onTap: () async {
-      final value = await showMenu<String>(
-        context: context,
-        position: const RelativeRect.fromLTRB(350, 300, 0, 0),
-        items: values
-            .map((item) => PopupMenuItem(value: item, child: Text(item)))
-            .toList(),
+  ) =>
+      FilterButton(
+        label: label,
+        onTap: () async {
+          final value = await showMenu<String>(
+            context: context,
+            position: const RelativeRect.fromLTRB(350, 300, 0, 0),
+            items: values
+                .map((item) => PopupMenuItem(value: item, child: Text(item)))
+                .toList(),
+          );
+          if (value != null) onChanged(value);
+        },
       );
-      if (value != null) onChanged(value);
-    },
-  );
 
   void _export(List<VendorApplication> values) {
     final csv = buildCsv([
@@ -179,8 +219,13 @@ class _VendorApplicationsPageState
 }
 
 class _ApplicationTable extends StatelessWidget {
-  const _ApplicationTable({required this.values, required this.onOpen});
+  const _ApplicationTable({
+    required this.values,
+    required this.verticalController,
+    required this.onOpen,
+  });
   final List<VendorApplication> values;
+  final ScrollController verticalController;
   final ValueChanged<VendorApplication> onOpen;
   @override
   Widget build(BuildContext context) {
@@ -213,14 +258,7 @@ class _ApplicationTable extends StatelessWidget {
                 Text('${item.submittedAt.month}/${item.submittedAt.day}/2023'),
               ),
               DataCell(
-                StatusBadge(
-                  label: item.status.toString().split('.').last,
-                  kind: item.status == ApplicationStatus.verified
-                      ? BadgeKind.success
-                      : item.status == ApplicationStatus.reviewing
-                      ? BadgeKind.info
-                      : BadgeKind.danger,
-                ),
+                ApplicationStatusBadge(status: item.status),
               ),
               DataCell(
                 TextButton(
@@ -233,6 +271,8 @@ class _ApplicationTable extends StatelessWidget {
         )
         .toList();
     return ScrollableDataTable(
+      verticalController: verticalController,
+      minWidth: 1350,
       columnSpacing: 18,
       columns: const [
         DataColumn(

@@ -1,4 +1,4 @@
-enum AccountStatus { active, offline, blocked }
+enum AccountStatus { active, offline, suspended, blocked }
 
 enum ApplicationStatus { verified, reviewing, invalidDocs, rejected }
 
@@ -30,6 +30,7 @@ class Vendor {
     required this.transactions,
     required this.phone,
     required this.residence,
+    this.administrativeNotes = '',
   });
 
   final String id;
@@ -43,8 +44,9 @@ class Vendor {
   final double transactions;
   final String phone;
   final String residence;
+  final String administrativeNotes;
 
-  Vendor copyWith({AccountStatus? status}) => Vendor(
+  Vendor copyWith({AccountStatus? status, String? administrativeNotes}) => Vendor(
     id: id,
     name: name,
     email: email,
@@ -56,6 +58,7 @@ class Vendor {
     transactions: transactions,
     phone: phone,
     residence: residence,
+    administrativeNotes: administrativeNotes ?? this.administrativeNotes,
   );
 }
 
@@ -67,6 +70,7 @@ class Customer {
     required this.registeredAt,
     required this.transactions,
     required this.status,
+    this.administrativeNotes = '',
   });
 
   final String id;
@@ -75,14 +79,16 @@ class Customer {
   final DateTime registeredAt;
   final int transactions;
   final AccountStatus status;
+  final String administrativeNotes;
 
-  Customer copyWith({AccountStatus? status}) => Customer(
+  Customer copyWith({AccountStatus? status, String? administrativeNotes}) => Customer(
     id: id,
     name: name,
     email: email,
     registeredAt: registeredAt,
     transactions: transactions,
     status: status ?? this.status,
+    administrativeNotes: administrativeNotes ?? this.administrativeNotes,
   );
 }
 

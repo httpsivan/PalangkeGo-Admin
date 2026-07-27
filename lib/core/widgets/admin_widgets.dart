@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../models/app_models.dart';
 import '../theme/theme_extensions.dart';
 
 AppSemanticColors semanticColors(BuildContext context) =>
@@ -13,10 +15,10 @@ class AppLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Image.asset(
         'assets/images/palengkego_admin_logo.png',
-        width: compact ? 128 : 150,
-        height: compact ? 32 : 36,
-        fit: BoxFit.contain,
-        alignment: Alignment.centerLeft,
+        width: compact ? 180 : 220,
+        height: compact ? 48 : 58,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
         semanticLabel: 'PalengkeGo - Skip the Roam, Order from Home',
       );
 }
@@ -34,6 +36,7 @@ class AvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = semanticColors(context);
     final initials = name
         .trim()
         .split(RegExp(r'\s+'))
@@ -49,7 +52,7 @@ class AvatarCircle extends StatelessWidget {
           ? Text(
               initials,
               style: TextStyle(
-                color: semanticColors(context).heroBackground,
+                color: colors.heroBackground,
                 fontSize: size * .32,
                 fontWeight: FontWeight.w800,
               ),
@@ -215,7 +218,7 @@ class MetricCard extends StatelessWidget {
           ? const EdgeInsets.symmetric(horizontal: 14)
           : const EdgeInsets.fromLTRB(14, 16, 12, 14),
       decoration: BoxDecoration(
-        color: colors.elevatedSurface,
+        color: colors.cardBackground,
         borderRadius: BorderRadius.circular(compact ? 12 : 14),
         border: Border.all(color: colors.subtleBorder),
         boxShadow: compact
@@ -425,11 +428,13 @@ class DataPanel extends StatelessWidget {
     required this.child,
     this.subtitle,
     this.headerAction,
+    this.titleStyle,
   });
   final String title;
   final String? subtitle;
   final Widget child;
   final Widget? headerAction;
+  final TextStyle? titleStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -461,11 +466,12 @@ class DataPanel extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                        style: titleStyle ??
+                            TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 3),
@@ -473,9 +479,10 @@ class DataPanel extends StatelessWidget {
                           subtitle!,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withOpacity(.58),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(.58),
                           ),
                         ),
                       ],
@@ -493,35 +500,101 @@ class DataPanel extends StatelessWidget {
   }
 }
 
+class ApplicationStatusBadge extends StatelessWidget {
+  const ApplicationStatusBadge({super.key, required this.status});
+  final ApplicationStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final label = switch (status) {
+      ApplicationStatus.verified => 'Verified',
+      ApplicationStatus.reviewing => 'Reviewing',
+      ApplicationStatus.invalidDocs => 'Invalid Docs',
+      ApplicationStatus.rejected => 'Invalid Docs',
+    };
+    final kind = switch (status) {
+      ApplicationStatus.verified => BadgeKind.success,
+      ApplicationStatus.reviewing => BadgeKind.info,
+      ApplicationStatus.invalidDocs => BadgeKind.danger,
+      ApplicationStatus.rejected => BadgeKind.danger,
+    };
+    final icon = switch (status) {
+      ApplicationStatus.verified => Icons.verified_rounded,
+      ApplicationStatus.reviewing => Icons.pie_chart_outline_rounded,
+      ApplicationStatus.invalidDocs => Icons.error_outline_rounded,
+      ApplicationStatus.rejected => Icons.error_outline_rounded,
+    };
+    final color = switch (kind) {
+      BadgeKind.success => colors.success,
+      BadgeKind.info => colors.info,
+      BadgeKind.danger => colors.danger,
+      _ => colors.mutedText,
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: color,
+            fontSize: 11.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class ScrollableDataTable extends StatelessWidget {
   const ScrollableDataTable({
     super.key,
     required this.columns,
     required this.rows,
-    this.height = 360,
+    required this.verticalController,
     this.columnSpacing = 18,
     this.rowHeight = 68,
+    this.minWidth = 0,
+    this.emptyState = const EmptyState(),
   });
 
   final List<DataColumn> columns;
   final List<DataRow> rows;
-  final double height;
+  final ScrollController verticalController;
   final double columnSpacing;
   final double rowHeight;
+  final double minWidth;
+  final Widget emptyState;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
+          final tableWidth = constraints.maxWidth > minWidth
+              ? constraints.maxWidth
+              : minWidth;
+
           Widget table({
             required List<DataRow> tableRows,
             required double headingHeight,
           }) =>
               SizedBox(
-                width: constraints.maxWidth,
+                width: tableWidth,
                 child: DataTable(
                   showCheckboxColumn: false,
                   headingRowColor: WidgetStatePropertyAll(
                     semanticColors(context).tableHeader,
+                  ),
+                  headingTextStyle: GoogleFonts.inter(
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  dataTextStyle: GoogleFonts.inter(
+                    color: semanticColors(context).primaryText,
+                    fontSize: 13,
                   ),
                   headingRowHeight: headingHeight,
                   dataRowMinHeight: rowHeight,
@@ -529,21 +602,42 @@ class ScrollableDataTable extends StatelessWidget {
                   columnSpacing: columnSpacing,
                   columns: columns,
                   rows: tableRows,
+                  dataRowColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.hovered)) {
+                      return semanticColors(context).hoverSurface;
+                    }
+                    return semanticColors(context).cardBackground;
+                  }),
                 ),
               );
 
-          return Column(
-            children: [
-              table(tableRows: const [], headingHeight: 48),
-              SizedBox(
-                height: height,
-                child: Scrollbar(
-                  child: SingleChildScrollView(
-                    child: table(tableRows: rows, headingHeight: 0),
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: tableWidth,
+              child: Column(
+                children: [
+                  table(tableRows: const [], headingHeight: 48),
+                  Expanded(
+                    child: rows.isEmpty
+                        ? emptyState
+                        : Scrollbar(
+                            controller: verticalController,
+                            thumbVisibility: true,
+                            interactive: true,
+                            child: ListView(
+                              controller: verticalController,
+                              primary: false,
+                              padding: const EdgeInsets.only(right: 14),
+                              children: [
+                                table(tableRows: rows, headingHeight: 0),
+                              ],
+                            ),
+                          ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           );
         },
       );
@@ -558,7 +652,7 @@ class PaginationBar extends StatelessWidget {
     required this.page,
     required this.pageCount,
     required this.onPageChanged,
-    this.showSummary = true,
+    this.showSummary = false,
   });
   final int total;
   final int start;
@@ -568,57 +662,92 @@ class PaginationBar extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
   final bool showSummary;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: showSummary
-                  ? Text(
-                      'Showing $start to $end of $total results',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(.62),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            Wrap(
-              spacing: 5,
+  Widget build(BuildContext context) {
+    if (total <= 0 || pageCount <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final int safePage = page.clamp(0, pageCount - 1) as int;
+    final pagination = Wrap(
+      spacing: 5,
+      children: [
+        _button(
+          context,
+          Icons.chevron_left_rounded,
+          safePage > 0 ? () => onPageChanged(safePage - 1) : null,
+        ),
+        for (var i = 0; i < pageCount && i < 3; i++)
+          _button(
+            context,
+            i + 1,
+            () => onPageChanged(i),
+            active: i == safePage,
+          ),
+        if (pageCount > 4) _button(context, '...', null),
+        if (pageCount > 3)
+          _button(
+            context,
+            pageCount,
+            () => onPageChanged(pageCount - 1),
+            active: safePage == pageCount - 1,
+          ),
+        _button(
+          context,
+          Icons.chevron_right_rounded,
+          safePage < pageCount - 1 ? () => onPageChanged(safePage + 1) : null,
+        ),
+      ],
+    );
+
+    final summary = Text(
+      'Showing $start to $end of $total results',
+      style: TextStyle(
+        fontSize: 10.5,
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(.62),
+      ),
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (!showSummary) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: pagination,
+            );
+          }
+
+          if (constraints.maxWidth < 700) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _button(
-                  context,
-                  Icons.chevron_left_rounded,
-                  page > 0 ? () => onPageChanged(page - 1) : null,
-                ),
-                for (var i = 0; i < pageCount && i < 3; i++)
-                  _button(
-                    context,
-                    i + 1,
-                    () => onPageChanged(i),
-                    active: i == page,
-                  ),
-                if (pageCount > 4) _button(context, '...', null),
-                if (pageCount > 3)
-                  _button(
-                    context,
-                    pageCount,
-                    () => onPageChanged(pageCount - 1),
-                    active: page == pageCount - 1,
-                  ),
-                _button(
-                  context,
-                  Icons.chevron_right_rounded,
-                  page < pageCount - 1 ? () => onPageChanged(page + 1) : null,
+                summary,
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: pagination,
                 ),
               ],
-            ),
-          ],
-        ),
-      );
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: summary),
+              pagination,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _button(
     BuildContext context,
     Object label,
@@ -639,16 +768,16 @@ class PaginationBar extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(7),
-              border: !active && label is IconData
-                  ? Border.all(color: semanticColors(context).subtleBorder)
-                  : null,
+              border: active
+                  ? null
+                  : Border.all(color: semanticColors(context).subtleBorder),
             ),
             child: label is IconData
                 ? Icon(
                     label,
                     size: 16,
                     color: onTap == null
-                        ? semanticColors(context).mutedText
+                        ? semanticColors(context).disabledText
                         : Theme.of(context).colorScheme.onSurface,
                   )
                 : Text(
@@ -657,7 +786,7 @@ class PaginationBar extends StatelessWidget {
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: active
-                          ? Colors.white
+                          ? semanticColors(context).primaryText
                           : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
@@ -667,7 +796,7 @@ class PaginationBar extends StatelessWidget {
 }
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, this.message = 'No matching records found.'});
+  const EmptyState({super.key, this.message = 'No results found'});
   final String message;
   @override
   Widget build(BuildContext context) => Padding(
@@ -684,9 +813,17 @@ class EmptyState extends StatelessWidget {
               Text(
                 message,
                 style: TextStyle(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(.55),
+                  color: semanticColors(context).secondaryText,
                   fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Try changing your search or filter selection.',
+                style: TextStyle(
+                  color: semanticColors(context).mutedText,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -708,7 +845,7 @@ class SectionLabel extends StatelessWidget {
                 fontSize: 10,
                 letterSpacing: .6,
                 fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(.7),
+                color: semanticColors(context).secondaryText,
               ),
             ),
           ),

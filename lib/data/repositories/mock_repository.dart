@@ -5,6 +5,52 @@ import '../../models/app_models.dart';
 import '../mock_data.dart';
 import '../../core/theme/theme_controller.dart';
 
+const defaultAdminName = 'Kirren Michael Fraginal';
+const defaultAdminEmail = 'admin@palengkego.gov.ph';
+const defaultAdminPassword = 'Admin123!';
+
+class AdminProfile {
+  const AdminProfile({required this.name, required this.email, required this.password});
+
+  final String name;
+  final String email;
+  final String password;
+
+  AdminProfile copyWith({String? name, String? password}) => AdminProfile(
+        name: name ?? this.name,
+        email: email,
+        password: password ?? this.password,
+      );
+}
+
+final adminProfileProvider =
+    StateNotifierProvider<AdminProfileController, AdminProfile>((ref) {
+  return AdminProfileController(ref.watch(sharedPreferencesProvider));
+});
+
+class AdminProfileController extends StateNotifier<AdminProfile> {
+  AdminProfileController(this._preferences)
+      : super(
+          AdminProfile(
+            name: _preferences.getString('admin_name') ?? defaultAdminName,
+            email: defaultAdminEmail,
+            password: _preferences.getString('admin_password') ??
+                defaultAdminPassword,
+          ),
+        );
+
+  final SharedPreferences _preferences;
+
+  Future<void> updateProfile({required String name, String? password}) async {
+    final nextPassword = password == null || password.trim().isEmpty
+        ? state.password
+        : password.trim();
+    state = state.copyWith(name: name.trim(), password: nextPassword);
+    await _preferences.setString('admin_name', state.name);
+    await _preferences.setString('admin_password', state.password);
+  }
+}
+
 final authProvider = StateNotifierProvider<AuthController, bool>((ref) {
   return AuthController(ref.watch(sharedPreferencesProvider));
 });
@@ -21,8 +67,10 @@ class AuthController extends StateNotifier<bool> {
     bool keepSignedIn,
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 550));
-    if (email.trim().toLowerCase() != 'admin@palengkego.gov.ph' ||
-        password != 'Admin123!') {
+    final savedPassword =
+        _preferences.getString('admin_password') ?? defaultAdminPassword;
+    if (email.trim().toLowerCase() != defaultAdminEmail ||
+        password != savedPassword) {
       return 'The email or password is incorrect.';
     }
     state = true;
@@ -124,6 +172,50 @@ class AppDataController extends StateNotifier<AppDataState> {
         .map((vendor) => vendor.id)
         .toList();
     await _preferences.setStringList('blocked_vendors', blocked);
+  }
+
+  Future<void> updateVendorAccount(
+    String id, {
+    required AccountStatus status,
+    required String administrativeNotes,
+  }) async {
+    await _wait();
+    final vendors = state.vendors
+        .map(
+          (vendor) => vendor.id == id
+              ? vendor.copyWith(
+                  status: status,
+                  administrativeNotes: administrativeNotes,
+                )
+              : vendor,
+        )
+        .toList();
+    state = state.copyWith(vendors: vendors);
+    final blocked = vendors
+        .where((vendor) => vendor.status == AccountStatus.blocked)
+        .map((vendor) => vendor.id)
+        .toList();
+    await _preferences.setStringList('blocked_vendors', blocked);
+  }
+
+  Future<void> updateCustomerAccount(
+    String id, {
+    required AccountStatus status,
+    required String administrativeNotes,
+  }) async {
+    await _wait();
+    state = state.copyWith(
+      customers: state.customers
+          .map(
+            (customer) => customer.id == id
+                ? customer.copyWith(
+                    status: status,
+                    administrativeNotes: administrativeNotes,
+                  )
+                : customer,
+          )
+          .toList(),
+    );
   }
 
   Future<void> updateApplication(String id, ApplicationStatus status) async {

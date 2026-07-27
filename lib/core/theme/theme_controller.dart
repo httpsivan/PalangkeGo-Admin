@@ -27,6 +27,6 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
 
 ThemeMode themeModeFromPreference(String? value) => switch (value) {
       'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
+      'dark' => ThemeMode.light,
       _ => ThemeMode.light,
     };

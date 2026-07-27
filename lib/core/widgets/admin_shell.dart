@@ -3,10 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/repositories/mock_repository.dart';
 import '../theme/theme_controller.dart';
 import 'admin_widgets.dart';
+import 'admin_profile_menu.dart';
+import 'notification_panel.dart';
 
 class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.child});
@@ -81,6 +84,7 @@ class _TopNavigation extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Builder(
                     builder: (context) => IconButton(
@@ -89,9 +93,9 @@ class _TopNavigation extends ConsumerWidget {
                       icon: const Icon(Icons.menu_rounded, color: Colors.white),
                     ),
                   ),
-                  const _NotificationButton(),
+                  const NotificationBell(),
                   const SizedBox(width: 10),
-                  _ProfileMenu(compact: true),
+                   AdminProfileMenu(compact: true),
                 ],
               ),
             ),
@@ -100,10 +104,11 @@ class _TopNavigation extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _NotificationButton(),
+                  NotificationBell(),
                   SizedBox(width: 10),
-                  _ProfileMenu(compact: false),
+                   AdminProfileMenu(compact: false),
                 ],
               ),
             ),
@@ -140,20 +145,20 @@ class _NavItem extends StatelessWidget {
                 children: [
                   Icon(
                     icon,
-                    size: 14,
+                    size: 18,
                     color: active
-                        ? semanticColors(context).heroBackground
+                        ? const Color(0xFF161D1B)
                         : Colors.white.withOpacity(.7),
                   ),
                   const SizedBox(width: 7),
                   Text(
                     label,
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       color: active
-                          ? semanticColors(context).heroBackground
+                          ? const Color(0xFF161D1B)
                           : Colors.white.withOpacity(.78),
-                      fontSize: 11.5,
-                      fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -174,10 +179,7 @@ class _NotificationButton extends StatelessWidget {
             color: Colors.white.withOpacity(.13),
             shape: const CircleBorder(),
             child: InkWell(
-              onTap: () => ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(
-                  const SnackBar(content: Text('No new notifications'))),
+              onTap: () => showNotificationsDialog(context),
               customBorder: const CircleBorder(),
               child: const SizedBox(
                 width: 38,
@@ -215,11 +217,12 @@ class _ProfileMenu extends ConsumerWidget {
   final bool compact;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(adminProfileProvider);
     final selected = ref.watch(themeModeProvider);
     final resolved = MediaQuery.platformBrightnessOf(context);
     return PopupMenuButton<String>(
       tooltip: 'Account and appearance',
-      offset: const Offset(0, 48),
+      offset: const Offset(0, 54),
       onSelected: (value) async {
         if (value == 'logout') {
           await ref.read(authProvider.notifier).logout();
@@ -231,17 +234,42 @@ class _ProfileMenu extends ConsumerWidget {
             (item) => item.name == value.substring(6),
           );
           await ref.read(themeModeProvider.notifier).setMode(mode);
+        } else if (value == 'settings') {
+          await showAccountSettingsDialog(context);
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem(
+        PopupMenuItem(
           enabled: false,
-          child: Text(
-            'Kirren Michael Fraginal',
-            style: TextStyle(fontWeight: FontWeight.w800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                profile.name,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                profile.email,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(.6),
+                ),
+              ),
+            ],
           ),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'settings',
+          child: Row(
+            children: [
+              Icon(Icons.manage_accounts_outlined, size: 17),
+              SizedBox(width: 9),
+              Text('Account settings'),
+            ],
+          ),
+        ),
         PopupMenuItem(
           value: 'quick',
           child: Row(
@@ -279,37 +307,286 @@ class _ProfileMenu extends ConsumerWidget {
       ],
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const AvatarCircle(name: 'Kirren Michael Fraginal', size: 34),
+          AvatarCircle(name: profile.name, size: 34),
           if (!compact) ...[
             const SizedBox(width: 8),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Kirren Michael Fraginal',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+            SizedBox(
+              height: 34,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                Text(
-                  'Administrator',
-                  style: TextStyle(color: Colors.white70, fontSize: 9),
-                ),
-              ],
+                  const Text(
+                    'Administrator',
+                    style: TextStyle(color: Colors.white70, fontSize: 9),
+                  ),
+                ],
+              ),
             ),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Colors.white70,
-              size: 17,
+            const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+                size: 20,
+              ),
             ),
           ],
         ],
       ),
     );
   }
+}
+
+Future<void> showAccountSettingsDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (context) => const _AccountSettingsDialog(),
+  );
+}
+
+class _AccountSettingsDialog extends ConsumerStatefulWidget {
+  const _AccountSettingsDialog();
+
+  @override
+  ConsumerState<_AccountSettingsDialog> createState() =>
+      _AccountSettingsDialogState();
+}
+
+class _AccountSettingsDialogState
+    extends ConsumerState<_AccountSettingsDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _passwordController;
+  late final TextEditingController _confirmPasswordController;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final profile = ref.read(adminProfileProvider);
+    _nameController = TextEditingController(text: profile.name);
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final password = _passwordController.text;
+    if (name.isEmpty) {
+      setState(() => _error = 'Enter your name.');
+      return;
+    }
+    if (password.isNotEmpty && password.length < 8) {
+      setState(() => _error = 'Password must be at least 8 characters.');
+      return;
+    }
+    if (password != _confirmPasswordController.text) {
+      setState(() => _error = 'Passwords do not match.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    await ref.read(adminProfileProvider.notifier).updateProfile(
+          name: name,
+          password: password.isEmpty ? null : password,
+        );
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Account settings updated.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Account settings'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 390),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Full name',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Change password',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'New password',
+                  hintText: 'Leave blank to keep current password',
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                onSubmitted: (_) => _save(),
+                decoration: const InputDecoration(
+                  labelText: 'Confirm new password',
+                  prefixIcon: Icon(Icons.lock_reset_outlined),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: semanticColors(context).danger,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save changes'),
+          ),
+        ],
+      );
+
+}
+
+void showNotificationsDialog(BuildContext context) {
+  showBlurredDialog<void>(
+    context,
+    (context) => const _NotificationsDialog(),
+  );
+}
+
+class _NotificationsDialog extends StatelessWidget {
+  const _NotificationsDialog();
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Notifications',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    color: semanticColors(context).successContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.campaign_outlined,
+                        color: semanticColors(context).heroBackground,
+                      ),
+                      const SizedBox(width: 11),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'New Market Guidelines',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Updated safety protocols are available for the upcoming weekend market.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
 }
 
 class _MobileDrawer extends ConsumerWidget {
@@ -350,11 +627,6 @@ class _MobileDrawer extends ConsumerWidget {
                   },
                 ),
               const Spacer(),
-              TextButton.icon(
-                onPressed: () => showThemeSelector(context, ref),
-                icon: const Icon(Icons.palette_outlined),
-                label: const Text('Appearance'),
-              ),
             ],
           ),
         ),

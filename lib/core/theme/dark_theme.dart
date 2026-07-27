@@ -68,6 +68,17 @@ ThemeData buildDarkTheme() {
     ),
     extensions: const [
       AppSemanticColors(
+        pageBackground: Color(0xFF071713),
+        navigationBackground: Color(0xFF062D25),
+        cardBackground: Color(0xFF10241F),
+        selectedSurface: Color(0xFF142A24),
+        primaryText: text,
+        secondaryText: Color(0xFFB7C6C0),
+        disabledText: Color(0xFF607870),
+        accent: primary,
+        accentStrong: primary,
+        accentDark: Color(0xFF062D25),
+        divider: Color(0xFF29433C),
         success: Color(0xFF5EE6B3),
         successContainer: Color(0xFF123D31),
         warning: Color(0xFFF9C66B),

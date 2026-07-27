@@ -17,12 +17,36 @@ class RenewalsPage extends ConsumerStatefulWidget {
 
 class _RenewalsPageState extends ConsumerState<RenewalsPage> {
   final search = TextEditingController();
+  final tableScrollController = ScrollController();
   String status = 'All Statuses';
   int page = 0;
   @override
   void dispose() {
     search.dispose();
+    tableScrollController.dispose();
     super.dispose();
+  }
+
+  void _resetTable() {
+    setState(() => page = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.jumpTo(0);
+      }
+    });
+  }
+
+  void _goToPage(int value) {
+    setState(() => page = value);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && tableScrollController.hasClients) {
+        tableScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -31,13 +55,16 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
     final values = data.renewals
         .where(
           (v) =>
-              (search.text.isEmpty ||
+              (search.text.trim().isEmpty ||
                   '${v.id} ${v.applicant} ${v.stallName}'
                       .toLowerCase()
-                      .contains(search.text.toLowerCase())) &&
+                      .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' || _status(v.status) == status),
         )
         .toList();
+    final int totalPages = (values.length / 10).ceil();
+    final int safePage =
+        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
     final expiring = data.renewals.where((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
       return days >= 0 && days <= 7;
@@ -83,49 +110,61 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
             padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
             child: DataPanel(
               title: 'Renewal',
-              child: Column(
-                children: [
-                  Toolbar(
-                    controller: search,
-                    onChanged: (_) => setState(() => page = 0),
-                    onClear: () => setState(() {
-                      search.clear();
-                      status = 'All Statuses';
-                    }),
-                    trailing: [
-                      _filter(context, status, [
-                        'All Statuses',
-                        'Approved',
-                        'Reviewing',
-                        'Expired',
-                      ], (v) => setState(() => status = v)),
-                      FilterButton(label: 'Stall Category'),
-                      FilterButton(
-                        label: 'Export',
-                        icon: Icons.download_outlined,
-                        onTap: () => _export(values),
-                      ),
-                    ],
-                  ),
-                  _Table(
-                    values: values.skip(page * 10).take(10).toList(),
-                    open: (v) => showBlurredDialog(
-                      context,
-                      (context) => VerificationDialog.renewal(v),
+              child: Expanded(
+                child: Column(
+                  children: [
+                    Toolbar(
+                      controller: search,
+                      onChanged: (_) => _resetTable(),
+                      onClear: () {
+                        search.clear();
+                        status = 'All Statuses';
+                        _resetTable();
+                      },
+                      trailing: [
+                        _filter(
+                            context,
+                            status,
+                            [
+                              'All Statuses',
+                              'Approved',
+                              'Reviewing',
+                              'Expired',
+                            ],
+                            (v) {
+                              status = v;
+                              _resetTable();
+                            }),
+                        FilterButton(label: 'Stall Category'),
+                        FilterButton(
+                          label: 'Export',
+                          icon: Icons.download_outlined,
+                          onTap: () => _export(values),
+                        ),
+                      ],
                     ),
-                  ),
-                  if (values.isNotEmpty)
-                    PaginationBar(
-                      total: values.length,
-                      start: page * 10 + 1,
-                      end: ((page + 1) * 10).clamp(0, values.length),
-                      page: page,
-                      pageCount: (values.length / 10).ceil(),
-                      onPageChanged: (v) => setState(() => page = v),
-                    )
-                  else
-                    const EmptyState(),
-                ],
+                    Expanded(
+                      child: _Table(
+                        values: values.skip(safePage * 10).take(10).toList(),
+                        verticalController: tableScrollController,
+                        open: (v) => showBlurredDialog(
+                          context,
+                          (context) => VerificationDialog.renewal(v),
+                        ),
+                      ),
+                    ),
+                    if (values.isNotEmpty)
+                      PaginationBar(
+                        total: values.length,
+                        start: safePage * 10 + 1,
+                        end: ((safePage + 1) * 10).clamp(0, values.length),
+                        page: safePage,
+                        pageCount: totalPages,
+                        onPageChanged: _goToPage,
+                        showSummary: search.text.trim().isNotEmpty,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -139,19 +178,20 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
-  ) => FilterButton(
-    label: label,
-    onTap: () async {
-      final v = await showMenu<String>(
-        context: context,
-        position: const RelativeRect.fromLTRB(350, 300, 0, 0),
-        items: values
-            .map((x) => PopupMenuItem(value: x, child: Text(x)))
-            .toList(),
+  ) =>
+      FilterButton(
+        label: label,
+        onTap: () async {
+          final v = await showMenu<String>(
+            context: context,
+            position: const RelativeRect.fromLTRB(350, 300, 0, 0),
+            items: values
+                .map((x) => PopupMenuItem(value: x, child: Text(x)))
+                .toList(),
+          );
+          if (v != null) onChanged(v);
+        },
       );
-      if (v != null) onChanged(v);
-    },
-  );
 
   void _export(List<RenewalRequest> values) {
     final csv = buildCsv([
@@ -181,15 +221,20 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
   }
 
   String _status(RenewalStatus value) => switch (value) {
-    RenewalStatus.approved => 'Approved',
-    RenewalStatus.reviewing => 'Reviewing',
-    RenewalStatus.expired => 'Expired',
-  };
+        RenewalStatus.approved => 'Approved',
+        RenewalStatus.reviewing => 'Reviewing',
+        RenewalStatus.expired => 'Expired',
+      };
 }
 
 class _Table extends StatelessWidget {
-  const _Table({required this.values, required this.open});
+  const _Table({
+    required this.values,
+    required this.verticalController,
+    required this.open,
+  });
   final List<RenewalRequest> values;
+  final ScrollController verticalController;
   final ValueChanged<RenewalRequest> open;
   @override
   Widget build(BuildContext context) {
@@ -242,8 +287,8 @@ class _Table extends StatelessWidget {
               kind: v.status == RenewalStatus.approved
                   ? BadgeKind.success
                   : v.status == RenewalStatus.reviewing
-                  ? BadgeKind.info
-                  : BadgeKind.danger,
+                      ? BadgeKind.info
+                      : BadgeKind.danger,
             ),
           ),
           DataCell(
@@ -254,6 +299,8 @@ class _Table extends StatelessWidget {
     }).toList();
 
     return ScrollableDataTable(
+      verticalController: verticalController,
+      minWidth: 1350,
       columnSpacing: 18,
       columns: const [
         DataColumn(

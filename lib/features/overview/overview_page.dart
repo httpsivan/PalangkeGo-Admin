@@ -15,66 +15,129 @@ class OverviewPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(appDataProvider);
+    final colors = semanticColors(context);
     final action = DataPanel(
       title: 'Needs Action: KYC Approvals',
+      titleStyle: GoogleFonts.inter(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
       headerAction: TextButton(
         onPressed: () => context.go('/applications'),
-        child: const Text('View All'),
+        child: Text(
+          'View All',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF6B7280),
+            fontSize: 14,
+          ),
+        ),
       ),
       child: _ApprovalTable(items: data.applications.take(3).toList()),
     );
-    final side = Column(
-      children: [
-        DataPanel(
-          title: 'ANNOUNCEMENTS',
-          headerAction: IconButton(
-            onPressed: () => showBlurredDialog(
-              context,
-              (context) => const AnnouncementDialog(),
-            ),
-            icon: const Icon(Icons.add_rounded, size: 18),
-          ),
-          child: _Announcement(announcement: data.announcements.first),
+    final announcements = DataPanel(
+      title: 'ANNOUNCEMENTS',
+      titleStyle: GoogleFonts.inter(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+      headerAction: IconButton(
+        onPressed: () => showBlurredDialog(
+          context,
+          (context) => const AnnouncementDialog(),
         ),
-        const SizedBox(height: 18),
-        DataPanel(
-          title: 'TOP SELLERS',
-          headerAction: IconButton(
-            onPressed: () => context.go('/reports'),
-            icon: const Icon(Icons.open_in_new_rounded, size: 16),
-          ),
-          child: const _TopSellers(),
-        ),
-      ],
+        icon: const Icon(Icons.add_rounded, size: 18),
+      ),
+      child: _Announcement(announcement: data.announcements.first),
     );
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        const _OverviewHero(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(34, 0, 34, 26),
-          child: LayoutBuilder(
-            builder: (context, constraints) => constraints.maxWidth < 920
-                ? Column(children: [action, const SizedBox(height: 18), side])
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    final topSellers = DataPanel(
+      title: 'TOP SELLERS',
+      titleStyle: GoogleFonts.inter(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+      headerAction: IconButton(
+        onPressed: () => context.go('/reports'),
+        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+      ),
+      child: const _TopSellers(),
+    );
+    final side = Column(
+      children: [announcements, const SizedBox(height: 18), topSellers],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final desktop = constraints.maxWidth >= 920;
+        if (desktop && constraints.hasBoundedHeight) {
+          return Column(
+            children: [
+              const _OverviewHero(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(34, 0, 34, 26),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(flex: 63, child: action),
+                      Expanded(
+                        flex: 63,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: action,
+                        ),
+                      ),
                       const SizedBox(width: 18),
-                      Expanded(flex: 37, child: side),
+                      Expanded(
+                        flex: 37,
+                        child: Column(
+                          children: [
+                            Expanded(child: announcements),
+                            const SizedBox(height: 18),
+                            topSellers,
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-          ),
-        ),
-      ],
+                ),
+              ),
+            ],
+          );
+        }
+
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const _OverviewHero(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(34, 0, 34, 26),
+              child: desktop
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 63, child: action),
+                        const SizedBox(width: 18),
+                        Expanded(flex: 37, child: side),
+                      ],
+                    )
+                  : Column(
+                      children: [action, const SizedBox(height: 18), side],
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _OverviewHero extends StatelessWidget {
+class _OverviewHero extends ConsumerWidget {
   const _OverviewHero();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(adminProfileProvider);
     final metrics = [
       MetricCardData(
         value: '1,284',
@@ -108,16 +171,15 @@ class _OverviewHero extends StatelessWidget {
           fontWeight: FontWeight.w800,
         ),
       ),
-      const MetricCardData(
+      MetricCardData(
         value: '₱2.48M',
         label: 'Total Collection (Rent)',
         icon: Icons.payments_outlined,
         accent: Color(0xFF10B981),
-        valueStyle: TextStyle(
-        fontSize: 26,
-        fontWeight: FontWeight.w800,
+        valueStyle: GoogleFonts.montserrat(
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
         ),
-        
       ),
       MetricCardData(
         value: '22',
@@ -147,16 +209,16 @@ class _OverviewHero extends StatelessWidget {
               greeting,
               style: TextStyle(
                 color: Colors.white.withOpacity(.62),
-                fontSize: 13,
+                fontSize: 20,
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
-              'Kirren Michael Fraginal',
-              style: TextStyle(
+            Text(
+              profile.name,
+              style: GoogleFonts.montserrat(
                 color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -186,7 +248,7 @@ class _OverviewHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 intro,
-                const SizedBox(height: 20),
+                const SizedBox(height: 40),
                 metricGrid,
               ],
             ),
@@ -194,7 +256,7 @@ class _OverviewHero extends StatelessWidget {
         }
 
         return SizedBox(
-          height: 286,
+          height: 313,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -206,7 +268,7 @@ class _OverviewHero extends StatelessWidget {
                 child: intro,
               ),
               Positioned(
-                top: 108,
+                top: 135,
                 left: 34,
                 right: 34,
                 child: SizedBox(height: 146, child: metricGrid),
@@ -242,10 +304,7 @@ class _ApprovalTable extends StatelessWidget {
               DataCell(Text(item.stallName)),
               DataCell(StatusBadge(label: item.category, kind: BadgeKind.info)),
               DataCell(
-                StatusBadge(
-                  label: item.status.toString().split('.').last,
-                  kind: BadgeKind.info,
-                ),
+                ApplicationStatusBadge(status: item.status),
               ),
             ],
           ),
@@ -257,37 +316,88 @@ class _ApprovalTable extends StatelessWidget {
         child: SizedBox(
           width: constraints.maxWidth,
           child: DataTable(
+            showCheckboxColumn: false,
             headingRowColor: WidgetStatePropertyAll(
               semanticColors(context).tableHeader,
+            ),
+            headingTextStyle: GoogleFonts.inter(
+              color: const Color(0xFF64748B),
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+            dataTextStyle: GoogleFonts.inter(
+              color: const Color(0xFF1F2937),
+              fontSize: 13,
             ),
             headingRowHeight: 48,
             dataRowMinHeight: 68,
             dataRowMaxHeight: 68,
             horizontalMargin: 16,
             columnSpacing: 20,
-            columns: const [
+            columns: [
               DataColumn(
                 columnWidth: FlexColumnWidth(1.2),
-                label: Text('APPLICATION ID'),
+                label: Text(
+                  'APPLICATION ID',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.35),
-                label: Text('APPLICANT'),
+                label: Text(
+                  'APPLICANT',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.65),
-                label: Text('STALL NAME'),
+                label: Text(
+                  'STALL NAME',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.1),
-                label: Text('CATEGORY'),
+                label: Text(
+                  'CATEGORY',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.1),
-                label: Text('STATUS'),
+                label: Text(
+                  'STATUS',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
             rows: rows,
+            dataRowColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.hovered)) {
+                return semanticColors(context).hoverSurface;
+              }
+              return semanticColors(context).cardBackground;
+            }),
           ),
         ),
       ),
@@ -346,12 +456,12 @@ class _TopSellers extends StatelessWidget {
   const _TopSellers();
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 13),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           children: List.generate(
             3,
             (index) => Padding(
-              padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
+              padding: EdgeInsets.only(bottom: index == 2 ? 0 : 16),
               child: Row(
                 children: [
                   Stack(
@@ -366,7 +476,7 @@ class _TopSellers extends StatelessWidget {
                           height: 15,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: semanticColors(context).elevatedSurface,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: semanticColors(context).subtleBorder,
@@ -390,9 +500,9 @@ class _TopSellers extends StatelessWidget {
                       children: [
                         Text(
                           topSellerNames[index],
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -400,10 +510,7 @@ class _TopSellers extends StatelessWidget {
                           topSellerOrders[index],
                           style: TextStyle(
                             fontSize: 9,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withOpacity(.55),
+                            color: semanticColors(context).mutedText,
                           ),
                         ),
                       ],
@@ -414,9 +521,9 @@ class _TopSellers extends StatelessWidget {
                     children: [
                       Text(
                         topSellerRevenue[index],
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -424,10 +531,7 @@ class _TopSellers extends StatelessWidget {
                         'Revenue',
                         style: TextStyle(
                           fontSize: 9,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withOpacity(.55),
+                          color: semanticColors(context).mutedText,
                         ),
                       ),
                     ],

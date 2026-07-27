@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/mock_repository.dart';
 import '../../features/accounts/accounts_page.dart';
+import '../../features/admin_settings/admin_settings_page.dart';
 import '../../features/authentication/login_page.dart';
 import '../../features/overview/overview_page.dart';
+import '../../features/notifications/notifications_page.dart';
 import '../../features/reports/reports_page.dart';
 import '../../features/renewals/renewals_page.dart';
 import '../../features/vendor_applications/vendor_applications_page.dart';
@@ -47,6 +49,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsPage(),
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsPage(),
+          ),
+          GoRoute(
+            path: '/admin-settings',
+            builder: (context, state) => const AdminSettingsPage(),
           ),
         ],
       ),
