@@ -54,7 +54,7 @@ class _TopNavigation extends ConsumerWidget {
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(.18)),
+          bottom: BorderSide(color: semanticColors(context).borderOnHero),
         ),
       ),
       child: Stack(
@@ -93,22 +93,26 @@ class _TopNavigation extends ConsumerWidget {
                       icon: const Icon(Icons.menu_rounded, color: Colors.white),
                     ),
                   ),
+                  const _ThemeToggleButton(),
+                  const SizedBox(width: 6),
                   const NotificationBell(),
                   const SizedBox(width: 10),
-                   AdminProfileMenu(compact: true),
+                  AdminProfileMenu(compact: true),
                 ],
               ),
             ),
           if (!compact)
-            const Align(
+            Align(
               alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  const _ThemeToggleButton(),
+                  const SizedBox(width: 6),
                   NotificationBell(),
                   SizedBox(width: 10),
-                   AdminProfileMenu(compact: false),
+                  AdminProfileMenu(compact: false),
                 ],
               ),
             ),
@@ -133,7 +137,9 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(left: 5),
         child: Material(
-          color: active ? Colors.white : Colors.transparent,
+          color: active
+              ? semanticColors(context).activeNavigation
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(22),
           child: InkWell(
             onTap: () => context.go(path),
@@ -147,16 +153,16 @@ class _NavItem extends StatelessWidget {
                     icon,
                     size: 18,
                     color: active
-                        ? const Color(0xFF161D1B)
-                        : Colors.white.withOpacity(.7),
+                        ? semanticColors(context).activeNavigationText
+                        : semanticColors(context).heroMuted,
                   ),
                   const SizedBox(width: 7),
                   Text(
                     label,
                     style: GoogleFonts.inter(
                       color: active
-                          ? const Color(0xFF161D1B)
-                          : Colors.white.withOpacity(.78),
+                          ? semanticColors(context).activeNavigationText
+                          : semanticColors(context).heroMuted,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -169,6 +175,39 @@ class _NavItem extends StatelessWidget {
       );
 }
 
+class _ThemeToggleButton extends ConsumerWidget {
+  const _ThemeToggleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = semanticColors(context);
+    return Tooltip(
+      message: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      child: Material(
+        color: colors.navigationControl,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: () => ref
+              .read(themeModeProvider.notifier)
+              .toggleResolved(Theme.of(context).brightness),
+          hoverColor: colors.navigationHover,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(
+              dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: colors.heroForeground,
+              size: 19,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NotificationButton extends StatelessWidget {
   const _NotificationButton();
   @override
@@ -176,18 +215,18 @@ class _NotificationButton extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Material(
-            color: Colors.white.withOpacity(.13),
+            color: semanticColors(context).navigationControl,
             shape: const CircleBorder(),
             child: InkWell(
               onTap: () => showNotificationsDialog(context),
               customBorder: const CircleBorder(),
-              child: const SizedBox(
+              child: SizedBox(
                 width: 38,
                 height: 38,
                 child: Icon(
                   Icons.notifications_none_rounded,
                   size: 20,
-                  color: Colors.white,
+                  color: semanticColors(context).heroForeground,
                 ),
               ),
             ),
@@ -199,7 +238,7 @@ class _NotificationButton extends StatelessWidget {
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF5252),
+                color: semanticColors(context).danger,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: semanticColors(context).heroBackground,
@@ -218,6 +257,7 @@ class _ProfileMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(adminProfileProvider);
+    final colors = semanticColors(context);
     final selected = ref.watch(themeModeProvider);
     final resolved = MediaQuery.platformBrightnessOf(context);
     return PopupMenuButton<String>(
@@ -253,7 +293,8 @@ class _ProfileMenu extends ConsumerWidget {
                 profile.email,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(.6),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(.6),
                 ),
               ),
             ],
@@ -320,24 +361,24 @@ class _ProfileMenu extends ConsumerWidget {
                 children: [
                   Text(
                     profile.name,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: colors.heroForeground,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Administrator',
-                    style: TextStyle(color: Colors.white70, fontSize: 9),
+                    style: TextStyle(color: colors.heroMuted, fontSize: 9),
                   ),
                 ],
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(left: 8),
               child: Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: Colors.white70,
+                color: colors.heroMuted,
                 size: 20,
               ),
             ),
@@ -499,7 +540,6 @@ class _AccountSettingsDialogState
           ),
         ],
       );
-
 }
 
 void showNotificationsDialog(BuildContext context) {
@@ -551,7 +591,7 @@ class _NotificationsDialog extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.campaign_outlined,
-                        color: semanticColors(context).heroBackground,
+                        color: semanticColors(context).success,
                       ),
                       const SizedBox(width: 11),
                       const Expanded(
@@ -586,7 +626,6 @@ class _NotificationsDialog extends StatelessWidget {
           ),
         ),
       );
-
 }
 
 class _MobileDrawer extends ConsumerWidget {

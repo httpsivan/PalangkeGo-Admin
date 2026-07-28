@@ -46,20 +46,21 @@ class Vendor {
   final String residence;
   final String administrativeNotes;
 
-  Vendor copyWith({AccountStatus? status, String? administrativeNotes}) => Vendor(
-    id: id,
-    name: name,
-    email: email,
-    stallType: stallType,
-    registeredAt: registeredAt,
-    status: status ?? this.status,
-    location: location,
-    orders: orders,
-    transactions: transactions,
-    phone: phone,
-    residence: residence,
-    administrativeNotes: administrativeNotes ?? this.administrativeNotes,
-  );
+  Vendor copyWith({AccountStatus? status, String? administrativeNotes}) =>
+      Vendor(
+        id: id,
+        name: name,
+        email: email,
+        stallType: stallType,
+        registeredAt: registeredAt,
+        status: status ?? this.status,
+        location: location,
+        orders: orders,
+        transactions: transactions,
+        phone: phone,
+        residence: residence,
+        administrativeNotes: administrativeNotes ?? this.administrativeNotes,
+      );
 }
 
 class Customer {
@@ -81,15 +82,16 @@ class Customer {
   final AccountStatus status;
   final String administrativeNotes;
 
-  Customer copyWith({AccountStatus? status, String? administrativeNotes}) => Customer(
-    id: id,
-    name: name,
-    email: email,
-    registeredAt: registeredAt,
-    transactions: transactions,
-    status: status ?? this.status,
-    administrativeNotes: administrativeNotes ?? this.administrativeNotes,
-  );
+  Customer copyWith({AccountStatus? status, String? administrativeNotes}) =>
+      Customer(
+        id: id,
+        name: name,
+        email: email,
+        registeredAt: registeredAt,
+        transactions: transactions,
+        status: status ?? this.status,
+        administrativeNotes: administrativeNotes ?? this.administrativeNotes,
+      );
 }
 
 class VendorApplication {
@@ -112,14 +114,14 @@ class VendorApplication {
   final String location;
 
   VendorApplication copyWith({ApplicationStatus? status}) => VendorApplication(
-    id: id,
-    applicant: applicant,
-    stallName: stallName,
-    category: category,
-    submittedAt: submittedAt,
-    status: status ?? this.status,
-    location: location,
-  );
+        id: id,
+        applicant: applicant,
+        stallName: stallName,
+        category: category,
+        submittedAt: submittedAt,
+        status: status ?? this.status,
+        location: location,
+      );
 }
 
 class RenewalRequest {
@@ -142,14 +144,14 @@ class RenewalRequest {
   final String location;
 
   RenewalRequest copyWith({RenewalStatus? status}) => RenewalRequest(
-    id: id,
-    applicant: applicant,
-    stallName: stallName,
-    category: category,
-    expiryDate: expiryDate,
-    status: status ?? this.status,
-    location: location,
-  );
+        id: id,
+        applicant: applicant,
+        stallName: stallName,
+        category: category,
+        expiryDate: expiryDate,
+        status: status ?? this.status,
+        location: location,
+      );
 }
 
 class Report {
@@ -157,6 +159,7 @@ class Report {
     required this.id,
     required this.type,
     required this.accountIssue,
+    this.category = 'FRUITS',
     required this.submittedBy,
     required this.reason,
     required this.date,
@@ -175,6 +178,7 @@ class Report {
   final String id;
   final String type;
   final String accountIssue;
+  final String? category;
   final String submittedBy;
   final String reason;
   final DateTime date;
@@ -190,23 +194,24 @@ class Report {
   final String notes;
 
   Report copyWith({ReportStatus? status, String? notes}) => Report(
-    id: id,
-    type: type,
-    accountIssue: accountIssue,
-    submittedBy: submittedBy,
-    reason: reason,
-    date: date,
-    status: status ?? this.status,
-    priority: priority,
-    description: description,
-    reporterEmail: reporterEmail,
-    phone: phone,
-    vendorName: vendorName,
-    owner: owner,
-    stallNumber: stallNumber,
-    previousViolations: previousViolations,
-    notes: notes ?? this.notes,
-  );
+        id: id,
+        type: type,
+        accountIssue: accountIssue,
+        category: category ?? 'FRUITS',
+        submittedBy: submittedBy,
+        reason: reason,
+        date: date,
+        status: status ?? this.status,
+        priority: priority,
+        description: description,
+        reporterEmail: reporterEmail,
+        phone: phone,
+        vendorName: vendorName,
+        owner: owner,
+        stallNumber: stallNumber,
+        previousViolations: previousViolations,
+        notes: notes ?? this.notes,
+      );
 }
 
 class Announcement {

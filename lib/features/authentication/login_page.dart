@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
 
@@ -24,6 +25,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     'assets/images/fish_market.jpg',
     'assets/images/dried_fish_stall.jpg',
     'assets/images/vegetable_stall.jpg',
+    'assets/images/market_background.png',
   ];
 
   final formKey = GlobalKey<FormState>();
@@ -74,29 +76,41 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < 820;
-    final body = narrow
-        ? SingleChildScrollView(
-            child: Column(
-              children: [_market(context, true), _loginForm(context)],
-            ),
-          )
-        : SizedBox.expand(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Theme(
+      // The login screen intentionally stays light even when the dashboard
+      // theme preference is dark.
+      data: buildLightTheme(),
+      child: Builder(
+        builder: (loginContext) {
+          final narrow = MediaQuery.sizeOf(loginContext).width < 820;
+          final body = narrow
+              ? SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _market(loginContext, true),
+                      _loginForm(loginContext),
+                    ],
+                  ),
+                )
+              : SizedBox.expand(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(flex: 51, child: _market(loginContext, false)),
+                      Expanded(flex: 49, child: _loginForm(loginContext)),
+                    ],
+                  ),
+                );
+          return Scaffold(
+            body: Column(
               children: [
-                Expanded(flex: 51, child: _market(context, false)),
-                Expanded(flex: 49, child: _loginForm(context)),
+                const _Header(dark: false),
+                Expanded(child: body),
+                const _Footer(),
               ],
             ),
           );
-    return Scaffold(
-      body: Column(
-        children: [
-          _Header(dark: Theme.of(context).brightness == Brightness.dark),
-          Expanded(child: body),
-          const _Footer(),
-        ],
+        },
       ),
     );
   }
@@ -156,7 +170,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 Text(
                   'NAGA CITY PEOPLE’S MALL',
                   style: TextStyle(
-                    color: const Color(0xB3FFFFFF),
+                    color: Colors.white70,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: .7,
@@ -167,7 +181,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   'Skip the Roam,\nOrder from Home.',
                   style: GoogleFonts.radley(
                     color: Colors.white,
-                    fontSize: 34,
+                    fontSize: 28,
                     height: 1.25,
                     fontWeight: FontWeight.w600,
                   ),
@@ -193,7 +207,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             'Welcome Back, Admin!',
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
-              color: colors.heroBackground,
+              color: colors.accent,
               fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
@@ -306,8 +320,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   : const Text('Log In'),
             ),
           ),
+          const SizedBox(height: 16),
+          Text(
+            'Mock credentials: ${profile.email} / ${profile.password}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 10),
+          ),
         ],
-      )
+      ),
     );
     final panel = Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -374,22 +394,33 @@ class _Header extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Image.asset(
-              'assets/images/market_basket.png',
-              width: 64,
-              height: 48,
-              fit: BoxFit.contain,
-              semanticLabel: 'Market basket',
-            ),
-            const SizedBox(width: 8),
-            Image.asset(
-              'assets/images/palengkego_logo.png',
-              width: 180,
-              height: 48,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              semanticLabel: 'PalengkeGo',
-            ),
+            if (dark)
+              Image.asset(
+                'assets/images/palengkego_admin_logo.png',
+                width: 220,
+                height: 56,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerLeft,
+                semanticLabel: 'PalengkeGo Admin',
+              )
+            else ...[
+              Image.asset(
+                'assets/images/market_basket.png',
+                width: 64,
+                height: 48,
+                fit: BoxFit.contain,
+                semanticLabel: 'Market basket',
+              ),
+              const SizedBox(width: 8),
+              Image.asset(
+                'assets/images/palengkego_logo.png',
+                width: 180,
+                height: 48,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                semanticLabel: 'PalengkeGo',
+              ),
+            ],
             const Spacer(),
             TextButton(onPressed: () {}, child: const Text('Home')),
             TextButton(onPressed: () {}, child: const Text('About')),
@@ -435,10 +466,9 @@ class _Footer extends StatelessWidget {
                       'Naga City People’s Mall — Market Enterprise and Promotions Office (MEPO)',
                       style: TextStyle(
                         fontSize: 9.5,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(.65),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withOpacity(.65),
                       ),
                     ),
                   ),
@@ -449,21 +479,18 @@ class _Footer extends StatelessWidget {
               TextButton(
                 onPressed: () {},
                 child: const Text('Privacy Policy',
-                    style:
-                        TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                    style: TextStyle(fontSize: 10)),
               ),
               TextButton(
                 onPressed: () {},
                 child: const Text(
                   'Terms of Service',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 10),
                 ),
               ),
               TextButton(
                 onPressed: () {},
-                child: const Text('Support',
-                    style:
-                        TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text('Support', style: TextStyle(fontSize: 10)),
               ),
             ],
           ],

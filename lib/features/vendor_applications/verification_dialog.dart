@@ -8,9 +8,9 @@ import '../../models/app_models.dart';
 
 class VerificationDialog extends ConsumerStatefulWidget {
   const VerificationDialog.application(this.application, {super.key})
-    : renewal = null;
+      : renewal = null;
   const VerificationDialog.renewal(this.renewal, {super.key})
-    : application = null;
+      : application = null;
   final VendorApplication? application;
   final RenewalRequest? renewal;
   String get applicant => application?.applicant ?? renewal!.applicant;
@@ -225,49 +225,49 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
   }
 
   Widget _documents(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        '▣ Required Documents',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-      ),
-      const SizedBox(height: 13),
-      GridView.count(
-        crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.23,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _doc(context, 'Mayor’s Permit', null),
-          _doc(
-            context,
-            'Sanitary Permit',
-            'assets/images/mobile_conversation.png',
+          const Text(
+            '▣ Required Documents',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          _doc(context, 'ID', 'assets/images/mobile_conversation.png'),
-          _doc(
-            context,
-            'Fire Certification',
-            'assets/images/spoiled_produce.png',
-          ),
-          _doc(
-            context,
-            'Market Clearance',
-            'assets/images/mobile_conversation.png',
+          const SizedBox(height: 13),
+          GridView.count(
+            crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.23,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _doc(context, 'Mayor’s Permit', null),
+              _doc(
+                context,
+                'Sanitary Permit',
+                'assets/images/mobile_conversation.png',
+              ),
+              _doc(context, 'ID', 'assets/images/mobile_conversation.png'),
+              _doc(
+                context,
+                'Fire Certification',
+                'assets/images/spoiled_produce.png',
+              ),
+              _doc(
+                context,
+                'Market Clearance',
+                'assets/images/mobile_conversation.png',
+              ),
+            ],
           ),
         ],
-      ),
-    ],
-  );
+      );
 
   Widget _doc(BuildContext context, String name, String? asset) {
     final content = asset == null
         ? Icon(
             Icons.description_outlined,
             size: 55,
-            color: semanticColors(context).heroBackground,
+            color: semanticColors(context).accent,
           )
         : Image.asset(asset, fit: BoxFit.cover);
     return InkWell(
@@ -306,74 +306,75 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
   }
 
   Widget _summary(BuildContext context) => Column(
-    children: [
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: semanticColors(context).infoContainer.withOpacity(.42),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'APPLICANT SUMMARY',
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: semanticColors(context).infoContainer.withOpacity(.42),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 14),
-            _item('BUSINESS NAME', 'Morales Artisan Crafts'),
-            _item('CATEGORY', widget.category),
-            _item('CONTACT NO.', '+63 921 555 0123'),
-            _item('EMAIL ADDRESS', 'antonio@crafts.com'),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: semanticColors(context).subtleBorder),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'INTERNAL WORKFLOW',
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'APPLICANT SUMMARY',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                _item('BUSINESS NAME', 'Morales Artisan Crafts'),
+                _item('CATEGORY', widget.category),
+                _item('CONTACT NO.', '+63 921 555 0123'),
+                _item('EMAIL ADDRESS', 'antonio@crafts.com'),
+              ],
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'Schedule Site Inspection',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: semanticColors(context).subtleBorder),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () => _appointment(context),
-              icon: const Icon(Icons.calendar_month_outlined, size: 14),
-              label: const Text('Set Appointment'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'INTERNAL WORKFLOW',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Schedule Site Inspection',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => _appointment(context),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 14),
+                  label: const Text('Set Appointment'),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+        ],
+      );
   Widget _item(String label, String value) => Padding(
-    padding: const EdgeInsets.only(bottom: 13),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 8.5)),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+        padding: const EdgeInsets.only(bottom: 13),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 8.5)),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style:
+                  const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
   Future<void> _appointment(BuildContext context) async {
     final date = await showDatePicker(
       context: context,

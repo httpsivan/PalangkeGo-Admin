@@ -88,57 +88,56 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
 
   @override
   Widget build(BuildContext context) {
-    final unread = ref.watch(notificationProvider).where((item) => !item.isRead).length;
+    final unread =
+        ref.watch(notificationProvider).where((item) => !item.isRead).length;
     final colors = semanticColors(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-          Material(
-            color: isOpen
-                ? Colors.white.withOpacity(.23)
-                : Colors.white.withOpacity(.13),
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: _toggle,
-              hoverColor: Colors.white.withOpacity(.23),
-              customBorder: const CircleBorder(),
-              child: const SizedBox(
-                width: 38,
-                height: 38,
-                child: Icon(
-                  Icons.notifications_none_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
+        Material(
+          color: isOpen ? colors.navigationHover : colors.navigationControl,
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: _toggle,
+            hoverColor: colors.navigationHover,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 38,
+              height: 38,
+              child: Icon(
+                Icons.notifications_none_rounded,
+                size: 20,
+                color: colors.heroForeground,
               ),
             ),
           ),
-          if (unread > 0)
-            Positioned(
-              right: -1,
-              top: -1,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
-                padding: unread > 9
-                    ? const EdgeInsets.symmetric(horizontal: 3, vertical: 1)
-                    : EdgeInsets.zero,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF5252),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.heroBackground, width: 1.5),
-                ),
-                child: unread > 9
-                    ? Text(
-                        unread > 99 ? '99+' : '$unread',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      )
-                    : null,
+        ),
+        if (unread > 0)
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+              padding: unread > 9
+                  ? const EdgeInsets.symmetric(horizontal: 3, vertical: 1)
+                  : EdgeInsets.zero,
+              decoration: BoxDecoration(
+                color: colors.danger,
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.heroBackground, width: 1.5),
               ),
+              child: unread > 9
+                  ? Text(
+                      unread > 99 ? '99+' : '$unread',
+                      style: TextStyle(
+                        color: colors.primaryText,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                  : null,
             ),
+          ),
       ],
     );
   }
@@ -254,7 +253,8 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
               if (unread > 0) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
                     color: colors.dangerContainer,
                     borderRadius: BorderRadius.circular(20),
@@ -280,19 +280,23 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
           Row(
             children: [
               Text(
-                unread == 0 ? 'You are all caught up' : '$unread unread notifications',
+                unread == 0
+                    ? 'You are all caught up'
+                    : '$unread unread notifications',
                 style: TextStyle(fontSize: 11, color: colors.mutedText),
               ),
               const Spacer(),
               TextButton(
                 onPressed: unread == 0
                     ? null
-                    : () => ref.read(notificationProvider.notifier).markAllRead(),
+                    : () =>
+                        ref.read(notificationProvider.notifier).markAllRead(),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   minimumSize: const Size(0, 28),
                 ),
-                child: const Text('Mark all as read', style: TextStyle(fontSize: 11)),
+                child: const Text('Mark all as read',
+                    style: TextStyle(fontSize: 11)),
               ),
             ],
           ),
@@ -302,15 +306,15 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
   }
 
   Widget _filters(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 1, 16, 9),
-    child: Row(
-      children: [
-        _filterTab(context, 'All', NotificationFilter.all),
-        const SizedBox(width: 7),
-        _filterTab(context, 'Unread', NotificationFilter.unread),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.fromLTRB(16, 1, 16, 9),
+        child: Row(
+          children: [
+            _filterTab(context, 'All', NotificationFilter.all),
+            const SizedBox(width: 7),
+            _filterTab(context, 'Unread', NotificationFilter.unread),
+          ],
+        ),
+      );
 
   Widget _filterTab(
     BuildContext context,
@@ -367,17 +371,17 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
   }
 
   Widget _groupLabel(String label) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 4, 4, 7),
-    child: Text(
-      label,
-      style: TextStyle(
-        color: semanticColors(context).mutedText,
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        letterSpacing: .5,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 7),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: semanticColors(context).mutedText,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+          ),
+        ),
+      );
 
   Widget _item(BuildContext context, AdminNotification item) {
     final colors = semanticColors(context);
@@ -385,9 +389,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
     final color = _iconColor(context, item.type);
     return _HoverCard(
       margin: const EdgeInsets.only(bottom: 7),
-      color: item.isRead
-          ? Colors.transparent
-          : colors.selectedSurface,
+      color: item.isRead ? Colors.transparent : colors.selectedSurface,
       borderColor: item.isRead ? colors.subtleBorder : Colors.transparent,
       onTap: () => _navigate(item),
       child: Padding(
@@ -453,8 +455,10 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                             .read(notificationProvider.notifier)
                             .dismiss(item.id),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        icon: Icon(Icons.close_rounded, size: 15, color: colors.mutedText),
+                        constraints:
+                            const BoxConstraints(minWidth: 24, minHeight: 24),
+                        icon: Icon(Icons.close_rounded,
+                            size: 15, color: colors.mutedText),
                       ),
                     ],
                   ),
@@ -496,7 +500,9 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              unread ? Icons.mark_email_read_outlined : Icons.notifications_none_rounded,
+              unread
+                  ? Icons.mark_email_read_outlined
+                  : Icons.notifications_none_rounded,
               size: 42,
               color: colors.mutedText,
             ),
@@ -627,9 +633,7 @@ class _HoverCardState extends State<_HoverCard> {
   Widget build(BuildContext context) => Container(
         margin: widget.margin,
         decoration: BoxDecoration(
-          color: hovering
-              ? semanticColors(context).hoverSurface
-              : widget.color,
+          color: hovering ? semanticColors(context).hoverSurface : widget.color,
           border: Border.all(color: widget.borderColor),
           borderRadius: BorderRadius.circular(10),
         ),

@@ -5,8 +5,15 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
     required this.pageBackground,
     required this.navigationBackground,
+    required this.navigationHover,
+    required this.navigationControl,
+    required this.activeNavigation,
+    required this.activeNavigationText,
+    required this.borderOnHero,
     required this.cardBackground,
     required this.elevatedSurface,
+    required this.inputSurface,
+    required this.modalSurface,
     required this.tableHeader,
     required this.hoverSurface,
     required this.selectedSurface,
@@ -29,12 +36,21 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.infoContainer,
     required this.overlayScrim,
     required this.heroBackground,
+    required this.heroForeground,
+    required this.heroMuted,
   });
 
   final Color pageBackground;
   final Color navigationBackground;
+  final Color navigationHover;
+  final Color navigationControl;
+  final Color activeNavigation;
+  final Color activeNavigationText;
+  final Color borderOnHero;
   final Color cardBackground;
   final Color elevatedSurface;
+  final Color inputSurface;
+  final Color modalSurface;
   final Color tableHeader;
   final Color hoverSurface;
   final Color selectedSurface;
@@ -57,13 +73,22 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color infoContainer;
   final Color overlayScrim;
   final Color heroBackground;
+  final Color heroForeground;
+  final Color heroMuted;
 
   @override
   AppSemanticColors copyWith({
     Color? pageBackground,
     Color? navigationBackground,
+    Color? navigationHover,
+    Color? navigationControl,
+    Color? activeNavigation,
+    Color? activeNavigationText,
+    Color? borderOnHero,
     Color? cardBackground,
     Color? elevatedSurface,
+    Color? inputSurface,
+    Color? modalSurface,
     Color? tableHeader,
     Color? hoverSurface,
     Color? selectedSurface,
@@ -86,12 +111,21 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? infoContainer,
     Color? overlayScrim,
     Color? heroBackground,
+    Color? heroForeground,
+    Color? heroMuted,
   }) {
     return AppSemanticColors(
       pageBackground: pageBackground ?? this.pageBackground,
       navigationBackground: navigationBackground ?? this.navigationBackground,
+      navigationHover: navigationHover ?? this.navigationHover,
+      navigationControl: navigationControl ?? this.navigationControl,
+      activeNavigation: activeNavigation ?? this.activeNavigation,
+      activeNavigationText: activeNavigationText ?? this.activeNavigationText,
+      borderOnHero: borderOnHero ?? this.borderOnHero,
       cardBackground: cardBackground ?? this.cardBackground,
       elevatedSurface: elevatedSurface ?? this.elevatedSurface,
+      inputSurface: inputSurface ?? this.inputSurface,
+      modalSurface: modalSurface ?? this.modalSurface,
       tableHeader: tableHeader ?? this.tableHeader,
       hoverSurface: hoverSurface ?? this.hoverSurface,
       selectedSurface: selectedSurface ?? this.selectedSurface,
@@ -114,6 +148,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       infoContainer: infoContainer ?? this.infoContainer,
       overlayScrim: overlayScrim ?? this.overlayScrim,
       heroBackground: heroBackground ?? this.heroBackground,
+      heroForeground: heroForeground ?? this.heroForeground,
+      heroMuted: heroMuted ?? this.heroMuted,
     );
   }
 
@@ -124,8 +160,18 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       pageBackground: Color.lerp(pageBackground, other.pageBackground, t)!,
       navigationBackground:
           Color.lerp(navigationBackground, other.navigationBackground, t)!,
+      navigationHover: Color.lerp(navigationHover, other.navigationHover, t)!,
+      navigationControl:
+          Color.lerp(navigationControl, other.navigationControl, t)!,
+      activeNavigation:
+          Color.lerp(activeNavigation, other.activeNavigation, t)!,
+      activeNavigationText:
+          Color.lerp(activeNavigationText, other.activeNavigationText, t)!,
+      borderOnHero: Color.lerp(borderOnHero, other.borderOnHero, t)!,
       cardBackground: Color.lerp(cardBackground, other.cardBackground, t)!,
       elevatedSurface: Color.lerp(elevatedSurface, other.elevatedSurface, t)!,
+      inputSurface: Color.lerp(inputSurface, other.inputSurface, t)!,
+      modalSurface: Color.lerp(modalSurface, other.modalSurface, t)!,
       tableHeader: Color.lerp(tableHeader, other.tableHeader, t)!,
       hoverSurface: Color.lerp(hoverSurface, other.hoverSurface, t)!,
       selectedSurface: Color.lerp(selectedSurface, other.selectedSurface, t)!,
@@ -139,15 +185,19 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       subtleBorder: Color.lerp(subtleBorder, other.subtleBorder, t)!,
       divider: Color.lerp(divider, other.divider, t)!,
       success: Color.lerp(success, other.success, t)!,
-      successContainer: Color.lerp(successContainer, other.successContainer, t)!,
+      successContainer:
+          Color.lerp(successContainer, other.successContainer, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
-      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      warningContainer:
+          Color.lerp(warningContainer, other.warningContainer, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
       dangerContainer: Color.lerp(dangerContainer, other.dangerContainer, t)!,
       info: Color.lerp(info, other.info, t)!,
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
       overlayScrim: Color.lerp(overlayScrim, other.overlayScrim, t)!,
       heroBackground: Color.lerp(heroBackground, other.heroBackground, t)!,
+      heroForeground: Color.lerp(heroForeground, other.heroForeground, t)!,
+      heroMuted: Color.lerp(heroMuted, other.heroMuted, t)!,
     );
   }
 }

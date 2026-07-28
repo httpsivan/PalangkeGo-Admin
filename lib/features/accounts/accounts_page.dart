@@ -23,6 +23,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   final tableScrollController = ScrollController();
   bool customers = false;
   String status = 'All Statuses';
+  String stallCategory = 'All Categories';
   int page = 0;
 
   @override
@@ -92,7 +93,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 '${v.name} ${v.email} ${v.id} ${v.stallType}'
                     .toLowerCase()
                     .contains(search.text.trim().toLowerCase())) &&
-            (status == 'All Statuses' || enumLabel(v.status) == status),
+            (status == 'All Statuses' || enumLabel(v.status) == status) &&
+            (stallCategory == 'All Categories' || v.stallType == stallCategory),
       )
       .toList();
   List<Customer> get filteredCustomers => ref
@@ -109,6 +111,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       .toList();
 
   Widget _vendorPanel(List<Vendor> values) {
+    final categories = <String>{
+      'All Categories',
+      ...values.map((vendor) => vendor.stallType),
+    }.toList()
+      ..sort();
+    categories
+      ..remove('All Categories')
+      ..insert(0, 'All Categories');
     final visible = values
         .where(
           (v) =>
@@ -116,7 +126,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                   '${v.name} ${v.email} ${v.id} ${v.stallType}'
                       .toLowerCase()
                       .contains(search.text.trim().toLowerCase())) &&
-              (status == 'All Statuses' || enumLabel(v.status) == status),
+              (status == 'All Statuses' || enumLabel(v.status) == status) &&
+              (stallCategory == 'All Categories' ||
+                  v.stallType == stallCategory),
         )
         .toList();
     final int totalPages = (visible.length / 10).ceil();
@@ -133,23 +145,29 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               onClear: () {
                 search.clear();
                 status = 'All Statuses';
+                stallCategory = 'All Categories';
                 _resetTable();
               },
               trailing: [
+                _filter(context, status, [
+                  'All Statuses',
+                  'Active',
+                  'Offline',
+                  'Suspended',
+                  'Blocked',
+                ], (v) {
+                  status = v;
+                  _resetTable();
+                }),
                 _filter(
                     context,
-                    status,
-                    [
-                      'All Statuses',
-                      'Active',
-                      'Offline',
-                      'Suspended',
-                      'Blocked',
-                    ],
-                    (v) {
-                      status = v;
-                      _resetTable();
-                    }),
+                    stallCategory == 'All Categories'
+                        ? 'Stall Category'
+                        : stallCategory,
+                    categories, (value) {
+                  stallCategory = value;
+                  _resetTable();
+                }),
                 FilterButton(
                   label: 'Export',
                   icon: Icons.download_outlined,
@@ -211,19 +229,15 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               },
               searchHint: 'Search by name, email, or ID...',
               trailing: [
-                _filter(
-                    context,
-                    status,
-                    [
-                      'All Statuses',
-                      'Active',
-                      'Suspended',
-                      'Blocked',
-                    ],
-                    (v) {
-                      status = v;
-                      _resetTable();
-                    }),
+                _filter(context, status, [
+                  'All Statuses',
+                  'Active',
+                  'Suspended',
+                  'Blocked',
+                ], (v) {
+                  status = v;
+                  _resetTable();
+                }),
                 FilterButton(
                   label: 'Export',
                   icon: Icons.download_outlined,
@@ -308,7 +322,9 @@ class _Tabs extends StatelessWidget {
         ],
       );
   Widget _tab(BuildContext context, String label, bool active) => Material(
-        color: active ? Colors.white : Colors.transparent,
+        color: active
+            ? semanticColors(context).activeNavigation
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: () => onChanged(label == 'Customers'),
@@ -320,7 +336,7 @@ class _Tabs extends StatelessWidget {
               style: TextStyle(
                 color: active
                     ? semanticColors(context).heroBackground
-                    : Colors.white.withOpacity(.78),
+                    : semanticColors(context).heroMuted,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -568,7 +584,7 @@ Future<void> showAccountDialog(
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: ColoredBox(
-                    color: colors.overlayScrim.withOpacity(.52),
+                    color: colors.overlayScrim,
                   ),
                 ),
               ),

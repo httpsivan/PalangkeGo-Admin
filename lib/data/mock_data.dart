@@ -203,6 +203,7 @@ List<Report> seedReports() {
     'Incorrect Pricing',
     'Late Delivery',
   ];
+  final categories = ['FRUITS', 'MEAT', 'VEGETABLES', 'DRY GOODS'];
   final statuses = [
     ReportStatus.pending,
     ReportStatus.underReview,
@@ -220,6 +221,7 @@ List<Report> seedReports() {
         'Payout Issue',
         'Sophie Sb’s store',
       ][index % 4],
+      category: categories[index % categories.length],
       submittedBy: [
         'Maria Santos',
         'Admin Tool',
@@ -244,42 +246,43 @@ List<Report> seedReports() {
 }
 
 List<Announcement> seedAnnouncements() => [
-  Announcement(
-    title: 'New Market Guidelines',
-    summary: 'Updated safety protocols for the upcoming weekend market.',
-    audience: 'General',
-    createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-    isDraft: false,
-  ),
-  Announcement(
-    title: 'Maintenance Notice',
-    summary: 'Payment reconciliation will be available again at 8:00 AM.',
-    audience: 'Vendors',
-    createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    isDraft: false,
-  ),
-  Announcement(
-    title: 'Holiday Operating Hours',
-    summary: 'Please review the special opening schedule for public holidays.',
-    audience: 'All Users',
-    createdAt: DateTime.now().subtract(const Duration(days: 2)),
-    isDraft: false,
-  ),
-  Announcement(
-    title: 'Vendor Orientation',
-    summary: 'New stall holders can reserve a training slot this week.',
-    audience: 'Vendors',
-    createdAt: DateTime.now().subtract(const Duration(days: 4)),
-    isDraft: false,
-  ),
-  Announcement(
-    title: 'Fresh Finds Rewards',
-    summary: 'Customers can now redeem points at participating stalls.',
-    audience: 'Customers',
-    createdAt: DateTime.now().subtract(const Duration(days: 5)),
-    isDraft: false,
-  ),
-];
+      Announcement(
+        title: 'New Market Guidelines',
+        summary: 'Updated safety protocols for the upcoming weekend market.',
+        audience: 'General',
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        isDraft: false,
+      ),
+      Announcement(
+        title: 'Maintenance Notice',
+        summary: 'Payment reconciliation will be available again at 8:00 AM.',
+        audience: 'Vendors',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        isDraft: false,
+      ),
+      Announcement(
+        title: 'Holiday Operating Hours',
+        summary:
+            'Please review the special opening schedule for public holidays.',
+        audience: 'All Users',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        isDraft: false,
+      ),
+      Announcement(
+        title: 'Vendor Orientation',
+        summary: 'New stall holders can reserve a training slot this week.',
+        audience: 'Vendors',
+        createdAt: DateTime.now().subtract(const Duration(days: 4)),
+        isDraft: false,
+      ),
+      Announcement(
+        title: 'Fresh Finds Rewards',
+        summary: 'Customers can now redeem points at participating stalls.',
+        audience: 'Customers',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        isDraft: false,
+      ),
+    ];
 
 const topSellerNames = ['Ivan Navarro', 'Akisha San Miguel', 'Schylle Palmero'];
 const topSellerRevenue = ['43.9k', '34.1k', '17.1k'];

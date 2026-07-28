@@ -23,10 +23,13 @@ class AdminProfileMenu extends ConsumerWidget {
       useRootOverlay: true,
       crossAxisUnconstrained: false,
       reservedPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      alignmentOffset: const Offset(0, 8),
+      // The menu is aligned to the trigger's top-right by MenuStyle. Offset it
+      // by the trigger height plus a small gap so it opens underneath the
+      // profile button instead of covering it.
+      alignmentOffset: const Offset(0, 56),
       style: MenuStyle(
         alignment: AlignmentDirectional.topEnd,
-        backgroundColor: WidgetStatePropertyAll(theme.colorScheme.surface),
+        backgroundColor: WidgetStatePropertyAll(colors.elevatedSurface),
         elevation: const WidgetStatePropertyAll(14),
         padding: const WidgetStatePropertyAll(EdgeInsets.zero),
         minimumSize: WidgetStatePropertyAll(Size(width, 0)),
@@ -34,9 +37,7 @@ class AdminProfileMenu extends ConsumerWidget {
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        side: WidgetStatePropertyAll(
-          BorderSide(color: theme.dividerColor.withOpacity(.65)),
-        ),
+        side: WidgetStatePropertyAll(BorderSide(color: colors.subtleBorder)),
         shadowColor: WidgetStatePropertyAll(Colors.black.withOpacity(.14)),
       ),
       menuChildren: [
@@ -103,80 +104,81 @@ class _AdminProfileTrigger extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-        message: 'Admin profile menu',
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: Semantics(
-            button: true,
-            label: 'Admin profile menu',
-            child: Material(
-              color: isOpen
-                  ? Colors.white.withOpacity(.20)
-                  : Colors.transparent,
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Tooltip(
+      message: 'Admin profile menu',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: 'Admin profile menu',
+          child: Material(
+            color: isOpen ? colors.navigationHover : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(10),
-                hoverColor: Colors.white.withOpacity(.12),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AvatarCircle(name: profile.name, size: 34),
-                        if (!compact) ...[
-                          const SizedBox(width: 9),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 158),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  profile.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+              hoverColor: colors.navigationHover,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AvatarCircle(name: profile.name, size: 34),
+                      if (!compact) ...[
+                        const SizedBox(width: 9),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 158),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                profile.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.heroForeground,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                                const Text(
-                                  'Administrator',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 9,
-                                  ),
+                              ),
+                              Text(
+                                'Administrator',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.heroMuted,
+                                  fontSize: 9,
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                        ],
-                        AnimatedRotation(
-                          turns: isOpen ? .5 : 0,
-                          duration: const Duration(milliseconds: 180),
-                          child: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white70,
-                            size: 20,
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 7),
                       ],
-                    ),
+                      AnimatedRotation(
+                        turns: isOpen ? .5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: colors.heroMuted,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _AdminProfileDropdown extends ConsumerWidget {
@@ -197,7 +199,7 @@ class _AdminProfileDropdown extends ConsumerWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Material(
-        color: theme.colorScheme.surface,
+        color: colors.elevatedSurface,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -329,14 +331,13 @@ class _ProfileMenuItemState extends State<_ProfileMenuItem> {
                       style: TextStyle(
                         color: foreground,
                         fontSize: 13,
-                        fontWeight: widget.selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                        fontWeight:
+                            widget.selected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                   ),
                   if (widget.selected)
-                    Icon(Icons.check_rounded, size: 18, color: colors.heroBackground),
+                    Icon(Icons.check_rounded, size: 18, color: colors.success),
                 ],
               ),
             ),

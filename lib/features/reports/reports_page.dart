@@ -17,6 +17,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
+  String? stallCategory = 'All Categories';
   int page = 0;
   @override
   void dispose() {
@@ -50,6 +51,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(appDataProvider);
+    final selectedCategory = stallCategory ?? 'All Categories';
+    final categories = <String>{
+      'All Categories',
+      ...data.reports.map((item) => item.category ?? 'FRUITS'),
+    }.toList()
+      ..sort();
+    categories
+      ..remove('All Categories')
+      ..insert(0, 'All Categories');
     final values = data.reports
         .where(
           (item) =>
@@ -59,7 +69,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' ||
                   item.status.toString().split('.').last ==
-                      status.toLowerCase().replaceAll(' ', '')),
+                      status.toLowerCase().replaceAll(' ', '')) &&
+              (selectedCategory == 'All Categories' ||
+                  (item.category ?? 'FRUITS') == selectedCategory),
         )
         .toList();
     final int totalPages = (values.length / 10).ceil();
@@ -115,23 +127,28 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       onClear: () {
                         search.clear();
                         status = 'All Statuses';
+                        stallCategory = 'All Categories';
                         _resetTable();
                       },
                       trailing: [
+                        _filter(context, status, [
+                          'All Statuses',
+                          'Pending',
+                          'Under Review',
+                          'Resolved',
+                        ], (value) {
+                          status = value;
+                          _resetTable();
+                        }),
                         _filter(
                             context,
-                            status,
-                            [
-                              'All Statuses',
-                              'Pending',
-                              'Under Review',
-                              'Resolved',
-                            ],
-                            (value) {
-                              status = value;
-                              _resetTable();
-                            }),
-                        FilterButton(label: 'Stall Category'),
+                            selectedCategory == 'All Categories'
+                                ? 'Stall Category'
+                                : selectedCategory,
+                            categories, (value) {
+                          stallCategory = value;
+                          _resetTable();
+                        }),
                         FilterButton(
                           label: 'Export',
                           icon: Icons.download_outlined,
@@ -196,6 +213,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         'Account / Issue',
         'Submitted By',
         'Reason',
+        'Category',
         'Date',
         'Status',
         'Priority'
@@ -206,6 +224,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           item.accountIssue,
           item.submittedBy,
           item.reason,
+          item.category ?? 'FRUITS',
           item.date.toIso8601String(),
           enumLabel(item.status),
           enumLabel(item.priority),
@@ -240,13 +259,19 @@ class _ReportTable extends StatelessWidget {
                 Text(
                   item.accountIssue,
                   style: TextStyle(
-                    color: semanticColors(context).heroBackground,
+                    color: semanticColors(context).accent,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
               DataCell(Text(item.submittedBy)),
               DataCell(Text(item.reason)),
+              DataCell(
+                StatusBadge(
+                  label: item.category ?? 'FRUITS',
+                  kind: BadgeKind.info,
+                ),
+              ),
               DataCell(Text('${item.date.month}/${item.date.day}/2023')),
               DataCell(
                 StatusBadge(
@@ -294,6 +319,10 @@ class _ReportTable extends StatelessWidget {
         DataColumn(
           columnWidth: FlexColumnWidth(1.4),
           label: Text('REASON'),
+        ),
+        DataColumn(
+          columnWidth: FlexColumnWidth(1.1),
+          label: Text('CATEGORY'),
         ),
         DataColumn(
           columnWidth: FlexColumnWidth(.9),
@@ -629,8 +658,15 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         child: InkWell(
           onTap: () => showDialog<void>(
             context: context,
-            builder: (context) =>
-                Dialog(child: InteractiveViewer(child: Image.asset(asset))),
+            builder: (context) => Dialog(
+              child: InteractiveViewer(
+                child: Image.asset(
+                  asset,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _missingEvidence(context),
+                ),
+              ),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,7 +675,12 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 borderRadius: BorderRadius.circular(8),
                 child: AspectRatio(
                   aspectRatio: 1.7,
-                  child: Image.asset(asset, fit: BoxFit.cover),
+                  child: Image.asset(
+                    asset,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _missingEvidence(context),
+                  ),
                 ),
               ),
               const SizedBox(height: 5),
@@ -652,6 +693,37 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
           ),
         ),
       );
+
+  Widget _missingEvidence(BuildContext context) {
+    final colors = semanticColors(context);
+    return Container(
+      color: colors.inputSurface,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported_outlined, color: colors.mutedText),
+          const SizedBox(height: 7),
+          Text(
+            'Evidence unavailable',
+            style: TextStyle(
+              color: colors.secondaryText,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'The attached image could not be loaded.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.mutedText, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _history(BuildContext context) => Table(
         border: TableBorder.all(color: semanticColors(context).subtleBorder),
         children: [

@@ -19,7 +19,7 @@ class OverviewPage extends ConsumerWidget {
     final action = DataPanel(
       title: 'Needs Action: KYC Approvals',
       titleStyle: GoogleFonts.inter(
-        color: Colors.black,
+        color: colors.primaryText,
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
@@ -28,7 +28,7 @@ class OverviewPage extends ConsumerWidget {
         child: Text(
           'View All',
           style: GoogleFonts.inter(
-            color: const Color(0xFF6B7280),
+            color: colors.mutedText,
             fontSize: 14,
           ),
         ),
@@ -38,7 +38,7 @@ class OverviewPage extends ConsumerWidget {
     final announcements = DataPanel(
       title: 'ANNOUNCEMENTS',
       titleStyle: GoogleFonts.inter(
-        color: Colors.black,
+        color: colors.primaryText,
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
@@ -54,7 +54,7 @@ class OverviewPage extends ConsumerWidget {
     final topSellers = DataPanel(
       title: 'TOP SELLERS',
       titleStyle: GoogleFonts.inter(
-        color: Colors.black,
+        color: colors.primaryText,
         fontSize: 18,
         fontWeight: FontWeight.bold,
       ),
@@ -65,7 +65,7 @@ class OverviewPage extends ConsumerWidget {
       child: const _TopSellers(),
     );
     final side = Column(
-      children: [announcements, const SizedBox(height: 18), topSellers],
+      children: [topSellers, const SizedBox(height: 18), announcements],
     );
 
     return LayoutBuilder(
@@ -93,9 +93,9 @@ class OverviewPage extends ConsumerWidget {
                         flex: 37,
                         child: Column(
                           children: [
-                            Expanded(child: announcements),
-                            const SizedBox(height: 18),
                             topSellers,
+                            const SizedBox(height: 18),
+                            Expanded(child: announcements),
                           ],
                         ),
                       ),
@@ -138,6 +138,7 @@ class _OverviewHero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(adminProfileProvider);
+    final colors = semanticColors(context);
     final metrics = [
       MetricCardData(
         value: '1,284',
@@ -145,20 +146,12 @@ class _OverviewHero extends ConsumerWidget {
         icon: Icons.storefront_rounded,
         accent: const Color(0xFF3B82F6),
         onTap: () => context.go('/accounts'),
-        valueStyle: GoogleFonts.montserrat(
-        fontSize: 26,
-        fontWeight: FontWeight.w800,
-        ),
       ),
       MetricCardData(
         value: '42',
         label: 'Pending KYC Requests',
         icon: Icons.assignment_outlined,
         accent: const Color(0xFFF59E0B),
-        valueStyle: GoogleFonts.montserrat(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
         onTap: () => context.go('/applications'),
       ),
       MetricCardData(
@@ -187,10 +180,6 @@ class _OverviewHero extends ConsumerWidget {
         icon: Icons.trending_up_rounded,
         accent: const Color(0xFF8B5CF6),
         onTap: () => context.go('/accounts'),
-        valueStyle: GoogleFonts.montserrat(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     ];
     final hour = DateTime.now().hour;
@@ -208,15 +197,15 @@ class _OverviewHero extends ConsumerWidget {
             Text(
               greeting,
               style: TextStyle(
-                color: Colors.white.withOpacity(.62),
-                fontSize: 20,
+                color: colors.heroMuted,
+                fontSize: 13,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               profile.name,
               style: GoogleFonts.montserrat(
-                color: Colors.white,
+                color: colors.heroForeground,
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
               ),
@@ -321,12 +310,12 @@ class _ApprovalTable extends StatelessWidget {
               semanticColors(context).tableHeader,
             ),
             headingTextStyle: GoogleFonts.inter(
-              color: const Color(0xFF64748B),
+              color: semanticColors(context).secondaryText,
               fontSize: 15,
               fontWeight: FontWeight.bold,
             ),
             dataTextStyle: GoogleFonts.inter(
-              color: const Color(0xFF1F2937),
+              color: semanticColors(context).primaryText,
               fontSize: 13,
             ),
             headingRowHeight: 48,
@@ -340,8 +329,8 @@ class _ApprovalTable extends StatelessWidget {
                 label: Text(
                   'APPLICATION ID',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 13,
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -351,8 +340,8 @@ class _ApprovalTable extends StatelessWidget {
                 label: Text(
                   'APPLICANT',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 13,
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -362,8 +351,8 @@ class _ApprovalTable extends StatelessWidget {
                 label: Text(
                   'STALL NAME',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 13,
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -373,8 +362,8 @@ class _ApprovalTable extends StatelessWidget {
                 label: Text(
                   'CATEGORY',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 13,
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -384,8 +373,8 @@ class _ApprovalTable extends StatelessWidget {
                 label: Text(
                   'STATUS',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF64748B),
-                    fontSize: 13,
+                    color: semanticColors(context).secondaryText,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

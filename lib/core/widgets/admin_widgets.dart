@@ -17,7 +17,7 @@ class AppLogo extends StatelessWidget {
         'assets/images/palengkego_admin_logo.png',
         width: compact ? 180 : 220,
         height: compact ? 48 : 58,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         alignment: Alignment.center,
         semanticLabel: 'PalengkeGo - Skip the Roam, Order from Home',
       );
@@ -37,6 +37,7 @@ class AvatarCircle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final initials = name
         .trim()
         .split(RegExp(r'\s+'))
@@ -46,13 +47,16 @@ class AvatarCircle extends StatelessWidget {
         .toUpperCase();
     return CircleAvatar(
       radius: size / 2,
-      backgroundColor: const Color(0xFFD7EEE5),
+      backgroundColor:
+          isDark ? colors.activeNavigation : colors.successContainer,
       backgroundImage: image,
       child: image == null
           ? Text(
               initials,
               style: TextStyle(
-                color: colors.heroBackground,
+                color: isDark
+                    ? colors.activeNavigationText
+                    : colors.heroBackground,
                 fontSize: size * .32,
                 fontWeight: FontWeight.w800,
               ),
@@ -83,7 +87,7 @@ class PageHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(.15)),
+          bottom: BorderSide(color: semanticColors(context).borderOnHero),
         ),
       ),
       child: Column(
@@ -91,8 +95,8 @@ class PageHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: semanticColors(context).heroForeground,
               fontSize: 28,
               fontWeight: FontWeight.w800,
             ),
@@ -100,7 +104,10 @@ class PageHeader extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             subtitle,
-            style: TextStyle(color: Colors.white.withOpacity(.7), fontSize: 12),
+            style: TextStyle(
+              color: semanticColors(context).heroMuted,
+              fontSize: 12,
+            ),
           ),
           if (tabs != null) ...[const SizedBox(height: 22), tabs!],
           if (metrics.isNotEmpty) ...[
@@ -572,9 +579,8 @@ class ScrollableDataTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final tableWidth = constraints.maxWidth > minWidth
-              ? constraints.maxWidth
-              : minWidth;
+          final tableWidth =
+              constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
 
           Widget table({
             required List<DataRow> tableRows,

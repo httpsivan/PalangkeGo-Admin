@@ -20,6 +20,7 @@ class _VendorApplicationsPageState
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
+  String stallCategory = 'All Categories';
   int page = 0;
   @override
   void dispose() {
@@ -53,6 +54,14 @@ class _VendorApplicationsPageState
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(appDataProvider);
+    final categories = <String>{
+      'All Categories',
+      ...data.applications.map((item) => item.category),
+    }.toList()
+      ..sort();
+    categories
+      ..remove('All Categories')
+      ..insert(0, 'All Categories');
     final values = data.applications
         .where(
           (item) =>
@@ -62,7 +71,9 @@ class _VendorApplicationsPageState
                       .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' ||
                   item.status.toString().split('.').last ==
-                      status.toLowerCase().replaceAll(' ', '')),
+                      status.toLowerCase().replaceAll(' ', '')) &&
+              (stallCategory == 'All Categories' ||
+                  item.category == stallCategory),
         )
         .toList();
     final int totalPages = (values.length / 10).ceil();
@@ -116,23 +127,28 @@ class _VendorApplicationsPageState
                       onClear: () {
                         search.clear();
                         status = 'All Statuses';
+                        stallCategory = 'All Categories';
                         _resetTable();
                       },
                       trailing: [
+                        _filter(context, status, [
+                          'All Statuses',
+                          'Verified',
+                          'Reviewing',
+                          'Invalid Docs',
+                        ], (value) {
+                          status = value;
+                          _resetTable();
+                        }),
                         _filter(
                             context,
-                            status,
-                            [
-                              'All Statuses',
-                              'Verified',
-                              'Reviewing',
-                              'Invalid Docs',
-                            ],
-                            (value) {
-                              status = value;
-                              _resetTable();
-                            }),
-                        FilterButton(label: 'Stall Category'),
+                            stallCategory == 'All Categories'
+                                ? 'Stall Category'
+                                : stallCategory,
+                            categories, (value) {
+                          stallCategory = value;
+                          _resetTable();
+                        }),
                         FilterButton(
                           label: 'Export',
                           icon: Icons.download_outlined,
@@ -238,7 +254,7 @@ class _ApplicationTable extends StatelessWidget {
                 Text(
                   item.id,
                   style: TextStyle(
-                    color: semanticColors(context).heroBackground,
+                    color: semanticColors(context).accent,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
