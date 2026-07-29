@@ -17,7 +17,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
-  String? stallCategory = 'All Categories';
+  String stallCategory = 'All Categories';
   int page = 0;
   @override
   void dispose() {
@@ -51,7 +51,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(appDataProvider);
-    final selectedCategory = stallCategory ?? 'All Categories';
+    final selectedCategory = stallCategory;
     final categories = <String>{
       'All Categories',
       ...data.reports.map((item) => item.category ?? 'FRUITS'),

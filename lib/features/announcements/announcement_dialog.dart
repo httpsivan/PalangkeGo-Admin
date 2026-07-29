@@ -45,13 +45,29 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       return;
     }
     setState(() => loading = true);
-    await ref.read(appDataProvider.notifier).addAnnouncement(
+    final data = ref.read(appDataProvider);
+    final profile = ref.read(adminProfileProvider);
+    final recipients = switch (audience) {
+      'Vendors' => data.vendors.length,
+      'Customers' => data.customers.length,
+      'Administrators' => 1,
+      _ => data.vendors.length + data.customers.length,
+    };
+    await ref
+        .read(appDataProvider.notifier)
+        .addAnnouncement(
           Announcement(
+            id: 'ANN-${DateTime.now().millisecondsSinceEpoch}',
             title: title.text.trim(),
             summary: body.text.trim(),
             audience: audience,
             createdAt: DateTime.now(),
             isDraft: draft,
+            notificationType: notify ? 'Push notification' : 'In-app notice',
+            state: draft ? 'Draft' : 'Queued locally',
+            createdBy: profile.name,
+            recipientCount: recipients,
+            deliveredCount: draft ? 0 : (notify ? recipients : 0),
           ),
         );
     if (!mounted) return;
@@ -59,9 +75,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          draft
-              ? 'Announcement saved as draft.'
-              : 'Announcement sent successfully.',
+              draft
+                  ? 'Announcement saved as draft locally.'
+                  : 'Announcement queued locally; backend delivery is not configured.',
         ),
       ),
     );

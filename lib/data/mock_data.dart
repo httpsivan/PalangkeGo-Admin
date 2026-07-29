@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/admin_models.dart';
 import '../models/app_models.dart';
 
 final _names = [
@@ -145,9 +146,48 @@ List<VendorApplication> seedApplications() {
       submittedAt: DateTime(2023, 10, 24).subtract(Duration(days: index)),
       status: statuses[index % statuses.length],
       location: 'Block ${14 + index % 4} - Stall ${2 + index % 8}',
+      documents: _seedKycDocuments(
+          DateTime(2023, 10, 24).subtract(Duration(days: index))),
     ),
   );
 }
+
+List<KycDocument> _seedKycDocuments(DateTime uploadedAt) => [
+      KycDocument(
+        name: 'Mayor\'s Permit',
+        filename: 'mayors-permit.pdf',
+        mimeType: 'application/pdf',
+        uploadedAt: uploadedAt,
+      ),
+      KycDocument(
+        name: 'Sanitary Permit',
+        filename: 'sanitary-permit.png',
+        mimeType: 'image/png',
+        uploadedAt: uploadedAt,
+        assetPath: 'assets/images/mobile_conversation.png',
+      ),
+      KycDocument(
+        name: 'Government ID',
+        filename: 'government-id.png',
+        mimeType: 'image/png',
+        uploadedAt: uploadedAt,
+        assetPath: 'assets/images/mobile_conversation.png',
+      ),
+      KycDocument(
+        name: 'Fire Certification',
+        filename: 'fire-certification.jpg',
+        mimeType: 'image/jpeg',
+        uploadedAt: uploadedAt,
+        assetPath: 'assets/images/spoiled_produce.png',
+      ),
+      KycDocument(
+        name: 'Market Clearance',
+        filename: 'market-clearance.png',
+        mimeType: 'image/png',
+        uploadedAt: uploadedAt,
+        assetPath: 'assets/images/mobile_conversation.png',
+      ),
+    ];
 
 List<RenewalRequest> seedRenewals() {
   final applicants = [
@@ -287,6 +327,93 @@ List<Announcement> seedAnnouncements() => [
 const topSellerNames = ['Ivan Navarro', 'Akisha San Miguel', 'Schylle Palmero'];
 const topSellerRevenue = ['43.9k', '34.1k', '17.1k'];
 const topSellerOrders = ['2395 orders', '2013 orders', '1579 orders'];
+
+List<Order> seedOrders() {
+  final customers = [
+    'Alex Richardson',
+    'Linda Williams',
+    'Juan Dela Cruz',
+    'Maria Santos'
+  ];
+  final vendors = [
+    'Aicel D. Castillo Fish Retailer',
+    'Diosa Fruit Stand',
+    'Santos Quality Meats',
+    'Luzon Fresh Produce'
+  ];
+  final stalls = [
+    'Fish Section',
+    'Fruit Section',
+    'Meat Section',
+    'Vegetables Section'
+  ];
+  final products = [
+    ('Bangus', 'FISH', 220.0),
+    ('Mangoes', 'FRUITS', 180.0),
+    ('Pork Belly', 'MEAT', 360.0),
+    ('Fresh Vegetables', 'VEGETABLES', 150.0),
+  ];
+  final statuses = [
+    OrderStatus.completed,
+    OrderStatus.completed,
+    OrderStatus.processing,
+    OrderStatus.pending,
+    OrderStatus.refunded,
+    OrderStatus.cancelled,
+  ];
+  final payments = [
+    PaymentStatus.paid,
+    PaymentStatus.paid,
+    PaymentStatus.pending,
+    PaymentStatus.pending,
+    PaymentStatus.refunded,
+    PaymentStatus.failed,
+  ];
+  final methods = [
+    PaymentMethod.gcash,
+    PaymentMethod.card,
+    PaymentMethod.wallet,
+    PaymentMethod.cashOnDelivery,
+  ];
+  return List.generate(48, (index) {
+    final product = products[index % products.length];
+    final second = products[(index + 1) % products.length];
+    final quantity = 1 + index % 4;
+    final items = [
+      OrderItem(
+        name: product.$1,
+        category: product.$2,
+        quantity: quantity,
+        unitPrice: product.$3,
+      ),
+      if (index % 3 == 0)
+        OrderItem(
+          name: second.$1,
+          category: second.$2,
+          quantity: 1,
+          unitPrice: second.$3,
+        ),
+    ];
+    return Order(
+      id: 'ORD-${2026001 + index}',
+      transactionId: 'TXN-${72001 + index}',
+      placedAt: DateTime.now()
+          .subtract(Duration(days: index % 38, hours: index % 12)),
+      customerName: customers[index % customers.length],
+      vendorName: vendors[index % vendors.length],
+      stallName: stalls[index % stalls.length],
+      items: items,
+      discounts: index % 5 == 0 ? 25 : 0,
+      deliveryFee: 40,
+      platformFee: 15,
+      refundAmount:
+          statuses[index % statuses.length] == OrderStatus.refunded ? 120 : 0,
+      paymentMethod: methods[index % methods.length],
+      paymentStatus: payments[index % payments.length],
+      status: statuses[index % statuses.length],
+    );
+  });
+}
 
 const avatarColors = [
   Color(0xFFFFD7B5),

@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/mock_repository.dart';
 import '../../features/accounts/accounts_page.dart';
+import '../../features/audit_log/audit_log_page.dart';
 import '../../features/admin_settings/admin_settings_page.dart';
 import '../../features/authentication/login_page.dart';
 import '../../features/overview/overview_page.dart';
 import '../../features/notifications/notifications_page.dart';
 import '../../features/reports/reports_page.dart';
+import '../../features/sales_reports/sales_reports_page.dart';
 import '../../features/renewals/renewals_page.dart';
 import '../../features/vendor_applications/vendor_applications_page.dart';
 import '../widgets/admin_shell.dart';
@@ -49,6 +51,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/reports',
             builder: (context, state) => const ReportsPage(),
+          ),
+          GoRoute(
+            path: '/sales-reports',
+            builder: (context, state) => const SalesReportsPage(),
+          ),
+          GoRoute(
+            path: '/audit-log',
+            builder: (context, state) => const AuditLogPage(),
           ),
           GoRoute(
             path: '/notifications',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/theme_controller.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -17,11 +18,31 @@ class VendorApplicationsPage extends ConsumerStatefulWidget {
 
 class _VendorApplicationsPageState
     extends ConsumerState<VendorApplicationsPage> {
+  static const _viewedApplicationsPreference =
+      'applications_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   int page = 0;
+
+  Set<String> get _viewedApplicationIds => ref
+      .read(sharedPreferencesProvider)
+      .getStringList(_viewedApplicationsPreference)
+      ?.toSet() ??
+      <String>{};
+
+  void _markApplicationViewed(String applicationId) {
+    final preferences = ref.read(sharedPreferencesProvider);
+    final viewed = _viewedApplicationIds;
+    if (!viewed.add(applicationId)) return;
+    setState(() {});
+    preferences.setStringList(
+      _viewedApplicationsPreference,
+      viewed.toList(),
+    );
+  }
+
   @override
   void dispose() {
     search.dispose();
@@ -75,7 +96,14 @@ class _VendorApplicationsPageState
               (stallCategory == 'All Categories' ||
                   item.category == stallCategory),
         )
-        .toList();
+        .toList()
+      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    final newestApplicationId = _newestId(data.applications);
+    final newApplicationId = _viewedApplicationIds.contains(
+      newestApplicationId,
+    )
+        ? null
+        : newestApplicationId;
     final int totalPages = (values.length / 10).ceil();
     final int safePage =
         totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
@@ -159,11 +187,15 @@ class _VendorApplicationsPageState
                     Expanded(
                       child: _ApplicationTable(
                         values: values.skip(safePage * 10).take(10).toList(),
+                        newestId: newApplicationId,
                         verticalController: tableScrollController,
-                        onOpen: (item) => showBlurredDialog(
-                          context,
-                          (context) => VerificationDialog.application(item),
-                        ),
+                        onOpen: (item) {
+                          _markApplicationViewed(item.id);
+                          showBlurredDialog(
+                            context,
+                            (context) => VerificationDialog.application(item),
+                          );
+                        },
                       ),
                     ),
                     if (values.isNotEmpty)
@@ -232,15 +264,26 @@ class _VendorApplicationsPageState
       const SnackBar(content: Text('Vendor applications CSV downloaded.')),
     );
   }
+
+  String? _newestId(List<VendorApplication> values) {
+    if (values.isEmpty) return null;
+    var newest = values.first;
+    for (final item in values.skip(1)) {
+      if (item.submittedAt.isAfter(newest.submittedAt)) newest = item;
+    }
+    return newest.id;
+  }
 }
 
 class _ApplicationTable extends StatelessWidget {
   const _ApplicationTable({
     required this.values,
+    required this.newestId,
     required this.verticalController,
     required this.onOpen,
   });
   final List<VendorApplication> values;
+  final String? newestId;
   final ScrollController verticalController;
   final ValueChanged<VendorApplication> onOpen;
   @override
@@ -260,11 +303,14 @@ class _ApplicationTable extends StatelessWidget {
                 ),
               ),
               DataCell(
-                Row(
+                Wrap(
+                  spacing: 7,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     AvatarCircle(name: item.applicant, size: 28),
-                    const SizedBox(width: 7),
                     Text(item.applicant),
+                    if (item.id == newestId)
+                      const _NewApplicationIndicator(),
                   ],
                 ),
               ),
@@ -321,6 +367,33 @@ class _ApplicationTable extends StatelessWidget {
         ),
       ],
       rows: rows,
+    );
+  }
+}
+
+class _NewApplicationIndicator extends StatelessWidget {
+  const _NewApplicationIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = semanticColors(context).info;
+    return Tooltip(
+      message: 'New application',
+      child: Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(.3),
+              blurRadius: 5,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

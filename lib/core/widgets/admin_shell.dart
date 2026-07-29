@@ -20,6 +20,7 @@ class AdminShell extends ConsumerWidget {
     ('Vendor Application', '/applications', Icons.verified_user_outlined),
     ('Renewal', '/renewal', Icons.campaign_outlined),
     ('Reports', '/reports', Icons.insert_chart_outlined_rounded),
+    ('Audit Log', '/audit-log', Icons.history_rounded),
   ];
 
   @override

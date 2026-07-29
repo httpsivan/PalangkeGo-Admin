@@ -8,6 +8,8 @@ import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/mock_data.dart';
 import '../../data/repositories/mock_repository.dart';
+import '../../models/admin_models.dart';
+import '../../models/app_models.dart';
 import '../announcements/announcement_dialog.dart';
 
 class OverviewPage extends ConsumerWidget {
@@ -59,7 +61,7 @@ class OverviewPage extends ConsumerWidget {
         fontWeight: FontWeight.bold,
       ),
       headerAction: IconButton(
-        onPressed: () => context.go('/reports'),
+        onPressed: () => context.go('/sales-reports'),
         icon: const Icon(Icons.open_in_new_rounded, size: 16),
       ),
       child: const _TopSellers(),
@@ -138,47 +140,56 @@ class _OverviewHero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(adminProfileProvider);
+    final data = ref.watch(appDataProvider);
     final colors = semanticColors(context);
+    final sales = SalesSummary.fromOrders(data.orders);
+    final activeVendors = data.vendors
+        .where((vendor) => vendor.status == AccountStatus.active)
+        .length;
+    final pendingKyc = data.applications
+        .where((application) => application.status == ApplicationStatus.reviewing)
+        .length;
+    final overviewNumberStyle = GoogleFonts.montserrat(
+      fontSize: 26,
+      fontWeight: FontWeight.w800,
+    );
     final metrics = [
       MetricCardData(
-        value: '1,284',
+        value: '$activeVendors',
         label: 'Active Stall Holders',
         icon: Icons.storefront_rounded,
         accent: const Color(0xFF3B82F6),
+        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/accounts'),
       ),
       MetricCardData(
-        value: '42',
+        value: '$pendingKyc',
         label: 'Pending KYC Requests',
         icon: Icons.assignment_outlined,
         accent: const Color(0xFFF59E0B),
+        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/applications'),
       ),
       MetricCardData(
-        value: '₱84,200',
-        label: 'Outstanding Balances',
-        icon: Icons.warning_amber_rounded,
-        accent: Color(0xFFEF4444),
-        valueStyle: GoogleFonts.montserrat(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
+        value: '${sales.totalOrders}',
+        label: 'Total Orders',
+        icon: Icons.shopping_bag_outlined,
+        accent: const Color(0xFFEF4444),
+        valueStyle: overviewNumberStyle,
       ),
       MetricCardData(
-        value: '₱2.48M',
-        label: 'Total Collection (Rent)',
+        value: _shortPeso(sales.netRevenue),
+        label: 'Net Revenue',
         icon: Icons.payments_outlined,
-        accent: Color(0xFF10B981),
-        valueStyle: GoogleFonts.montserrat(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-        ),
+        accent: const Color(0xFF10B981),
+        valueStyle: overviewNumberStyle,
       ),
       MetricCardData(
-        value: '22',
-        label: 'New Users',
+        value: '${data.customers.length}',
+        label: 'Registered Customers',
         icon: Icons.trending_up_rounded,
         accent: const Color(0xFF8B5CF6),
+        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/accounts'),
       ),
     ];
@@ -268,6 +279,12 @@ class _OverviewHero extends ConsumerWidget {
       },
     );
   }
+}
+
+String _shortPeso(double value) {
+  if (value >= 1000000) return '₱${(value / 1000000).toStringAsFixed(2)}M';
+  if (value >= 1000) return '₱${(value / 1000).toStringAsFixed(1)}K';
+  return '₱${value.toStringAsFixed(0)}';
 }
 
 class _ApprovalTable extends StatelessWidget {

@@ -8,6 +8,22 @@ enum ReportStatus { pending, underReview, resolved, dismissed }
 
 enum Priority { high, medium, low }
 
+class KycDocument {
+  const KycDocument({
+    required this.name,
+    required this.filename,
+    required this.mimeType,
+    required this.uploadedAt,
+    this.assetPath,
+  });
+
+  final String name;
+  final String filename;
+  final String mimeType;
+  final DateTime uploadedAt;
+  final String? assetPath;
+}
+
 String enumLabel(Object value) {
   final raw = value.toString().split('.').last;
   final spaced = raw.replaceAllMapped(
@@ -103,6 +119,10 @@ class VendorApplication {
     required this.submittedAt,
     required this.status,
     required this.location,
+    this.documents = const [],
+    this.rejectionReason,
+    this.reviewedAt,
+    this.reviewedBy,
   });
 
   final String id;
@@ -112,8 +132,18 @@ class VendorApplication {
   final DateTime submittedAt;
   final ApplicationStatus status;
   final String location;
+  final List<KycDocument> documents;
+  final String? rejectionReason;
+  final DateTime? reviewedAt;
+  final String? reviewedBy;
 
-  VendorApplication copyWith({ApplicationStatus? status}) => VendorApplication(
+  VendorApplication copyWith({
+    ApplicationStatus? status,
+    String? rejectionReason,
+    DateTime? reviewedAt,
+    String? reviewedBy,
+  }) =>
+      VendorApplication(
         id: id,
         applicant: applicant,
         stallName: stallName,
@@ -121,6 +151,10 @@ class VendorApplication {
         submittedAt: submittedAt,
         status: status ?? this.status,
         location: location,
+        documents: documents,
+        rejectionReason: rejectionReason ?? this.rejectionReason,
+        reviewedAt: reviewedAt ?? this.reviewedAt,
+        reviewedBy: reviewedBy ?? this.reviewedBy,
       );
 }
 
@@ -216,16 +250,34 @@ class Report {
 
 class Announcement {
   const Announcement({
+    this.id = '',
     required this.title,
     required this.summary,
     required this.audience,
     required this.createdAt,
     required this.isDraft,
+    this.notificationType = 'Information',
+    this.state = 'Sent',
+    this.scheduledAt,
+    this.expiresAt,
+    this.createdBy = 'ADM-001',
+    this.recipientCount = 0,
+    this.deliveredCount = 0,
+    this.failedCount = 0,
   });
 
+  final String id;
   final String title;
   final String summary;
   final String audience;
   final DateTime createdAt;
   final bool isDraft;
+  final String notificationType;
+  final String state;
+  final DateTime? scheduledAt;
+  final DateTime? expiresAt;
+  final String createdBy;
+  final int recipientCount;
+  final int deliveredCount;
+  final int failedCount;
 }

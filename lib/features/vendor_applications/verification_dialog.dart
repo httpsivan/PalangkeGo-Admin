@@ -89,9 +89,11 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     if (value == null || value.isEmpty || !mounted) return;
     setState(() => processing = true);
     if (widget.application != null)
-      await ref
-          .read(appDataProvider.notifier)
-          .updateApplication(widget.id, ApplicationStatus.rejected);
+      await ref.read(appDataProvider.notifier).updateApplication(
+            widget.id,
+            ApplicationStatus.rejected,
+            rejectionReason: value,
+          );
     if (widget.renewal != null)
       await ref
           .read(appDataProvider.notifier)
@@ -224,45 +226,66 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     );
   }
 
-  Widget _documents(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '▣ Required Documents',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 13),
-          GridView.count(
-            crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.23,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _doc(context, 'Mayor’s Permit', null),
-              _doc(
-                context,
-                'Sanitary Permit',
-                'assets/images/mobile_conversation.png',
-              ),
-              _doc(context, 'ID', 'assets/images/mobile_conversation.png'),
-              _doc(
-                context,
-                'Fire Certification',
-                'assets/images/spoiled_produce.png',
-              ),
-              _doc(
-                context,
-                'Market Clearance',
-                'assets/images/mobile_conversation.png',
-              ),
-            ],
-          ),
-        ],
-      );
+  Widget _documents(BuildContext context) {
+    final documents = widget.application?.documents ?? const <KycDocument>[];
+    final tiles = documents.isNotEmpty
+        ? documents.map((document) => _docModel(context, document)).toList()
+        : [
+            _doc(context, 'Mayor’s Permit', null),
+            _doc(
+              context,
+              'Sanitary Permit',
+              'assets/images/mobile_conversation.png',
+            ),
+            _doc(context, 'ID', 'assets/images/mobile_conversation.png'),
+            _doc(
+              context,
+              'Fire Certification',
+              'assets/images/spoiled_produce.png',
+            ),
+            _doc(
+              context,
+              'Market Clearance',
+              'assets/images/mobile_conversation.png',
+            ),
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '▣ Required Documents',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 13),
+        GridView.count(
+          crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.23,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: tiles,
+        ),
+      ],
+    );
+  }
 
-  Widget _doc(BuildContext context, String name, String? asset) {
+  Widget _docModel(BuildContext context, KycDocument document) {
+    final asset = document.assetPath;
+    return _doc(
+      context,
+      document.name,
+      asset,
+      filename: '${document.filename} • ${shortDate.format(document.uploadedAt)}',
+    );
+  }
+
+  Widget _doc(
+    BuildContext context,
+    String name,
+    String? asset, {
+    String? filename,
+  }) {
     final content = asset == null
         ? Icon(
             Icons.description_outlined,
@@ -292,7 +315,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             Padding(
               padding: const EdgeInsets.all(10),
               child: Text(
-                name,
+                filename == null ? name : '$name\n$filename',
                 style: const TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
@@ -329,6 +352,22 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               ],
             ),
           ),
+          if (widget.application?.rejectionReason != null &&
+              widget.application!.rejectionReason!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: semanticColors(context).dangerContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: _item(
+                'REJECTION REASON',
+                widget.application!.rejectionReason!,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Container(
             width: double.infinity,

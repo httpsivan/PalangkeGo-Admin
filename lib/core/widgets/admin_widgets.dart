@@ -16,8 +16,8 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) => Image.asset(
         'assets/images/palengkego_admin_logo.png',
         width: compact ? 180 : 220,
-        height: compact ? 48 : 58,
-        fit: BoxFit.contain,
+        height: compact ? 48 : 76,
+        fit: compact ? BoxFit.contain : BoxFit.cover,
         alignment: Alignment.center,
         semanticLabel: 'PalengkeGo - Skip the Roam, Order from Home',
       );

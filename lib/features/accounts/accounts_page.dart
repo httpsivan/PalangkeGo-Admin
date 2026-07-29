@@ -130,7 +130,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               (stallCategory == 'All Categories' ||
                   v.stallType == stallCategory),
         )
-        .toList();
+        .toList()
+      ..sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
     final int totalPages = (visible.length / 10).ceil();
     final int safePage =
         totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
@@ -209,7 +210,8 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                       )) &&
               (status == 'All Statuses' || enumLabel(v.status) == status),
         )
-        .toList();
+        .toList()
+      ..sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
     final int totalPages = (visible.length / 10).ceil();
     final int safePage =
         totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
@@ -565,6 +567,17 @@ Future<void> showAccountDialog(
         );
   }
 
+  Future<bool> suspend() async {
+    return await showSuspensionDialog(
+          context,
+          ref,
+          accountId: account.id,
+          accountName: account.name,
+          accountType: account.accountType,
+        ) ??
+        false;
+  }
+
   final dialogKey = GlobalKey<_AccountDetailsDialogState>();
   return showGeneralDialog<void>(
     context: context,
@@ -608,6 +621,7 @@ Future<void> showAccountDialog(
                         key: dialogKey,
                         account: account,
                         onSave: save,
+                        onSuspend: suspend,
                       ),
                     ),
                   ),
@@ -633,6 +647,185 @@ Future<void> showAccountDialog(
     },
   );
 }
+
+Future<bool?> showSuspensionDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required String accountId,
+  required String accountName,
+  required String accountType,
+}) async {
+  final reason = TextEditingController();
+  final note = TextEditingController();
+  var startDate = DateTime.now();
+  var endDate = DateTime.now().add(const Duration(days: 7));
+  var notifyUser = true;
+  var saving = false;
+
+  Future<void> pickDate(
+    BuildContext dialogContext,
+    bool start,
+    StateSetter setDialogState,
+  ) async {
+    final selected = await showDatePicker(
+      context: dialogContext,
+      initialDate: start ? startDate : endDate,
+      firstDate: start ? DateTime.now() : startDate,
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (selected == null) return;
+    setDialogState(() {
+      if (start) {
+        startDate = selected;
+        if (!endDate.isAfter(startDate)) {
+          endDate = startDate.add(const Duration(days: 1));
+        }
+      } else {
+        endDate = selected;
+      }
+    });
+  }
+
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setDialogState) => AlertDialog(
+        title: const Text('Temporarily suspend account'),
+        content: SizedBox(
+          width: 460,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  accountName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: reason,
+                  autofocus: true,
+                  maxLength: 120,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason *',
+                    hintText: 'Policy violation, unpaid fees, etc.',
+                  ),
+                ),
+                TextField(
+                  controller: note,
+                  maxLines: 3,
+                  maxLength: 300,
+                  decoration: const InputDecoration(
+                    labelText: 'Internal note',
+                    hintText: 'Optional details for the audit trail',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _dateButton(
+                        dialogContext,
+                        'Starts',
+                        startDate,
+                        () => pickDate(dialogContext, true, setDialogState),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _dateButton(
+                        dialogContext,
+                        'Ends',
+                        endDate,
+                        () => pickDate(dialogContext, false, setDialogState),
+                      ),
+                    ),
+                  ],
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: notifyUser,
+                  onChanged: (value) =>
+                      setDialogState(() => notifyUser = value ?? true),
+                  title: const Text('Notify the account holder'),
+                  subtitle:
+                      const Text('Delivery is recorded locally in demo mode.'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: saving ? null : () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: saving
+                ? null
+                : () async {
+                    if (reason.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                            content: Text('Enter a suspension reason.')),
+                      );
+                      return;
+                    }
+                    setDialogState(() => saving = true);
+                    final error = await ref
+                        .read(appDataProvider.notifier)
+                        .createSuspension(
+                          accountId: accountId,
+                          accountName: accountName,
+                          accountType: accountType,
+                          reason: reason.text,
+                          startDate: startDate,
+                          endDate: endDate,
+                          note: note.text,
+                          notifyUser: notifyUser,
+                        );
+                    if (!dialogContext.mounted) return;
+                    if (error != null) {
+                      setDialogState(() => saving = false);
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        SnackBar(content: Text(error)),
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, true);
+                  },
+            child: const Text('Suspend account'),
+          ),
+        ],
+      ),
+    ),
+  );
+  reason.dispose();
+  note.dispose();
+  return result;
+}
+
+Widget _dateButton(
+  BuildContext context,
+  String label,
+  DateTime value,
+  VoidCallback onPressed,
+) =>
+    OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11)),
+          const SizedBox(height: 3),
+          Text(shortDate.format(value), style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
 
 class _AccountDrawer extends ConsumerStatefulWidget {
   const _AccountDrawer({required this.vendor});
@@ -976,10 +1169,12 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
     super.key,
     required this.account,
     required this.onSave,
+    required this.onSuspend,
   });
 
   final _AccountDetailsData account;
   final Future<void> Function(AccountStatus status, String notes) onSave;
+  final Future<bool> Function() onSuspend;
 
   @override
   ConsumerState<_AccountDetailsDialog> createState() =>
@@ -1033,6 +1228,29 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
 
   Future<void> _selectStatus(AccountStatus? value) async {
     if (value == null || value == current) return;
+    if (value == AccountStatus.suspended) {
+      final created = await widget.onSuspend();
+      if (created && mounted) Navigator.of(context).pop();
+      return;
+    }
+    if (current == AccountStatus.suspended) {
+      final activeSuspensions = ref
+          .read(appDataProvider)
+          .suspensions
+          .where((item) => item.accountId == widget.account.id && item.isActive)
+          .toList();
+      if (activeSuspensions.isNotEmpty) {
+        final error = await ref
+            .read(appDataProvider.notifier)
+            .liftSuspension(activeSuspensions.first.id);
+        if (error != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+          return;
+        }
+      }
+    }
     if (value == AccountStatus.blocked || value == AccountStatus.suspended) {
       final confirmed = await showDialog<bool>(
         context: context,

@@ -1,0 +1,15 @@
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+android/.gradle/
+android/local.properties
+ios/Pods/
+macos/Pods/
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+web_plugin_registrant.dart
