@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/repositories/mock_repository.dart';
+import '../animations/animated_widgets.dart';
+import '../animations/app_motion.dart';
 import '../theme/theme_controller.dart';
 import 'admin_widgets.dart';
 import 'admin_profile_menu.dart';
@@ -34,7 +36,9 @@ class AdminShell extends ConsumerWidget {
         child: Column(
           children: [
             _TopNavigation(current: current),
-            Expanded(child: child),
+            Expanded(
+              child: AnimatedPageSwitcher(route: current, child: child),
+            ),
           ],
         ),
       ),
@@ -123,7 +127,7 @@ class _TopNavigation extends ConsumerWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.label,
     required this.path,
@@ -134,46 +138,80 @@ class _NavItem extends StatelessWidget {
   final String path;
   final IconData icon;
   final bool active;
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 5),
-        child: Material(
-          color: active
-              ? semanticColors(context).activeNavigation
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(22),
-          child: InkWell(
-            onTap: () => context.go(path),
-            borderRadius: BorderRadius.circular(22),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon,
-                    size: 18,
-                    color: active
-                        ? semanticColors(context).activeNavigationText
-                        : semanticColors(context).heroMuted,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      color: active
-                          ? semanticColors(context).activeNavigationText
-                          : semanticColors(context).heroMuted,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final activeColor =
+        widget.active ? colors.activeNavigationText : colors.heroMuted;
+    return Padding(
+      padding: const EdgeInsets.only(left: 5),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedScale(
+          scale: pressed ? .97 : 1,
+          duration: AppMotion.duration(context, AppMotion.press),
+          curve: AppMotion.easeOut,
+          child: AnimatedContainer(
+            duration: AppMotion.duration(context, AppMotion.indicator),
+            curve: AppMotion.easeOut,
+            decoration: BoxDecoration(
+              color:
+                  widget.active ? colors.activeNavigation : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: InkWell(
+              onTap: () => context.go(widget.path),
+              onTapDown: (_) => setState(() => pressed = true),
+              onTapUp: (_) => setState(() => pressed = false),
+              onTapCancel: () => setState(() => pressed = false),
+              borderRadius: BorderRadius.circular(22),
+              hoverColor: colors.navigationHover,
+              splashColor: colors.activeNavigation.withOpacity(.16),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(end: activeColor),
+                      duration:
+                          AppMotion.duration(context, AppMotion.indicator),
+                      builder: (context, color, child) => Icon(
+                        widget.icon,
+                        size: 18,
+                        color: color,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 7),
+                    AnimatedDefaultTextStyle(
+                      duration:
+                          AppMotion.duration(context, AppMotion.indicator),
+                      curve: AppMotion.easeOut,
+                      style: GoogleFonts.inter(
+                        color: activeColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      child: Text(widget.label),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _ThemeToggleButton extends ConsumerWidget {
@@ -197,10 +235,18 @@ class _ThemeToggleButton extends ConsumerWidget {
           child: SizedBox(
             width: 38,
             height: 38,
-            child: Icon(
-              dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              color: colors.heroForeground,
-              size: 19,
+            child: AnimatedSwitcher(
+              duration: AppMotion.duration(context, AppMotion.component),
+              transitionBuilder: (child, animation) => RotationTransition(
+                turns: Tween<double>(begin: -.12, end: 0).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: Icon(
+                dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                key: ValueKey(dark),
+                color: colors.heroForeground,
+                size: 19,
+              ),
             ),
           ),
         ),
@@ -718,19 +764,31 @@ Future<T?> showBlurredDialog<T>(
       barrierDismissible: barrierDismissible,
       barrierLabel: 'Close dialog',
       barrierColor: semanticColors(context).overlayScrim,
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: AppMotion.duration(context, AppMotion.dialog),
       pageBuilder: (context, animation, secondaryAnimation) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: builder(context),
       ),
-      transitionBuilder: (context, animation, secondaryAnimation, child) =>
-          FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween(begin: .97, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: AppMotion.easeOut,
+        );
+        if (AppMotion.reducedMotion(context)) {
+          return FadeTransition(opacity: curved, child: child);
+        }
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .96, end: 1).animate(curved),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, .015),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
           ),
-          child: child,
-        ),
-      ),
+        );
+      },
     );

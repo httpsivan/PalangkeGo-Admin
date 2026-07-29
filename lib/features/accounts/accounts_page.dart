@@ -552,30 +552,19 @@ Future<void> showAccountDialog(
       ? _AccountDetailsData.fromVendor(vendor)
       : _AccountDetailsData.fromCustomer(customer!);
 
-  Future<void> save(AccountStatus status, String notes) {
+  Future<void> save(String notes) {
     if (vendor != null) {
       return ref.read(appDataProvider.notifier).updateVendorAccount(
             vendor.id,
-            status: status,
+            status: account.status,
             administrativeNotes: notes,
           );
     }
     return ref.read(appDataProvider.notifier).updateCustomerAccount(
           customer!.id,
-          status: status,
+          status: account.status,
           administrativeNotes: notes,
         );
-  }
-
-  Future<bool> suspend() async {
-    return await showSuspensionDialog(
-          context,
-          ref,
-          accountId: account.id,
-          accountName: account.name,
-          accountType: account.accountType,
-        ) ??
-        false;
   }
 
   final dialogKey = GlobalKey<_AccountDetailsDialogState>();
@@ -621,7 +610,6 @@ Future<void> showAccountDialog(
                         key: dialogKey,
                         account: account,
                         onSave: save,
-                        onSuspend: suspend,
                       ),
                     ),
                   ),
@@ -1169,12 +1157,10 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
     super.key,
     required this.account,
     required this.onSave,
-    required this.onSuspend,
   });
 
   final _AccountDetailsData account;
-  final Future<void> Function(AccountStatus status, String notes) onSave;
-  final Future<bool> Function() onSuspend;
+  final Future<void> Function(String notes) onSave;
 
   @override
   ConsumerState<_AccountDetailsDialog> createState() =>
@@ -1182,15 +1168,12 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
 }
 
 class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
-  late AccountStatus current = widget.account.status;
   late final TextEditingController notes = TextEditingController(
     text: widget.account.administrativeNotes,
   );
   bool saving = false;
 
-  bool get dirty =>
-      current != widget.account.status ||
-      notes.text != widget.account.administrativeNotes;
+  bool get dirty => notes.text != widget.account.administrativeNotes;
 
   @override
   void dispose() {
@@ -1226,69 +1209,11 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     if (discard == true && mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _selectStatus(AccountStatus? value) async {
-    if (value == null || value == current) return;
-    if (value == AccountStatus.suspended) {
-      final created = await widget.onSuspend();
-      if (created && mounted) Navigator.of(context).pop();
-      return;
-    }
-    if (current == AccountStatus.suspended) {
-      final activeSuspensions = ref
-          .read(appDataProvider)
-          .suspensions
-          .where((item) => item.accountId == widget.account.id && item.isActive)
-          .toList();
-      if (activeSuspensions.isNotEmpty) {
-        final error = await ref
-            .read(appDataProvider.notifier)
-            .liftSuspension(activeSuspensions.first.id);
-        if (error != null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
-          return;
-        }
-      }
-    }
-    if (value == AccountStatus.blocked || value == AccountStatus.suspended) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(
-            value == AccountStatus.blocked
-                ? 'Block this account?'
-                : 'Suspend this account?',
-          ),
-          content: Text(
-            value == AccountStatus.blocked
-                ? 'This user will no longer be able to access vendor services until the account is reactivated.'
-                : 'This user will temporarily lose access to vendor services.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(value == AccountStatus.blocked
-                  ? 'Confirm Block'
-                  : 'Confirm Suspend'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-    }
-    setState(() => current = value);
-  }
-
   Future<void> _save() async {
     if (!dirty || saving) return;
     setState(() => saving = true);
     try {
-      await widget.onSave(current, notes.text.trim());
+      await widget.onSave(notes.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account changes saved.')),
@@ -1362,30 +1287,6 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                         'Primary Residence',
                         widget.account.residence,
                       ),
-                      const SizedBox(height: 10),
-                      _sectionTitle('ACCOUNT STATUS'),
-                      const SizedBox(height: 9),
-                      DropdownButtonFormField<AccountStatus>(
-                        value: current,
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 13,
-                            vertical: 12,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                          ),
-                        ),
-                        items: AccountStatus.values
-                            .map(
-                              (value) => DropdownMenuItem(
-                                value: value,
-                                child: Text(enumLabel(value)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _selectStatus,
-                      ),
                       const SizedBox(height: 20),
                       _sectionTitle('RECENT ACTIVITY'),
                       const SizedBox(height: 10),
@@ -1442,10 +1343,6 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  StatusBadge(
-                    label: enumLabel(current),
-                    kind: _badgeKind(current),
-                  ),
                   Text(
                     'Account ID: ${widget.account.id}',
                     style: GoogleFonts.inter(
@@ -1497,11 +1394,6 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                         fontSize: 11,
                         color: semanticColors(context).mutedText,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    StatusBadge(
-                      label: enumLabel(current),
-                      kind: _badgeKind(current),
                     ),
                   ],
                 ),
@@ -1756,15 +1648,4 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
         ),
       );
 
-  BadgeKind _badgeKind(AccountStatus status) {
-    switch (status) {
-      case AccountStatus.active:
-        return BadgeKind.success;
-      case AccountStatus.offline:
-      case AccountStatus.suspended:
-        return BadgeKind.warning;
-      case AccountStatus.blocked:
-        return BadgeKind.danger;
-    }
-  }
 }

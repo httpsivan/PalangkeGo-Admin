@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/repositories/notification_repository.dart';
 import '../../models/admin_notification.dart';
+import '../animations/app_motion.dart';
 import '../theme/theme_extensions.dart';
 import 'admin_widgets.dart';
 
@@ -51,7 +52,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
       barrierDismissible: true,
       barrierLabel: 'Close notifications',
       barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 200),
+      transitionDuration: AppMotion.duration(context, AppMotion.menu),
       pageBuilder: (dialogContext, animation, secondaryAnimation) {
         return SizedBox.expand(
           child: Stack(
@@ -72,12 +73,25 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: AppMotion.easeOut,
+        );
+        if (AppMotion.reducedMotion(context)) {
+          return FadeTransition(opacity: curved, child: child);
+        }
         return FadeTransition(
-          opacity: animation,
+          opacity: curved,
           child: ScaleTransition(
             alignment: Alignment.topRight,
-            scale: Tween<double>(begin: .96, end: 1).animate(animation),
-            child: child,
+            scale: Tween<double>(begin: .96, end: 1).animate(curved),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, -.015),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
           ),
         );
       },
@@ -104,40 +118,70 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
             child: SizedBox(
               width: 38,
               height: 38,
-              child: Icon(
-                Icons.notifications_none_rounded,
-                size: 20,
-                color: colors.heroForeground,
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.component),
+                transitionBuilder: (child, animation) {
+                  final curved = CurvedAnimation(
+                    parent: animation,
+                    curve: AppMotion.easeOut,
+                  );
+                  return FadeTransition(
+                    opacity: curved,
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: .86, end: 1).animate(curved),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Icon(
+                  key: ValueKey('bell-$unread'),
+                  Icons.notifications_none_rounded,
+                  size: 20,
+                  color: colors.heroForeground,
+                ),
               ),
             ),
           ),
         ),
-        if (unread > 0)
-          Positioned(
-            right: -1,
-            top: -1,
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
-              padding: unread > 9
-                  ? const EdgeInsets.symmetric(horizontal: 3, vertical: 1)
-                  : EdgeInsets.zero,
-              decoration: BoxDecoration(
-                color: colors.danger,
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.heroBackground, width: 1.5),
-              ),
-              child: unread > 9
-                  ? Text(
-                      unread > 99 ? '99+' : '$unread',
-                      style: TextStyle(
-                        color: colors.primaryText,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    )
-                  : null,
+        Positioned(
+          right: -1,
+          top: -1,
+          child: AnimatedSwitcher(
+            duration: AppMotion.duration(context, AppMotion.component),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: FadeTransition(opacity: animation, child: child),
             ),
+            child: unread <= 0
+                ? const SizedBox.shrink(key: ValueKey('no-unread'))
+                : Container(
+                    key: ValueKey('unread-$unread'),
+                    constraints:
+                        const BoxConstraints(minWidth: 8, minHeight: 8),
+                    padding: unread > 9
+                        ? const EdgeInsets.symmetric(horizontal: 3, vertical: 1)
+                        : EdgeInsets.zero,
+                    decoration: BoxDecoration(
+                      color: colors.danger,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.heroBackground,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: unread > 9
+                        ? Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: TextStyle(
+                              color: colors.primaryText,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          )
+                        : null,
+                  ),
           ),
+        ),
       ],
     );
   }

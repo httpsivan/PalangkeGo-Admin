@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/animations/animated_widgets.dart';
+import '../../core/animations/app_motion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -43,6 +45,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.initState();
     _slideTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted) return;
+      if (AppMotion.reducedMotion(context)) return;
       setState(() => _slideIndex = (_slideIndex + 1) % _loginSlides.length);
     });
   }
@@ -303,21 +306,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: 18),
           SizedBox(
             height: 44,
-            child: FilledButton(
-              onPressed: loading ? null : submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.heroBackground,
+            child: AnimatedButtonFeedback(
+              enabled: !loading,
+              child: FilledButton(
+                onPressed: loading ? null : submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.heroBackground,
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Log In'),
               ),
-              child: loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Log In'),
             ),
           ),
           const SizedBox(height: 16),
@@ -339,9 +345,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
       ),
     );
+    final animatedPanel = FadeSlideIn(
+      begin: const Offset(0, .035),
+      child: panel,
+    );
     return MediaQuery.sizeOf(context).width >= 820
-        ? SizedBox.expand(child: panel)
-        : panel;
+        ? SizedBox.expand(child: animatedPanel)
+        : animatedPanel;
   }
 
   Future<void> _forgot(BuildContext context) async {

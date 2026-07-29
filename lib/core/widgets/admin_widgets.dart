@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/app_models.dart';
+import '../animations/animated_widgets.dart';
+import '../animations/app_motion.dart';
 import '../theme/theme_extensions.dart';
 
 AppSemanticColors semanticColors(BuildContext context) =>
@@ -129,8 +131,10 @@ class PageHeader extends StatelessWidget {
                     mainAxisSpacing: 12,
                     mainAxisExtent: 63,
                   ),
-                  itemBuilder: (context, index) =>
-                      MetricCard(data: metrics[index], compact: true),
+                  itemBuilder: (context, index) => FadeSlideIn(
+                    delay: Duration(milliseconds: 35 * index),
+                    child: MetricCard(data: metrics[index], compact: true),
+                  ),
                 );
               },
             ),
@@ -175,42 +179,46 @@ class MetricCard extends StatelessWidget {
       ),
       child: Icon(data.icon, color: data.accent, size: 18),
     );
-    final arrow = compact
-        ? IconButton(
-            tooltip: 'Open',
-            onPressed: data.onTap,
-            icon: Icon(
-              Icons.arrow_outward_rounded,
-              size: 14,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(.72),
-            ),
-          )
-        : InkWell(
-            onTap: data.onTap,
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              width: 36,
-              height: 36,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.subtleBorder),
-              ),
-              child: Icon(
-                Icons.arrow_outward_rounded,
-                size: 15,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(.72),
-              ),
-            ),
-          );
-    final value = Text(
-      data.value,
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: compact ? 21 : 26,
-        fontWeight: FontWeight.w800,
-      ).merge(data.valueStyle),
-    );
+    final Widget? arrow = data.onTap == null
+        ? null
+        : compact
+            ? IconButton(
+                tooltip: 'Open',
+                onPressed: data.onTap,
+                icon: Icon(
+                  Icons.arrow_outward_rounded,
+                  size: 14,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(.72),
+                ),
+              )
+            : InkWell(
+                onTap: data.onTap,
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.subtleBorder),
+                  ),
+                  child: Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 15,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(.72),
+                  ),
+                ),
+              );
+    final valueStyle = TextStyle(
+      color: Theme.of(context).colorScheme.onSurface,
+      fontSize: compact ? 21 : 26,
+      fontWeight: FontWeight.w800,
+    ).merge(data.valueStyle);
+    final value = AnimatedCounter(value: data.value, style: valueStyle);
     final label = Text(
       data.label,
       maxLines: 1,
@@ -220,51 +228,59 @@ class MetricCard extends StatelessWidget {
         fontSize: compact ? 11 : 11.5,
       ),
     );
-    return Container(
-      padding: compact
-          ? const EdgeInsets.symmetric(horizontal: 14)
-          : const EdgeInsets.fromLTRB(14, 16, 12, 14),
-      decoration: BoxDecoration(
-        color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(compact ? 12 : 14),
-        border: Border.all(color: colors.subtleBorder),
-        boxShadow: compact
-            ? const []
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(.12),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-      ),
-      child: compact
-          ? Row(
-              children: [
-                icon,
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [value, const SizedBox(height: 4), label],
+    return AnimatedHoverContainer(
+      onTap: data.onTap,
+      borderRadius: BorderRadius.circular(compact ? 12 : 14),
+      child: Container(
+        padding: compact
+            ? const EdgeInsets.symmetric(horizontal: 14)
+            : const EdgeInsets.fromLTRB(14, 16, 12, 14),
+        decoration: BoxDecoration(
+          color: colors.cardBackground,
+          borderRadius: BorderRadius.circular(compact ? 12 : 14),
+          border: Border.all(color: colors.subtleBorder),
+          boxShadow: compact
+              ? const []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
-                ),
-                arrow,
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [icon, const Spacer(), arrow],
-                ),
-                const Spacer(),
-                value,
-                const SizedBox(height: 3),
-                label,
-              ],
-            ),
+                ],
+        ),
+        child: compact
+            ? Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [value, const SizedBox(height: 4), label],
+                    ),
+                  ),
+                  if (arrow != null) arrow,
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      icon,
+                      const Spacer(),
+                      if (arrow != null) arrow,
+                    ],
+                  ),
+                  const Spacer(),
+                  value,
+                  const SizedBox(height: 3),
+                  label,
+                ],
+              ),
+      ),
     );
   }
 }
@@ -295,29 +311,42 @@ class StatusBadge extends StatelessWidget {
           : (const Color(0xFF8B5CF6), const Color(0xFFEDE9FE)),
       BadgeKind.neutral => (colors.mutedText, colors.hoverSurface),
     };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: pair.$2,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: pair.$1.withOpacity(.12)),
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.component),
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: .95, end: 1).animate(animation),
+          child: child,
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 11, color: pair.$1),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: pair.$1,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
+      child: Container(
+        key: ValueKey('$label-${kind.name}'),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: pair.$2,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: pair.$1.withOpacity(.12)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 11, color: pair.$1),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: pair.$1,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -412,18 +441,23 @@ class FilterButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 15),
-        label: Text(label, style: const TextStyle(fontSize: 11)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor:
-              Theme.of(context).colorScheme.onSurface.withOpacity(.76),
-          side: BorderSide(color: semanticColors(context).subtleBorder),
-          backgroundColor: semanticColors(context).hoverSurface,
-          minimumSize: const Size(0, 38),
-          padding: const EdgeInsets.symmetric(horizontal: 11),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+  Widget build(BuildContext context) => AnimatedButtonFeedback(
+        enabled: onTap != null,
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 15),
+          label: Text(label, style: const TextStyle(fontSize: 11)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor:
+                Theme.of(context).colorScheme.onSurface.withOpacity(.76),
+            side: BorderSide(color: semanticColors(context).subtleBorder),
+            backgroundColor: semanticColors(context).hoverSurface,
+            minimumSize: const Size(0, 38),
+            padding: const EdgeInsets.symmetric(horizontal: 11),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+            ),
+          ),
         ),
       );
 }
@@ -538,20 +572,31 @@ class ApplicationStatusBadge extends StatelessWidget {
       BadgeKind.danger => colors.danger,
       _ => colors.mutedText,
     };
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: color,
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-          ),
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.component),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: .95, end: 1).animate(animation),
+          child: child,
         ),
-      ],
+      ),
+      child: Row(
+        key: ValueKey(status),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -625,21 +670,35 @@ class ScrollableDataTable extends StatelessWidget {
                 children: [
                   table(tableRows: const [], headingHeight: 48),
                   Expanded(
-                    child: rows.isEmpty
-                        ? emptyState
-                        : Scrollbar(
-                            controller: verticalController,
-                            thumbVisibility: true,
-                            interactive: true,
-                            child: ListView(
-                              controller: verticalController,
-                              primary: false,
-                              padding: const EdgeInsets.only(right: 14),
-                              children: [
-                                table(tableRows: rows, headingHeight: 0),
-                              ],
+                    child: AnimatedSwitcher(
+                      duration:
+                          AppMotion.duration(context, AppMotion.component),
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      ),
+                      child: rows.isEmpty
+                          ? KeyedSubtree(
+                              key: const ValueKey('empty'),
+                              child: emptyState,
+                            )
+                          : KeyedSubtree(
+                              key: const ValueKey('rows'),
+                              child: Scrollbar(
+                                controller: verticalController,
+                                thumbVisibility: true,
+                                interactive: true,
+                                child: ListView(
+                                  controller: verticalController,
+                                  primary: false,
+                                  padding: const EdgeInsets.only(right: 14),
+                                  children: [
+                                    table(tableRows: rows, headingHeight: 0),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                 ],
               ),
@@ -674,35 +733,47 @@ class PaginationBar extends StatelessWidget {
     }
 
     final int safePage = page.clamp(0, pageCount - 1) as int;
-    final pagination = Wrap(
-      spacing: 5,
-      children: [
-        _button(
-          context,
-          Icons.chevron_left_rounded,
-          safePage > 0 ? () => onPageChanged(safePage - 1) : null,
+    final pagination = AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.component),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(safePage),
+        child: Wrap(
+          spacing: 5,
+          children: [
+            _button(
+              context,
+              Icons.chevron_left_rounded,
+              safePage > 0 ? () => onPageChanged(safePage - 1) : null,
+            ),
+            for (var i = 0; i < pageCount && i < 3; i++)
+              _button(
+                context,
+                i + 1,
+                () => onPageChanged(i),
+                active: i == safePage,
+              ),
+            if (pageCount > 4) _button(context, '...', null),
+            if (pageCount > 3)
+              _button(
+                context,
+                pageCount,
+                () => onPageChanged(pageCount - 1),
+                active: safePage == pageCount - 1,
+              ),
+            _button(
+              context,
+              Icons.chevron_right_rounded,
+              safePage < pageCount - 1
+                  ? () => onPageChanged(safePage + 1)
+                  : null,
+            ),
+          ],
         ),
-        for (var i = 0; i < pageCount && i < 3; i++)
-          _button(
-            context,
-            i + 1,
-            () => onPageChanged(i),
-            active: i == safePage,
-          ),
-        if (pageCount > 4) _button(context, '...', null),
-        if (pageCount > 3)
-          _button(
-            context,
-            pageCount,
-            () => onPageChanged(pageCount - 1),
-            active: safePage == pageCount - 1,
-          ),
-        _button(
-          context,
-          Icons.chevron_right_rounded,
-          safePage < pageCount - 1 ? () => onPageChanged(safePage + 1) : null,
-        ),
-      ],
+      ),
     );
 
     final summary = Text(
@@ -760,42 +831,45 @@ class PaginationBar extends StatelessWidget {
     VoidCallback? onTap, {
     bool active = false,
   }) =>
-      Material(
-        color: active
-            ? semanticColors(context).heroBackground
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          onTap: onTap,
+      AnimatedButtonFeedback(
+        enabled: onTap != null,
+        child: Material(
+          color: active
+              ? semanticColors(context).heroBackground
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
-          child: Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
-              border: active
-                  ? null
-                  : Border.all(color: semanticColors(context).subtleBorder),
-            ),
-            child: label is IconData
-                ? Icon(
-                    label,
-                    size: 16,
-                    color: onTap == null
-                        ? semanticColors(context).disabledText
-                        : Theme.of(context).colorScheme.onSurface,
-                  )
-                : Text(
-                    '$label',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: active
-                          ? semanticColors(context).primaryText
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(7),
+            child: Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(7),
+                border: active
+                    ? null
+                    : Border.all(color: semanticColors(context).subtleBorder),
+              ),
+              child: label is IconData
+                  ? Icon(
+                      label,
+                      size: 16,
+                      color: onTap == null
+                          ? semanticColors(context).disabledText
                           : Theme.of(context).colorScheme.onSurface,
+                    )
+                  : Text(
+                      '$label',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: active
+                            ? semanticColors(context).primaryText
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       );
@@ -810,10 +884,12 @@ class EmptyState extends StatelessWidget {
         child: Center(
           child: Column(
             children: [
-              Icon(
-                Icons.search_off_rounded,
-                size: 28,
-                color: semanticColors(context).mutedText,
+              FadeSlideIn(
+                child: Icon(
+                  Icons.search_off_rounded,
+                  size: 28,
+                  color: semanticColors(context).mutedText,
+                ),
               ),
               const SizedBox(height: 8),
               Text(

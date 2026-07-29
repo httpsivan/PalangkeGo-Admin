@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/utils/formatters.dart';
+import '../../core/animations/animated_widgets.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/mock_data.dart';
@@ -147,7 +148,8 @@ class _OverviewHero extends ConsumerWidget {
         .where((vendor) => vendor.status == AccountStatus.active)
         .length;
     final pendingKyc = data.applications
-        .where((application) => application.status == ApplicationStatus.reviewing)
+        .where(
+            (application) => application.status == ApplicationStatus.reviewing)
         .length;
     final overviewNumberStyle = GoogleFonts.montserrat(
       fontSize: 26,
@@ -237,7 +239,10 @@ class _OverviewHero extends ConsumerWidget {
             mainAxisSpacing: 12,
             mainAxisExtent: desktop ? 146 : 116,
           ),
-          itemBuilder: (context, index) => MetricCard(data: metrics[index]),
+          itemBuilder: (context, index) => FadeSlideIn(
+            delay: Duration(milliseconds: 45 * index),
+            child: MetricCard(data: metrics[index]),
+          ),
         );
 
         if (!desktop) {
