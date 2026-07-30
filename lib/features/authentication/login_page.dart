@@ -199,7 +199,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _loginForm(BuildContext context) {
     final colors = semanticColors(context);
-    final profile = ref.watch(adminProfileProvider);
     final form = Form(
       key: formKey,
       child: Column(
@@ -327,11 +326,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Mock credentials: ${profile.email} / ${profile.password}',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10),
-          ),
         ],
       ),
     );
