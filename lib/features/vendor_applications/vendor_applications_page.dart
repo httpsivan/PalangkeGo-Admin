@@ -18,18 +18,18 @@ class VendorApplicationsPage extends ConsumerStatefulWidget {
 
 class _VendorApplicationsPageState
     extends ConsumerState<VendorApplicationsPage> {
-  static const _viewedApplicationsPreference =
-      'applications_viewed_new_badges';
+  static const _viewedApplicationsPreference = 'applications_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   int page = 0;
 
-  Set<String> get _viewedApplicationIds => ref
-      .read(sharedPreferencesProvider)
-      .getStringList(_viewedApplicationsPreference)
-      ?.toSet() ??
+  Set<String> get _viewedApplicationIds =>
+      ref
+          .read(sharedPreferencesProvider)
+          .getStringList(_viewedApplicationsPreference)
+          ?.toSet() ??
       <String>{};
 
   void _markApplicationViewed(String applicationId) {
@@ -159,7 +159,7 @@ class _VendorApplicationsPageState
                         _resetTable();
                       },
                       trailing: [
-                        _filter(context, status, [
+                        _filter(status, [
                           'All Statuses',
                           'Verified',
                           'Reviewing',
@@ -169,7 +169,6 @@ class _VendorApplicationsPageState
                           _resetTable();
                         }),
                         _filter(
-                            context,
                             stallCategory == 'All Categories'
                                 ? 'Stall Category'
                                 : stallCategory,
@@ -219,23 +218,14 @@ class _VendorApplicationsPageState
   }
 
   Widget _filter(
-    BuildContext context,
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
   ) =>
-      FilterButton(
+      FilterMenuButton(
         label: label,
-        onTap: () async {
-          final value = await showMenu<String>(
-            context: context,
-            position: const RelativeRect.fromLTRB(350, 300, 0, 0),
-            items: values
-                .map((item) => PopupMenuItem(value: item, child: Text(item)))
-                .toList(),
-          );
-          if (value != null) onChanged(value);
-        },
+        values: values,
+        onSelected: onChanged,
       );
 
   void _export(List<VendorApplication> values) {
@@ -309,8 +299,7 @@ class _ApplicationTable extends StatelessWidget {
                   children: [
                     AvatarCircle(name: item.applicant, size: 28),
                     Text(item.applicant),
-                    if (item.id == newestId)
-                      const _NewApplicationIndicator(),
+                    if (item.id == newestId) const _NewApplicationIndicator(),
                   ],
                 ),
               ),

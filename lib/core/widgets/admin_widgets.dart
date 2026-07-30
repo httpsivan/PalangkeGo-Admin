@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,10 +33,12 @@ class AvatarCircle extends StatelessWidget {
     required this.name,
     this.size = 36,
     this.image,
-  });
+    this.imageBytes,
+  }) : assert(image == null || imageBytes == null);
   final String name;
   final double size;
   final ImageProvider<Object>? image;
+  final Uint8List? imageBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +51,14 @@ class AvatarCircle extends StatelessWidget {
         .map((word) => word[0])
         .join()
         .toUpperCase();
+    final resolvedImage =
+        image ?? (imageBytes == null ? null : MemoryImage(imageBytes!));
     return CircleAvatar(
       radius: size / 2,
       backgroundColor:
           isDark ? colors.activeNavigation : colors.successContainer,
-      backgroundImage: image,
-      child: image == null
+      backgroundImage: resolvedImage,
+      child: resolvedImage == null
           ? Text(
               initials,
               style: TextStyle(
@@ -458,6 +464,47 @@ class FilterButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(9),
             ),
           ),
+        ),
+      );
+}
+
+class FilterMenuButton extends StatelessWidget {
+  const FilterMenuButton({
+    super.key,
+    required this.label,
+    required this.values,
+    required this.onSelected,
+    this.icon = Icons.keyboard_arrow_down_rounded,
+  });
+
+  final String label;
+  final List<String> values;
+  final ValueChanged<String> onSelected;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => MenuAnchor(
+        alignmentOffset: const Offset(0, 4),
+        menuChildren: [
+          for (final value in values)
+            MenuItemButton(
+              onPressed: () => onSelected(value),
+              child: SizedBox(
+                width: 140,
+                child: Text(value, style: const TextStyle(fontSize: 12)),
+              ),
+            ),
+        ],
+        builder: (context, controller, child) => FilterButton(
+          label: label,
+          icon: icon,
+          onTap: () {
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
         ),
       );
 }

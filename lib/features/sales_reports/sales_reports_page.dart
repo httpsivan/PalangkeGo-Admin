@@ -78,7 +78,20 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                 spacing: 8,
                 children: [
                   FilterButton(label: 'Filters', icon: Icons.tune_rounded, onTap: () => _showFilters(categories, vendors)),
-                  FilterButton(label: 'Sort', icon: Icons.sort_rounded, onTap: _showSort),
+                  FilterMenuButton(
+                    label: 'Sort',
+                    icon: Icons.sort_rounded,
+                    values: const [
+                      'Newest first',
+                      'Oldest first',
+                      'Highest total',
+                      'Lowest total',
+                    ],
+                    onSelected: (value) => setState(() {
+                      sort = value;
+                      page = 0;
+                    }),
+                  ),
                   FilterButton(label: 'PDF', icon: Icons.picture_as_pdf_outlined, onTap: exporting ? null : () => _exportPdf(values, summary)),
                   FilterButton(label: 'Excel', icon: Icons.table_chart_outlined, onTap: exporting ? null : () => _exportExcel(values, summary)),
                 ],
@@ -204,17 +217,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
         deleteIcon: const Icon(Icons.close, size: 13),
         visualDensity: VisualDensity.compact,
       );
-
-  Future<void> _showSort() async {
-    final value = await showMenu<String>(
-      context: context,
-      position: const RelativeRect.fromLTRB(600, 250, 20, 0),
-      items: ['Newest first', 'Oldest first', 'Highest total', 'Lowest total']
-          .map((item) => PopupMenuItem(value: item, child: Text(item)))
-          .toList(),
-    );
-    if (value != null) setState(() { sort = value; page = 0; });
-  }
 
   Future<void> _showFilters(List<String> categories, List<String> vendors) async {
     var nextCategory = category;

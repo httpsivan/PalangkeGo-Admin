@@ -397,7 +397,11 @@ class _ProfileMenu extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          AvatarCircle(name: profile.name, size: 34),
+          AvatarCircle(
+            name: profile.name,
+            size: 34,
+            imageBytes: profile.avatarBytes,
+          ),
           if (!compact) ...[
             const SizedBox(width: 8),
             SizedBox(

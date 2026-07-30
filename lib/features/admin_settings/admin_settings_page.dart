@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,9 +15,13 @@ class AdminSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
+  static const _maxAvatarBytes = 2 * 1024 * 1024;
   late final TextEditingController _nameController;
   late final TextEditingController _passwordController;
   late final TextEditingController _confirmPasswordController;
+  Uint8List? _selectedAvatarBytes;
+  bool _removeAvatar = false;
+  bool _pickingAvatar = false;
   bool _saving = false;
   String? _error;
 
@@ -33,6 +40,49 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAvatar() async {
+    setState(() => _pickingAvatar = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (!mounted || result == null) return;
+      final bytes = result.files.single.bytes;
+      if (bytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to read the selected image.')),
+        );
+        return;
+      }
+      if (bytes.length > _maxAvatarBytes) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Choose an image smaller than 2 MB.')),
+        );
+        return;
+      }
+      setState(() {
+        _selectedAvatarBytes = bytes;
+        _removeAvatar = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open the image picker.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _pickingAvatar = false);
+    }
+  }
+
+  void _clearAvatar() {
+    setState(() {
+      _selectedAvatarBytes = null;
+      _removeAvatar = true;
+    });
   }
 
   Future<void> _save() async {
@@ -57,9 +107,15 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
     await ref.read(adminProfileProvider.notifier).updateProfile(
           name: name,
           password: password.isEmpty ? null : password,
+          avatarBytes: _selectedAvatarBytes,
+          removeAvatar: _removeAvatar,
         );
     if (!mounted) return;
-    setState(() => _saving = false);
+    setState(() {
+      _saving = false;
+      _selectedAvatarBytes = null;
+      _removeAvatar = false;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile updated successfully.')),
     );
@@ -89,8 +145,11 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _profilePictureEditor(context, profile),
+                        const SizedBox(height: 22),
                         TextField(
                           controller: _nameController,
+                          onChanged: (_) => setState(() {}),
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'Full name',
@@ -154,7 +213,8 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   )
                                 : const Icon(Icons.save_outlined, size: 18),
                             label: const Text('Save changes'),
@@ -169,6 +229,109 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _profilePictureEditor(
+    BuildContext context,
+    AdminProfile profile,
+  ) {
+    final colors = semanticColors(context);
+    final avatarBytes =
+        _removeAvatar ? null : _selectedAvatarBytes ?? profile.avatarBytes;
+    final preview = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        AvatarCircle(
+          name: _nameController.text.isEmpty
+              ? profile.name
+              : _nameController.text,
+          size: 88,
+          imageBytes: avatarBytes,
+        ),
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Tooltip(
+            message: 'Change profile picture',
+            child: Material(
+              color: colors.heroBackground,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: _pickingAvatar ? null : _pickAvatar,
+                customBorder: const CircleBorder(),
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: _pickingAvatar
+                      ? Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.heroForeground,
+                          ),
+                        )
+                      : Icon(
+                          Icons.photo_camera_outlined,
+                          size: 17,
+                          color: colors.heroForeground,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    final actions = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Profile picture',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 7),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _pickingAvatar ? null : _pickAvatar,
+              icon: const Icon(Icons.upload_outlined, size: 17),
+              label: Text(avatarBytes == null ? 'Add photo' : 'Change photo'),
+            ),
+            if (avatarBytes != null)
+              TextButton.icon(
+                onPressed: _clearAvatar,
+                icon: const Icon(Icons.delete_outline_rounded, size: 17),
+                label: const Text('Remove'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Image files up to 2 MB.',
+          style: TextStyle(color: colors.mutedText, fontSize: 11),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 430) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [preview, const SizedBox(height: 16), actions],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            preview,
+            const SizedBox(width: 20),
+            Expanded(child: actions),
+          ],
+        );
+      },
     );
   }
 }

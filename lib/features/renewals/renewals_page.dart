@@ -134,7 +134,7 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
                         _resetTable();
                       },
                       trailing: [
-                        _filter(context, status, [
+                        _filter(status, [
                           'All Statuses',
                           'Approved',
                           'Reviewing',
@@ -144,7 +144,6 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
                           _resetTable();
                         }),
                         _filter(
-                            context,
                             stallCategory == 'All Categories'
                                 ? 'Stall Category'
                                 : stallCategory,
@@ -190,23 +189,14 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
   }
 
   Widget _filter(
-    BuildContext context,
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
   ) =>
-      FilterButton(
+      FilterMenuButton(
         label: label,
-        onTap: () async {
-          final v = await showMenu<String>(
-            context: context,
-            position: const RelativeRect.fromLTRB(350, 300, 0, 0),
-            items: values
-                .map((x) => PopupMenuItem(value: x, child: Text(x)))
-                .toList(),
-          );
-          if (v != null) onChanged(v);
-        },
+        values: values,
+        onSelected: onChanged,
       );
 
   void _export(List<RenewalRequest> values) {

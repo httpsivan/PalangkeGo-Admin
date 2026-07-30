@@ -98,13 +98,31 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
                         page = 0;
                       }),
                       trailing: [
-                        FilterButton(
-                            label: action == null
-                                ? 'All Actions'
-                                : enumLabel(action!),
-                            onTap: () => _pickAction()),
-                        FilterButton(
-                            label: entity, onTap: () => _pickEntity(entities)),
+                        FilterMenuButton(
+                          label: action == null
+                              ? 'All Actions'
+                              : enumLabel(action!),
+                          values: [
+                            'All Actions',
+                            ...AuditAction.values.map(enumLabel),
+                          ],
+                          onSelected: (value) => setState(() {
+                            action = value == 'All Actions'
+                                ? null
+                                : AuditAction.values.firstWhere(
+                                    (item) => enumLabel(item) == value,
+                                  );
+                            page = 0;
+                          }),
+                        ),
+                        FilterMenuButton(
+                          label: entity,
+                          values: entities,
+                          onSelected: (value) => setState(() {
+                            entity = value;
+                            page = 0;
+                          }),
+                        ),
                       ],
                     ),
                     Expanded(
@@ -163,38 +181,6 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
         ),
       ],
     );
-  }
-
-  Future<void> _pickAction() async {
-    final picked = await showMenu<String>(
-      context: context,
-      position: const RelativeRect.fromLTRB(500, 260, 30, 0),
-      items: [
-        const PopupMenuItem(value: '', child: Text('All Actions')),
-        ...AuditAction.values.map((item) =>
-            PopupMenuItem(value: item.name, child: Text(enumLabel(item)))),
-      ],
-    );
-    if (picked == null) return;
-    setState(() {
-      action = picked.isEmpty ? null : AuditAction.values.byName(picked);
-      page = 0;
-    });
-  }
-
-  Future<void> _pickEntity(List<String> values) async {
-    final picked = await showMenu<String>(
-      context: context,
-      position: const RelativeRect.fromLTRB(650, 260, 20, 0),
-      items: values
-          .map((item) => PopupMenuItem(value: item, child: Text(item)))
-          .toList(),
-    );
-    if (picked != null)
-      setState(() {
-        entity = picked;
-        page = 0;
-      });
   }
 
   void _export(List<AuditLog> values) {

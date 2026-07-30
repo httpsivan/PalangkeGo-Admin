@@ -131,7 +131,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         _resetTable();
                       },
                       trailing: [
-                        _filter(context, status, [
+                        _filter(status, [
                           'All Statuses',
                           'Pending',
                           'Under Review',
@@ -141,7 +141,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                           _resetTable();
                         }),
                         _filter(
-                            context,
                             selectedCategory == 'All Categories'
                                 ? 'Stall Category'
                                 : selectedCategory,
@@ -187,23 +186,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   }
 
   Widget _filter(
-    BuildContext context,
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
   ) =>
-      FilterButton(
+      FilterMenuButton(
         label: label,
-        onTap: () async {
-          final value = await showMenu<String>(
-            context: context,
-            position: const RelativeRect.fromLTRB(400, 300, 0, 0),
-            items: values
-                .map((item) => PopupMenuItem(value: item, child: Text(item)))
-                .toList(),
-          );
-          if (value != null) onChanged(value);
-        },
+        values: values,
+        onSelected: onChanged,
       );
 
   void _export(List<Report> values) {

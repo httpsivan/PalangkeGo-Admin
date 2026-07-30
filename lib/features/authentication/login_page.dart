@@ -33,26 +33,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final formKey = GlobalKey<FormState>();
   final email = TextEditingController();
   final password = TextEditingController();
-  Timer? _slideTimer;
-  int _slideIndex = 0;
   bool obscure = true;
   bool keepSignedIn = false;
   bool loading = false;
   String? error;
 
   @override
-  void initState() {
-    super.initState();
-    _slideTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted) return;
-      if (AppMotion.reducedMotion(context)) return;
-      setState(() => _slideIndex = (_slideIndex + 1) % _loginSlides.length);
-    });
-  }
-
-  @override
   void dispose() {
-    _slideTimer?.cancel();
     email.dispose();
     password.dispose();
     super.dispose();
@@ -123,36 +110,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       height: compact ? 245 : double.infinity,
       constraints: const BoxConstraints(minHeight: 245),
       clipBehavior: Clip.hardEdge,
-      decoration: const BoxDecoration(color: Colors.black),
+      decoration: BoxDecoration(
+        color: semanticColors(context).heroBackground,
+      ),
       child: Stack(
         fit: StackFit.expand,
         children: [
           Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 1600),
-              switchInCurve: Curves.easeIn,
-              switchOutCurve: Curves.easeOut,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation.drive(
-                  CurveTween(curve: Curves.easeInOut),
-                ),
-                child: child,
-              ),
-              layoutBuilder: (currentChild, previousChildren) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  ...previousChildren,
-                  if (currentChild != null) currentChild,
-                ],
-              ),
-              child: SizedBox.expand(
-                child: Image.asset(
-                  _loginSlides[_slideIndex],
-                  key: ValueKey(_loginSlides[_slideIndex]),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
+            child: const _LoginSlideshow(images: _loginSlides),
           ),
           Positioned.fill(
             child: ColoredBox(
@@ -380,6 +345,83 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ),
     );
     controller.dispose();
+  }
+}
+
+class _LoginSlideshow extends StatefulWidget {
+  const _LoginSlideshow({required this.images});
+
+  final List<String> images;
+
+  @override
+  State<_LoginSlideshow> createState() => _LoginSlideshowState();
+}
+
+class _LoginSlideshowState extends State<_LoginSlideshow> {
+  static const _slideInterval = Duration(seconds: 5);
+  static const _fadeDuration = Duration(milliseconds: 1000);
+
+  Timer? _timer;
+  int _currentIndex = 0;
+  bool _preloadStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_preloadStarted) return;
+    _preloadStarted = true;
+    unawaited(_preloadImagesAndStart());
+  }
+
+  Future<void> _preloadImagesAndStart() async {
+    await Future.wait(
+      widget.images.map(
+        (imagePath) => precacheImage(AssetImage(imagePath), context),
+      ),
+    );
+    if (!mounted || widget.images.length < 2) return;
+    _timer = Timer.periodic(_slideInterval, (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentIndex = (_currentIndex + 1) % widget.images.length;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reducedMotion = AppMotion.reducedMotion(context);
+    return AnimatedSwitcher(
+      duration: reducedMotion ? AppMotion.instant : _fadeDuration,
+      switchInCurve: Curves.easeInOut,
+      switchOutCurve: Curves.easeInOut,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        fit: StackFit.expand,
+        children: [
+          ...previousChildren,
+          if (currentChild != null) currentChild,
+        ],
+      ),
+      child: Image.asset(
+        widget.images[_currentIndex],
+        key: ValueKey<int>(_currentIndex),
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        alignment: Alignment.center,
+        gaplessPlayback: true,
+      ),
+    );
   }
 }
 

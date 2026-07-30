@@ -150,7 +150,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 _resetTable();
               },
               trailing: [
-                _filter(context, status, [
+                _filter(status, [
                   'All Statuses',
                   'Active',
                   'Offline',
@@ -161,7 +161,6 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                   _resetTable();
                 }),
                 _filter(
-                    context,
                     stallCategory == 'All Categories'
                         ? 'Stall Category'
                         : stallCategory,
@@ -231,7 +230,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               },
               searchHint: 'Search by name, email, or ID...',
               trailing: [
-                _filter(context, status, [
+                _filter(status, [
                   'All Statuses',
                   'Active',
                   'Suspended',
@@ -275,23 +274,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   }
 
   Widget _filter(
-    BuildContext context,
     String label,
     List<String> values,
     ValueChanged<String> onChanged,
   ) =>
-      FilterButton(
+      FilterMenuButton(
         label: label,
-        onTap: () async {
-          final value = await showMenu<String>(
-            context: context,
-            position: const RelativeRect.fromLTRB(350, 280, 0, 0),
-            items: values
-                .map((item) => PopupMenuItem(value: item, child: Text(item)))
-                .toList(),
-          );
-          if (value != null) onChanged(value);
-        },
+        values: values,
+        onSelected: onChanged,
       );
 
   void _export(List<dynamic> values, String name) {
@@ -552,22 +542,22 @@ Future<void> showAccountDialog(
       ? _AccountDetailsData.fromVendor(vendor)
       : _AccountDetailsData.fromCustomer(customer!);
 
-  Future<void> save(String notes) {
+  Future<void> update(String notes, AccountStatus nextStatus) {
     if (vendor != null) {
       return ref.read(appDataProvider.notifier).updateVendorAccount(
             vendor.id,
-            status: account.status,
+            status: nextStatus,
             administrativeNotes: notes,
           );
     }
     return ref.read(appDataProvider.notifier).updateCustomerAccount(
           customer!.id,
-          status: account.status,
+          status: nextStatus,
           administrativeNotes: notes,
         );
   }
 
-  final dialogKey = GlobalKey<_AccountDetailsDialogState>();
+  final closeRequests = ValueNotifier<int>(0);
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -582,7 +572,7 @@ Future<void> showAccountDialog(
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => dialogKey.currentState?.requestClose(),
+                onTap: () => closeRequests.value++,
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: ColoredBox(
@@ -607,9 +597,12 @@ Future<void> showAccountDialog(
                       width: width,
                       height: height,
                       child: _AccountDetailsDialog(
-                        key: dialogKey,
                         account: account,
-                        onSave: save,
+                        closeRequests: closeRequests,
+                        onSave: (notes) => update(notes, account.status),
+                        onUnblock: account.status == AccountStatus.blocked
+                            ? (notes) => update(notes, AccountStatus.active)
+                            : null,
                       ),
                     ),
                   ),
@@ -633,7 +626,7 @@ Future<void> showAccountDialog(
         ),
       );
     },
-  );
+  ).whenComplete(closeRequests.dispose);
 }
 
 Future<bool?> showSuspensionDialog(
@@ -1154,13 +1147,16 @@ class _AccountDetailsData {
 
 class _AccountDetailsDialog extends ConsumerStatefulWidget {
   const _AccountDetailsDialog({
-    super.key,
     required this.account,
+    required this.closeRequests,
     required this.onSave,
+    this.onUnblock,
   });
 
   final _AccountDetailsData account;
+  final ValueNotifier<int> closeRequests;
   final Future<void> Function(String notes) onSave;
+  final Future<void> Function(String notes)? onUnblock;
 
   @override
   ConsumerState<_AccountDetailsDialog> createState() =>
@@ -1172,21 +1168,34 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     text: widget.account.administrativeNotes,
   );
   bool saving = false;
+  bool unblocking = false;
+  bool closePromptOpen = false;
 
   bool get dirty => notes.text != widget.account.administrativeNotes;
+  bool get busy => saving || unblocking;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.closeRequests.addListener(_handleCloseRequest);
+  }
+
+  void _handleCloseRequest() => requestClose();
 
   @override
   void dispose() {
+    widget.closeRequests.removeListener(_handleCloseRequest);
     notes.dispose();
     super.dispose();
   }
 
   Future<void> requestClose() async {
-    if (saving) return;
+    if (busy || closePromptOpen) return;
     if (!dirty) {
       if (mounted) Navigator.of(context).pop();
       return;
     }
+    closePromptOpen = true;
     final discard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1206,11 +1215,13 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
         ],
       ),
     );
-    if (discard == true && mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    closePromptOpen = false;
+    if (discard == true) Navigator.of(context).pop();
   }
 
   Future<void> _save() async {
-    if (!dirty || saving) return;
+    if (!dirty || busy) return;
     setState(() => saving = true);
     try {
       await widget.onSave(notes.text.trim());
@@ -1225,6 +1236,49 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
         SnackBar(content: Text('Unable to save account changes: $error')),
       );
       setState(() => saving = false);
+    }
+  }
+
+  Future<void> _unblock() async {
+    if (busy || widget.onUnblock == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unblock account?'),
+        content: Text(
+          'Restore access for ${widget.account.name}? The account status will '
+          'change to Active and the account holder will be able to use '
+          'PalengkeGo again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.lock_open_rounded, size: 17),
+            label: const Text('Unblock account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => unblocking = true);
+    try {
+      await widget.onUnblock!(notes.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.account.name} has been unblocked.')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to unblock account: $error')),
+      );
+      setState(() => unblocking = false);
     }
   }
 
@@ -1624,33 +1678,58 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     );
   }
 
-  Widget _footer(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Full profile view is not available yet.')),
-                ),
-                child: const Text('View Full Profile'),
-              ),
+  Widget _footer(BuildContext context) {
+    final canUnblock = widget.onUnblock != null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
+      child: Row(
+        children: [
+          Expanded(
+            child: canUnblock
+                ? OutlinedButton.icon(
+                    onPressed: busy ? null : _unblock,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: semanticColors(context).success,
+                    ),
+                    icon: unblocking
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.lock_open_rounded, size: 17),
+                    label: Text(
+                      unblocking ? 'Unblocking...' : 'Unblock Account',
+                    ),
+                  )
+                : OutlinedButton(
+                    onPressed: busy
+                        ? null
+                        : () => ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Full profile view is not available yet.',
+                                ),
+                              ),
+                            ),
+                    child: const Text('View Full Profile'),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              onPressed: dirty && !busy ? _save : null,
+              child: saving
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save Changes'),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: dirty && !saving ? _save : null,
-                child: saving
-                    ? const SizedBox(
-                        width: 17,
-                        height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save Changes'),
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,18 +14,39 @@ const defaultAdminEmail = 'admin@palengkego.gov.ph';
 const defaultAdminPassword = 'Admin123!';
 
 class AdminProfile {
-  const AdminProfile(
-      {required this.name, required this.email, required this.password});
+  const AdminProfile({
+    required this.name,
+    required this.email,
+    required this.password,
+    this.avatarBytes,
+  });
 
   final String name;
   final String email;
   final String password;
+  final Uint8List? avatarBytes;
 
-  AdminProfile copyWith({String? name, String? password}) => AdminProfile(
+  AdminProfile copyWith({
+    String? name,
+    String? password,
+    Uint8List? avatarBytes,
+  }) =>
+      AdminProfile(
         name: name ?? this.name,
         email: email,
         password: password ?? this.password,
+        avatarBytes: avatarBytes ?? this.avatarBytes,
       );
+}
+
+Uint8List? _readAdminAvatar(SharedPreferences preferences) {
+  final encoded = preferences.getString('admin_avatar');
+  if (encoded == null || encoded.isEmpty) return null;
+  try {
+    return base64Decode(encoded);
+  } on FormatException {
+    return null;
+  }
 }
 
 final adminProfileProvider =
@@ -40,18 +62,35 @@ class AdminProfileController extends StateNotifier<AdminProfile> {
             email: defaultAdminEmail,
             password: _preferences.getString('admin_password') ??
                 defaultAdminPassword,
+            avatarBytes: _readAdminAvatar(_preferences),
           ),
         );
 
   final SharedPreferences _preferences;
 
-  Future<void> updateProfile({required String name, String? password}) async {
+  Future<void> updateProfile({
+    required String name,
+    String? password,
+    Uint8List? avatarBytes,
+    bool removeAvatar = false,
+  }) async {
     final nextPassword = password == null || password.trim().isEmpty
         ? state.password
         : password.trim();
-    state = state.copyWith(name: name.trim(), password: nextPassword);
+    final nextAvatar = removeAvatar ? null : avatarBytes ?? state.avatarBytes;
+    state = AdminProfile(
+      name: name.trim(),
+      email: state.email,
+      password: nextPassword,
+      avatarBytes: nextAvatar,
+    );
     await _preferences.setString('admin_name', state.name);
     await _preferences.setString('admin_password', state.password);
+    if (nextAvatar == null) {
+      await _preferences.remove('admin_avatar');
+    } else {
+      await _preferences.setString('admin_avatar', base64Encode(nextAvatar));
+    }
   }
 }
 
@@ -167,8 +206,14 @@ class AppDataController extends StateNotifier<AppDataState> {
         _preferences.getStringList('blocked_vendors') ?? <String>[];
     final blockedCustomers =
         _preferences.getStringList('blocked_customers') ?? <String>[];
+    final unblockedVendors =
+        _preferences.getStringList('unblocked_vendors') ?? <String>[];
+    final unblockedCustomers =
+        _preferences.getStringList('unblocked_customers') ?? <String>[];
     final vendorIds = blockedVendors.toSet();
     final customerIds = blockedCustomers.toSet();
+    final unblockedVendorIds = unblockedVendors.toSet();
+    final unblockedCustomerIds = unblockedCustomers.toSet();
     final storedAudits = _readAuditLogs();
     final storedSuspensions = _readSuspensions();
     final activeSuspensionIds = storedSuspensions
@@ -182,7 +227,9 @@ class AppDataController extends StateNotifier<AppDataState> {
                 ? vendor.copyWith(status: AccountStatus.blocked)
                 : activeSuspensionIds.contains(vendor.id)
                     ? vendor.copyWith(status: AccountStatus.suspended)
-                : vendor,
+                    : unblockedVendorIds.contains(vendor.id)
+                        ? vendor.copyWith(status: AccountStatus.active)
+                        : vendor,
           )
           .toList(),
       customers: state.customers
@@ -190,8 +237,10 @@ class AppDataController extends StateNotifier<AppDataState> {
             (customer) => customerIds.contains(customer.id)
                 ? customer.copyWith(status: AccountStatus.blocked)
                 : activeSuspensionIds.contains(customer.id)
-                ? customer.copyWith(status: AccountStatus.suspended)
-                : customer,
+                    ? customer.copyWith(status: AccountStatus.suspended)
+                    : unblockedCustomerIds.contains(customer.id)
+                        ? customer.copyWith(status: AccountStatus.active)
+                        : customer,
           )
           .toList(),
       auditLogs: storedAudits,
@@ -215,6 +264,11 @@ class AppDataController extends StateNotifier<AppDataState> {
         .map((vendor) => vendor.id)
         .toList();
     await _preferences.setStringList('blocked_vendors', blocked);
+    await _updateUnblockedOverride(
+      key: 'unblocked_vendors',
+      id: id,
+      status: status,
+    );
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -252,6 +306,11 @@ class AppDataController extends StateNotifier<AppDataState> {
         .map((vendor) => vendor.id)
         .toList();
     await _preferences.setStringList('blocked_vendors', blocked);
+    await _updateUnblockedOverride(
+      key: 'unblocked_vendors',
+      id: id,
+      status: status,
+    );
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -273,7 +332,8 @@ class AppDataController extends StateNotifier<AppDataState> {
     required String administrativeNotes,
   }) async {
     await _wait();
-    final previous = _firstOrNull(state.customers.where((item) => item.id == id));
+    final previous =
+        _firstOrNull(state.customers.where((item) => item.id == id));
     state = state.copyWith(
       customers: state.customers
           .map(
@@ -291,6 +351,11 @@ class AppDataController extends StateNotifier<AppDataState> {
         .map((item) => item.id)
         .toList();
     await _preferences.setStringList('blocked_customers', blockedCustomers);
+    await _updateUnblockedOverride(
+      key: 'unblocked_customers',
+      id: id,
+      status: status,
+    );
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -304,6 +369,22 @@ class AppDataController extends StateNotifier<AppDataState> {
       newValue: enumLabel(status),
       reason: administrativeNotes,
     );
+  }
+
+  Future<void> _updateUnblockedOverride({
+    required String key,
+    required String id,
+    required AccountStatus status,
+  }) async {
+    final ids = {
+      ...?_preferences.getStringList(key),
+    };
+    if (status == AccountStatus.active) {
+      ids.add(id);
+    } else {
+      ids.remove(id);
+    }
+    await _preferences.setStringList(key, ids.toList()..sort());
   }
 
   Future<void> updateApplication(
@@ -677,8 +758,7 @@ Future<void> _appendAuthAudit(
   final audit = AuditLog(
     id: 'AUD-${now.microsecondsSinceEpoch}',
     administratorId: 'ADM-001',
-    administratorName:
-        preferences.getString('admin_name') ?? defaultAdminName,
+    administratorName: preferences.getString('admin_name') ?? defaultAdminName,
     action: action,
     targetEntityType: 'Authentication',
     targetEntityId: 'admin-session',

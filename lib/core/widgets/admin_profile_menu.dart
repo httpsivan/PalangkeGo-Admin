@@ -127,7 +127,11 @@ class _AdminProfileTrigger extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AvatarCircle(name: profile.name, size: 34),
+                      AvatarCircle(
+                        name: profile.name,
+                        size: 34,
+                        imageBytes: profile.avatarBytes,
+                      ),
                       if (!compact) ...[
                         const SizedBox(width: 9),
                         ConstrainedBox(
@@ -208,7 +212,11 @@ class _AdminProfileDropdown extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  AvatarCircle(name: profile.name, size: 38),
+                  AvatarCircle(
+                    name: profile.name,
+                    size: 38,
+                    imageBytes: profile.avatarBytes,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
