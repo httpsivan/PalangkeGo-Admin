@@ -830,49 +830,51 @@ class PaginationBar extends StatelessWidget {
     Object label,
     VoidCallback? onTap, {
     bool active = false,
-  }) =>
-      AnimatedButtonFeedback(
-        enabled: onTap != null,
-        child: Material(
-          color: active
-              ? semanticColors(context).heroBackground
-              : Colors.transparent,
+  }) {
+    final colors = semanticColors(context);
+    final foreground = active
+        ? colors.heroForeground
+        : onTap == null
+            ? colors.disabledText
+            : colors.primaryText;
+
+    return AnimatedButtonFeedback(
+      enabled: onTap != null,
+      child: Material(
+        color: active ? colors.heroBackground : colors.cardBackground,
+        surfaceTintColor: Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(7),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(7),
-            child: Container(
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(7),
-                border: active
-                    ? null
-                    : Border.all(color: semanticColors(context).subtleBorder),
-              ),
-              child: label is IconData
-                  ? Icon(
-                      label,
-                      size: 16,
-                      color: onTap == null
-                          ? semanticColors(context).disabledText
-                          : Theme.of(context).colorScheme.onSurface,
-                    )
-                  : Text(
-                      '$label',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: active
-                            ? semanticColors(context).primaryText
-                            : Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
+          hoverColor: colors.hoverSurface,
+          child: Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(7),
+              border: active ? null : Border.all(color: colors.subtleBorder),
             ),
+            child: label is IconData
+                ? Icon(
+                    label,
+                    size: 16,
+                    color: foreground,
+                  )
+                : Text(
+                    '$label',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: foreground,
+                    ),
+                  ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class EmptyState extends StatelessWidget {

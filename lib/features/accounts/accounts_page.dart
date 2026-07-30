@@ -907,7 +907,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                           Expanded(
                             child: _metric(
                               context,
-                              'TOTAL ORDERS',
+                              'RECENT ORDERS',
                               '${vendor.orders}',
                             ),
                           ),
@@ -915,7 +915,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                           Expanded(
                             child: _metric(
                               context,
-                              'TOTAL TRANSACTIONS',
+                              'RECENT REVENUE',
                               '₱${(vendor.transactions / 1000).toStringAsFixed(1)}k',
                             ),
                           ),
@@ -1260,7 +1260,10 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                             child: _statCard(
                               context,
                               '${widget.account.orders}',
-                              'TOTAL ORDERS',
+                              widget.account.accountType ==
+                                      'Vendor / Stall Holder'
+                                  ? 'RECENT ORDERS'
+                                  : 'TOTAL ORDERS',
                               Icons.receipt_long_outlined,
                             ),
                           ),
@@ -1269,7 +1272,10 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                             child: _statCard(
                               context,
                               '\u20B1${(widget.account.transactions / 1000).toStringAsFixed(1)}K',
-                              'TOTAL TRANSACTIONS',
+                              widget.account.accountType ==
+                                      'Vendor / Stall Holder'
+                                  ? 'RECENT REVENUE'
+                                  : 'TOTAL TRANSACTIONS',
                               Icons.account_balance_wallet_outlined,
                             ),
                           ),
@@ -1647,5 +1653,4 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
           ],
         ),
       );
-
 }
