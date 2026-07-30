@@ -519,68 +519,68 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {},
-                      child: const Text('View Profile'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: processing
-                          ? null
-                          : () => action(
-                                'Send warning',
-                                ReportStatus.underReview,
-                              ),
-                      child: const Text('Send Warning'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: processing
-                          ? null
-                          : () => action(
-                                'Suspend vendor',
-                                ReportStatus.underReview,
-                              ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: semanticColors(context).danger,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final buttonWidth = constraints.maxWidth < 520
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - 10) / 2;
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: buttonWidth,
+                        child: OutlinedButton(
+                          onPressed: processing
+                              ? null
+                              : () => action(
+                                    'Send warning',
+                                    ReportStatus.underReview,
+                                  ),
+                          child: const Text('Send Warning'),
+                        ),
                       ),
-                      child: const Text('Suspend Vendor'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: processing
-                          ? null
-                          : () => action(
-                                'Dismiss report',
-                                ReportStatus.dismissed,
-                              ),
-                      child: const Text('Dismiss Report'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: processing ? null : resolve,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: semanticColors(context).heroBackground,
+                      SizedBox(
+                        width: buttonWidth,
+                        child: OutlinedButton(
+                          onPressed: processing
+                              ? null
+                              : () => action(
+                                    'Dismiss report',
+                                    ReportStatus.dismissed,
+                                  ),
+                          child: const Text('Dismiss Report'),
+                        ),
                       ),
-                      child: const Text('Mark as Resolved'),
-                    ),
-                  ),
-                ],
+                      SizedBox(
+                        width: buttonWidth,
+                        child: FilledButton(
+                          onPressed: processing
+                              ? null
+                              : () => action(
+                                    'Suspend vendor',
+                                    ReportStatus.underReview,
+                                  ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: semanticColors(context).danger,
+                          ),
+                          child: const Text('Suspend Vendor'),
+                        ),
+                      ),
+                      SizedBox(
+                        width: buttonWidth,
+                        child: FilledButton(
+                          onPressed: processing ? null : resolve,
+                          style: FilledButton.styleFrom(
+                            backgroundColor:
+                                semanticColors(context).heroBackground,
+                          ),
+                          child: const Text('Mark as Resolved'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

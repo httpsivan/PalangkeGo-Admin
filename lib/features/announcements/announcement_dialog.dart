@@ -50,12 +50,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     final recipients = switch (audience) {
       'Vendors' => data.vendors.length,
       'Customers' => data.customers.length,
-      'Administrators' => 1,
       _ => data.vendors.length + data.customers.length,
     };
-    await ref
-        .read(appDataProvider.notifier)
-        .addAnnouncement(
+    await ref.read(appDataProvider.notifier).addAnnouncement(
           Announcement(
             id: 'ANN-${DateTime.now().millisecondsSinceEpoch}',
             title: title.text.trim(),
@@ -75,9 +72,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-              draft
-                  ? 'Announcement saved as draft locally.'
-                  : 'Announcement queued locally; backend delivery is not configured.',
+          draft
+              ? 'Announcement saved as draft locally.'
+              : 'Announcement queued locally; backend delivery is not configured.',
         ),
       ),
     );
@@ -133,7 +130,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
               const SizedBox(height: 7),
               DropdownButtonFormField<String>(
                 value: audience,
-                items: ['All Users', 'Vendors', 'Customers', 'Administrators']
+                items: ['All Users', 'Vendors', 'Customers']
                     .map(
                       (value) => DropdownMenuItem(
                         value: value,

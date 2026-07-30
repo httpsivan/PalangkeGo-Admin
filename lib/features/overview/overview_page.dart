@@ -147,6 +147,9 @@ class _OverviewHero extends ConsumerWidget {
     final activeVendors = data.vendors
         .where((vendor) => vendor.status == AccountStatus.active)
         .length;
+    final activeCustomers = data.customers
+        .where((customer) => customer.status == AccountStatus.active)
+        .length;
     final pendingKyc = data.applications
         .where(
             (application) => application.status == ApplicationStatus.reviewing)
@@ -187,8 +190,8 @@ class _OverviewHero extends ConsumerWidget {
         valueStyle: overviewNumberStyle,
       ),
       MetricCardData(
-        value: '${data.customers.length}',
-        label: 'Registered Customers',
+        value: '$activeCustomers',
+        label: 'Active Customers',
         icon: Icons.trending_up_rounded,
         accent: const Color(0xFF8B5CF6),
         valueStyle: overviewNumberStyle,
