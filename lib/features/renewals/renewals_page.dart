@@ -74,8 +74,7 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
         )
         .toList();
     final int totalPages = (values.length / 10).ceil();
-    final int safePage =
-        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
+    final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     final expiring = data.renewals.where((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
       return days >= 0 && days <= 7;

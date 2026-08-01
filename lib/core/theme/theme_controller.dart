@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError(),
 );
-final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.system);
+final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.light);
 final themeModeProvider = StateNotifierProvider<ThemeModeController, ThemeMode>(
   (ref) => ThemeModeController(
     ref.watch(sharedPreferencesProvider),
@@ -28,5 +28,5 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
 ThemeMode themeModeFromPreference(String? value) => switch (value) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
+      _ => ThemeMode.light,
     };

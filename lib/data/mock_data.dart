@@ -59,6 +59,62 @@ final _customers = [
   'Sam Ortega',
 ];
 
+const _applicationApplicants = [
+  'Elena Rodriguez',
+  'Ricardo Santos',
+  'Maria Clara',
+  'Antonio Reyes',
+  'Bianca Salazar',
+  'Carlo Mendoza',
+  'Diana Villanueva',
+  'Emilio Navarro',
+  'Fatima Cruz',
+  'Gabriel Lim',
+  'Helena Bautista',
+  'Isaac Fernandez',
+  'Julia Ramos',
+  'Kevin Tan',
+  'Lucia Flores',
+  'Mateo Garcia',
+  'Nina Castillo',
+  'Omar Rivera',
+  'Patricia Yu',
+  'Quentin Morales',
+  'Rosa Dela Cruz',
+  'Samuel Wong',
+  'Teresa Mercado',
+  'Ulises Aquino',
+  'Valeria Reyes',
+];
+
+const _applicationStalls = [
+  'Luzon Fresh Produce',
+  'Santos Quality Meats',
+  'Clara Vegetable Cart',
+  'Bicol Dry Goods',
+  'Riverside Seafood',
+  'North Market Fruits',
+  'Sunrise Bakery Stall',
+  'Green Valley Grocer',
+  'Central Spice House',
+  'Baybayin Crafts',
+  'Harvest Corner',
+  'Southside Poultry',
+  'Island Roots Pantry',
+  'Market Lane Delicacies',
+  'Golden Fields Grains',
+  'Freshway Dairy Booth',
+  'Cedar Home Supplies',
+  'Coastal Catch Depot',
+  'Orchard Basket',
+  'Morning Star Snacks',
+  'Pine Street Provisions',
+  'Township Tea House',
+  'Valley Harvest Goods',
+  'Westside Kitchen',
+  'Zest and Spice Stall',
+];
+
 List<Vendor> seedVendors() {
   final base = DateTime(2023, 10, 12, 10, 45);
   return List.generate(_names.length, (index) {
@@ -69,11 +125,10 @@ List<Vendor> seedVendors() {
       AccountStatus.active,
     ];
     final types = [
-      'Fish Section',
-      'Fruit Section',
-      'Meat Section',
-      'Vegetables Section',
-      'Dry Goods',
+      'Fish',
+      'Fruits',
+      'Meat',
+      'Vegetables',
     ];
     return Vendor(
       id: 'VND-${8492 + index}',
@@ -109,26 +164,11 @@ List<Customer> seedCustomers() {
 }
 
 List<VendorApplication> seedApplications() {
-  final applicants = [
-    'Elena Rodriguez',
-    'Ricardo Santos',
-    'Maria Clara',
-    'Maria Clara',
-    'Antonio Reyes',
-  ];
-  final stalls = [
-    'Luzon Fresh Produce',
-    'Santos Quality Meats',
-    'Vegetables',
-    'Vegetables',
-    'Bicol Dry Goods',
-  ];
   final categories = [
     'FRUITS',
     'MEAT',
     'VEGETABLES',
-    'VEGETABLES',
-    'DRY GOODS',
+    'FISH',
   ];
   final statuses = [
     ApplicationStatus.verified,
@@ -140,8 +180,8 @@ List<VendorApplication> seedApplications() {
     25,
     (index) => VendorApplication(
       id: '#APP-${92834 + index}',
-      applicant: applicants[index % applicants.length],
-      stallName: stalls[index % stalls.length],
+      applicant: _applicationApplicants[index],
+      stallName: _applicationStalls[index],
       category: categories[index % categories.length],
       submittedAt: DateTime(2023, 10, 24).subtract(Duration(days: index)),
       status: statuses[index % statuses.length],
@@ -190,26 +230,11 @@ List<KycDocument> _seedKycDocuments(DateTime uploadedAt) => [
     ];
 
 List<RenewalRequest> seedRenewals() {
-  final applicants = [
-    'Elena Rodriguez',
-    'Ricardo Santos',
-    'Maria Clara',
-    'Maria Clara',
-    'Antonio Reyes',
-  ];
-  final stalls = [
-    'Luzon Fresh Produce',
-    'Santos Quality Meats',
-    'Vegetables',
-    'Vegetables',
-    'Bicol Dry Goods',
-  ];
   final categories = [
     'FRUITS',
     'MEAT',
     'VEGETABLES',
-    'VEGETABLES',
-    'DRY GOODS',
+    'FISH',
   ];
   final statuses = [
     RenewalStatus.approved,
@@ -223,8 +248,8 @@ List<RenewalRequest> seedRenewals() {
     25,
     (index) => RenewalRequest(
       id: '#RN-${92834 + index}',
-      applicant: applicants[index % applicants.length],
-      stallName: stalls[index % stalls.length],
+      applicant: _applicationApplicants[index],
+      stallName: _applicationStalls[index],
       category: categories[index % categories.length],
       expiryDate: now.add(
         Duration(days: expiry[index % expiry.length] - index),
@@ -243,46 +268,46 @@ List<Report> seedReports() {
     'Incorrect Pricing',
     'Late Delivery',
   ];
-  final categories = ['FRUITS', 'MEAT', 'VEGETABLES', 'DRY GOODS'];
+  final categories = ['FRUITS', 'MEAT', 'VEGETABLES', 'FISH'];
   final statuses = [
     ReportStatus.pending,
     ReportStatus.underReview,
     ReportStatus.resolved,
   ];
   final priorities = [Priority.high, Priority.medium, Priority.low];
-  return List.generate(
-    25,
-    (index) => Report(
+  return List.generate(25, (index) {
+    final type = ['Vendor', 'Customer', 'Application'][index % 3];
+    final accountIssue = switch (index % 3) {
+      0 => _names[index ~/ 3],
+      1 => _customers[index ~/ 3],
+      _ => '${_applicationApplicants[index ~/ 3]} Application',
+    };
+    final submittedBy = _customers[(index + 9) % _customers.length];
+
+    return Report(
       id: '#RPT-${index + 1}'.padRight(8, '0'),
-      type: ['Vendor', 'Customer', 'Application'][index % 3],
-      accountIssue: [
-        'Diosa Fruit Stand',
-        'Juan Dela Cruz',
-        'Payout Issue',
-        'Sophie Sb’s store',
-      ][index % 4],
+      type: type,
+      accountIssue: accountIssue,
       category: categories[index % categories.length],
-      submittedBy: [
-        'Maria Santos',
-        'Admin Tool',
-        'Elena Rodriguez',
-        'Juan Dela Cruz',
-      ][index % 4],
+      submittedBy: submittedBy,
       reason: reasons[index % reasons.length],
       date: DateTime(2023, 10, 24).subtract(Duration(days: index)),
       status: statuses[index % statuses.length],
       priority: priorities[index % priorities.length],
       description:
           'The seller promised fresh produce but delivered spoiled goods repeatedly and refused a refund. When confronted, the vendor became hostile and blocked my account on the messaging feature.',
-      reporterEmail: 'm.santos@email.com',
-      phone: '+63 917 123 4567',
-      vendorName: 'Diosa Fruit Stand',
-      owner: 'Maria Santos',
-      stallNumber: 'Block 12',
-      previousViolations: 2,
+      reporterEmail:
+          '${submittedBy.toLowerCase().replaceAll(RegExp(r'[^a-z]+'), '.')}@example.com',
+      phone: '+63 917 123 ${4500 + index}',
+      vendorName: type == 'Vendor'
+          ? accountIssue
+          : _names[(index + 10) % _names.length],
+      owner: _customers[(index + 3) % _customers.length],
+      stallNumber: 'Block ${12 + index}',
+      previousViolations: index % 4,
       notes: '',
-    ),
-  );
+    );
+  });
 }
 
 List<Announcement> seedAnnouncements() => [

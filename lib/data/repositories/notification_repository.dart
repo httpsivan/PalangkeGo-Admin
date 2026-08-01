@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/admin_notification.dart';
 import '../../core/theme/theme_controller.dart';
 
-final notificationProvider = StateNotifierProvider<NotificationController,
-    List<AdminNotification>>((ref) {
+final notificationProvider =
+    StateNotifierProvider<NotificationController, List<AdminNotification>>(
+        (ref) {
   return NotificationController(ref.watch(sharedPreferencesProvider));
 });
 
@@ -52,7 +53,8 @@ class NotificationController extends StateNotifier<List<AdminNotification>> {
     final readIds = read.toSet();
     state = state
         .where((item) => !_dismissed.contains(item.id))
-        .map((item) => item.copyWith(isRead: item.isRead || readIds.contains(item.id)))
+        .map((item) =>
+            item.copyWith(isRead: item.isRead || readIds.contains(item.id)))
         .toList();
   }
 

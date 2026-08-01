@@ -47,6 +47,10 @@ class Vendor {
     required this.phone,
     required this.residence,
     this.administrativeNotes = '',
+    this.blockedReason,
+    this.blockedFromReportId,
+    this.blockedAt,
+    this.blockedBy,
   });
 
   final String id;
@@ -61,8 +65,20 @@ class Vendor {
   final String phone;
   final String residence;
   final String administrativeNotes;
+  final String? blockedReason;
+  final String? blockedFromReportId;
+  final DateTime? blockedAt;
+  final String? blockedBy;
 
-  Vendor copyWith({AccountStatus? status, String? administrativeNotes}) =>
+  Vendor copyWith({
+    AccountStatus? status,
+    String? administrativeNotes,
+    String? blockedReason,
+    String? blockedFromReportId,
+    DateTime? blockedAt,
+    String? blockedBy,
+    bool clearBlockDetails = false,
+  }) =>
       Vendor(
         id: id,
         name: name,
@@ -76,6 +92,13 @@ class Vendor {
         phone: phone,
         residence: residence,
         administrativeNotes: administrativeNotes ?? this.administrativeNotes,
+        blockedReason:
+            clearBlockDetails ? null : blockedReason ?? this.blockedReason,
+        blockedFromReportId: clearBlockDetails
+            ? null
+            : blockedFromReportId ?? this.blockedFromReportId,
+        blockedAt: clearBlockDetails ? null : blockedAt ?? this.blockedAt,
+        blockedBy: clearBlockDetails ? null : blockedBy ?? this.blockedBy,
       );
 }
 
@@ -88,6 +111,10 @@ class Customer {
     required this.transactions,
     required this.status,
     this.administrativeNotes = '',
+    this.blockedReason,
+    this.blockedFromReportId,
+    this.blockedAt,
+    this.blockedBy,
   });
 
   final String id;
@@ -97,8 +124,20 @@ class Customer {
   final int transactions;
   final AccountStatus status;
   final String administrativeNotes;
+  final String? blockedReason;
+  final String? blockedFromReportId;
+  final DateTime? blockedAt;
+  final String? blockedBy;
 
-  Customer copyWith({AccountStatus? status, String? administrativeNotes}) =>
+  Customer copyWith({
+    AccountStatus? status,
+    String? administrativeNotes,
+    String? blockedReason,
+    String? blockedFromReportId,
+    DateTime? blockedAt,
+    String? blockedBy,
+    bool clearBlockDetails = false,
+  }) =>
       Customer(
         id: id,
         name: name,
@@ -107,6 +146,13 @@ class Customer {
         transactions: transactions,
         status: status ?? this.status,
         administrativeNotes: administrativeNotes ?? this.administrativeNotes,
+        blockedReason:
+            clearBlockDetails ? null : blockedReason ?? this.blockedReason,
+        blockedFromReportId: clearBlockDetails
+            ? null
+            : blockedFromReportId ?? this.blockedFromReportId,
+        blockedAt: clearBlockDetails ? null : blockedAt ?? this.blockedAt,
+        blockedBy: clearBlockDetails ? null : blockedBy ?? this.blockedBy,
       );
 }
 
@@ -207,6 +253,11 @@ class Report {
     required this.stallNumber,
     required this.previousViolations,
     required this.notes,
+    this.decision,
+    this.actionTaken,
+    this.resolutionNote,
+    this.resolvedAt,
+    this.resolvedBy,
   });
 
   final String id;
@@ -226,8 +277,22 @@ class Report {
   final String stallNumber;
   final int previousViolations;
   final String notes;
+  final String? decision;
+  final String? actionTaken;
+  final String? resolutionNote;
+  final DateTime? resolvedAt;
+  final String? resolvedBy;
 
-  Report copyWith({ReportStatus? status, String? notes}) => Report(
+  Report copyWith({
+    ReportStatus? status,
+    String? notes,
+    String? decision,
+    String? actionTaken,
+    String? resolutionNote,
+    DateTime? resolvedAt,
+    String? resolvedBy,
+  }) =>
+      Report(
         id: id,
         type: type,
         accountIssue: accountIssue,
@@ -245,6 +310,11 @@ class Report {
         stallNumber: stallNumber,
         previousViolations: previousViolations,
         notes: notes ?? this.notes,
+        decision: decision ?? this.decision,
+        actionTaken: actionTaken ?? this.actionTaken,
+        resolutionNote: resolutionNote ?? this.resolutionNote,
+        resolvedAt: resolvedAt ?? this.resolvedAt,
+        resolvedBy: resolvedBy ?? this.resolvedBy,
       );
 }
 

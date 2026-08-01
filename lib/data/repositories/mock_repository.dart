@@ -177,6 +177,22 @@ class AppDataState {
   }
 }
 
+class _ReportedAccountRef {
+  const _ReportedAccountRef({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.status,
+    required this.isVendor,
+  });
+
+  final String id;
+  final String name;
+  final String type;
+  final AccountStatus status;
+  final bool isVendor;
+}
+
 final appDataProvider = StateNotifierProvider<AppDataController, AppDataState>((
   ref,
 ) {
@@ -216,6 +232,7 @@ class AppDataController extends StateNotifier<AppDataState> {
     final unblockedCustomerIds = unblockedCustomers.toSet();
     final storedAudits = _readAuditLogs();
     final storedSuspensions = _readSuspensions();
+    final blockedDetails = _readBlockedDetails();
     final activeSuspensionIds = storedSuspensions
         .where((item) => item.isActive)
         .map((item) => item.accountId)
@@ -224,7 +241,15 @@ class AppDataController extends StateNotifier<AppDataState> {
       vendors: state.vendors
           .map(
             (vendor) => vendorIds.contains(vendor.id)
-                ? vendor.copyWith(status: AccountStatus.blocked)
+                ? vendor.copyWith(
+                    status: AccountStatus.blocked,
+                    blockedReason: blockedDetails[vendor.id]?['reason'],
+                    blockedFromReportId: blockedDetails[vendor.id]?['reportId'],
+                    blockedAt: DateTime.tryParse(
+                      blockedDetails[vendor.id]?['blockedAt'] ?? '',
+                    ),
+                    blockedBy: blockedDetails[vendor.id]?['blockedBy'],
+                  )
                 : activeSuspensionIds.contains(vendor.id)
                     ? vendor.copyWith(status: AccountStatus.suspended)
                     : unblockedVendorIds.contains(vendor.id)
@@ -235,7 +260,16 @@ class AppDataController extends StateNotifier<AppDataState> {
       customers: state.customers
           .map(
             (customer) => customerIds.contains(customer.id)
-                ? customer.copyWith(status: AccountStatus.blocked)
+                ? customer.copyWith(
+                    status: AccountStatus.blocked,
+                    blockedReason: blockedDetails[customer.id]?['reason'],
+                    blockedFromReportId: blockedDetails[customer.id]
+                        ?['reportId'],
+                    blockedAt: DateTime.tryParse(
+                      blockedDetails[customer.id]?['blockedAt'] ?? '',
+                    ),
+                    blockedBy: blockedDetails[customer.id]?['blockedBy'],
+                  )
                 : activeSuspensionIds.contains(customer.id)
                     ? customer.copyWith(status: AccountStatus.suspended)
                     : unblockedCustomerIds.contains(customer.id)
@@ -243,6 +277,9 @@ class AppDataController extends StateNotifier<AppDataState> {
                         : customer,
           )
           .toList(),
+      applications: state.applications.map(_restoreApplication).toList(),
+      renewals: state.renewals.map(_restoreRenewal).toList(),
+      reports: state.reports.map(_restoreReport).toList(),
       auditLogs: storedAudits,
       suspensions: storedSuspensions,
     );
@@ -254,8 +291,13 @@ class AppDataController extends StateNotifier<AppDataState> {
     final previous = _firstOrNull(state.vendors.where((item) => item.id == id));
     final vendors = state.vendors
         .map(
-          (vendor) =>
-              vendor.id == id ? vendor.copyWith(status: status) : vendor,
+          (vendor) => vendor.id == id
+              ? vendor.copyWith(
+                  status: status,
+                  clearBlockDetails: status == AccountStatus.active &&
+                      previous?.status == AccountStatus.blocked,
+                )
+              : vendor,
         )
         .toList();
     state = state.copyWith(vendors: vendors);
@@ -269,6 +311,7 @@ class AppDataController extends StateNotifier<AppDataState> {
       id: id,
       status: status,
     );
+    await _persistBlockedDetails();
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -280,6 +323,9 @@ class AppDataController extends StateNotifier<AppDataState> {
       targetUserName: previous?.name ?? id,
       previousValue: enumLabel(previous?.status ?? AccountStatus.active),
       newValue: enumLabel(status),
+      metadata: previous?.blockedFromReportId == null
+          ? const {}
+          : {'relatedReportId': previous!.blockedFromReportId!},
     );
   }
 
@@ -296,6 +342,8 @@ class AppDataController extends StateNotifier<AppDataState> {
               ? vendor.copyWith(
                   status: status,
                   administrativeNotes: administrativeNotes,
+                  clearBlockDetails: status == AccountStatus.active &&
+                      previous?.status == AccountStatus.blocked,
                 )
               : vendor,
         )
@@ -311,6 +359,7 @@ class AppDataController extends StateNotifier<AppDataState> {
       id: id,
       status: status,
     );
+    await _persistBlockedDetails();
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -323,6 +372,9 @@ class AppDataController extends StateNotifier<AppDataState> {
       previousValue: enumLabel(previous?.status ?? AccountStatus.active),
       newValue: enumLabel(status),
       reason: administrativeNotes,
+      metadata: previous?.blockedFromReportId == null
+          ? const {}
+          : {'relatedReportId': previous!.blockedFromReportId!},
     );
   }
 
@@ -341,6 +393,8 @@ class AppDataController extends StateNotifier<AppDataState> {
                 ? customer.copyWith(
                     status: status,
                     administrativeNotes: administrativeNotes,
+                    clearBlockDetails: status == AccountStatus.active &&
+                        previous?.status == AccountStatus.blocked,
                   )
                 : customer,
           )
@@ -356,6 +410,7 @@ class AppDataController extends StateNotifier<AppDataState> {
       id: id,
       status: status,
     );
+    await _persistBlockedDetails();
     await recordAudit(
       action: status == AccountStatus.blocked
           ? AuditAction.blockAccount
@@ -368,6 +423,9 @@ class AppDataController extends StateNotifier<AppDataState> {
       previousValue: enumLabel(previous?.status ?? AccountStatus.active),
       newValue: enumLabel(status),
       reason: administrativeNotes,
+      metadata: previous?.blockedFromReportId == null
+          ? const {}
+          : {'relatedReportId': previous!.blockedFromReportId!},
     );
   }
 
@@ -411,6 +469,9 @@ class AppDataController extends StateNotifier<AppDataState> {
           )
           .toList(),
     );
+    final updated =
+        _firstOrNull(state.applications.where((item) => item.id == id));
+    if (updated != null) await _persistApplication(updated);
     await recordAudit(
       action: status == ApplicationStatus.verified
           ? AuditAction.approveKyc
@@ -426,17 +487,20 @@ class AppDataController extends StateNotifier<AppDataState> {
 
   Future<void> updateRenewal(String id, RenewalStatus status) async {
     await _wait();
+    final current = _firstOrNull(state.renewals.where((item) => item.id == id));
     state = state.copyWith(
       renewals: state.renewals
           .map((item) => item.id == id ? item.copyWith(status: status) : item)
           .toList(),
     );
+    final updated = _firstOrNull(state.renewals.where((item) => item.id == id));
+    if (updated != null) await _persistRenewal(updated);
     await recordAudit(
       action: AuditAction.editAccountStatus,
       targetEntityType: 'Renewal',
       targetEntityId: id,
       targetUserName: id,
-      previousValue: 'unknown',
+      previousValue: enumLabel(current?.status ?? RenewalStatus.reviewing),
       newValue: enumLabel(status),
     );
   }
@@ -457,6 +521,8 @@ class AppDataController extends StateNotifier<AppDataState> {
           .toList(),
     );
     await _preferences.setString('report_notes_$id', notes);
+    final updated = _firstOrNull(state.reports.where((item) => item.id == id));
+    if (updated != null) await _persistReport(updated);
     await recordAudit(
       action: AuditAction.editAccountStatus,
       targetEntityType: 'Report',
@@ -466,6 +532,302 @@ class AppDataController extends StateNotifier<AppDataState> {
       newValue: enumLabel(status),
       reason: notes,
     );
+  }
+
+  Future<String?> dismissReport({
+    required String reportId,
+    required String note,
+    String decision = 'No Violation',
+    String actionTaken = 'Dismissed',
+  }) async {
+    await _wait();
+    final report = _firstOrNull(
+      state.reports.where((item) => item.id == reportId),
+    );
+    if (report == null) return 'Report not found.';
+    if (report.status == ReportStatus.resolved) {
+      return 'This report has already been resolved.';
+    }
+
+    final now = DateTime.now();
+    final administrator =
+        _preferences.getString('admin_name') ?? defaultAdminName;
+    final updated = report.copyWith(
+      status: ReportStatus.resolved,
+      decision: decision,
+      actionTaken: actionTaken,
+      resolutionNote: note.trim(),
+      resolvedAt: now,
+      resolvedBy: administrator,
+      notes: note.trim().isEmpty ? report.notes : note.trim(),
+    );
+    state = state.copyWith(
+      reports: state.reports
+          .map((item) => item.id == report.id ? updated : item)
+          .toList(),
+    );
+    await _persistReport(updated);
+    await recordAudit(
+      action: AuditAction.resolveReport,
+      targetEntityType: 'Report',
+      targetEntityId: report.id,
+      targetUserName: report.accountIssue,
+      previousValue: enumLabel(report.status),
+      newValue: 'Resolved',
+      reason: note.trim(),
+      metadata: {
+        'decision': decision,
+        'actionTaken': actionTaken,
+        'accountStatus': 'Unchanged',
+        'sourceReportId': report.id,
+      },
+    );
+    return null;
+  }
+
+  Future<String?> resolveReport({
+    required String reportId,
+    required String note,
+  }) =>
+      dismissReport(
+        reportId: reportId,
+        note: note,
+        decision: 'Resolved',
+        actionTaken: 'Marked as Resolved',
+      );
+
+  Future<String?> suspendAccountFromReport({
+    required String reportId,
+    required String reason,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final cleanReason = reason.trim();
+    if (cleanReason.isEmpty) return 'A suspension reason is required.';
+    if (!endDate.isAfter(startDate)) {
+      return 'The suspension end date must be after the start date.';
+    }
+    if (endDate.isBefore(DateTime.now())) {
+      return 'The suspension cannot end in the past.';
+    }
+
+    await _wait();
+    final report = _firstOrNull(
+      state.reports.where((item) => item.id == reportId),
+    );
+    if (report == null) return 'Report not found.';
+    if (report.status == ReportStatus.resolved) {
+      return 'This report has already been resolved.';
+    }
+    final account = _findReportedAccount(report);
+    if (account == null) return 'The reported account could not be found.';
+    if (account.status == AccountStatus.blocked) {
+      return 'A blocked account cannot be suspended.';
+    }
+    if (state.suspensions
+        .any((item) => item.accountId == account.id && item.isActive)) {
+      return 'This account already has an active suspension.';
+    }
+
+    final now = DateTime.now();
+    final administrator =
+        _preferences.getString('admin_name') ?? defaultAdminName;
+    final suspension = Suspension(
+      id: 'SUS-${now.microsecondsSinceEpoch}',
+      accountId: account.id,
+      accountName: account.name,
+      accountType: account.type,
+      reason: cleanReason,
+      startDate: startDate,
+      endDate: endDate,
+      administratorId: 'ADM-001',
+      administratorName: administrator,
+      createdAt: now,
+      note: cleanReason,
+      notifyUser: false,
+      relatedReportId: report.id,
+    );
+    final updated = report.copyWith(
+      status: ReportStatus.resolved,
+      decision: 'Account Suspended',
+      actionTaken: 'Account Suspended',
+      resolutionNote: cleanReason,
+      resolvedAt: now,
+      resolvedBy: administrator,
+      notes: cleanReason,
+    );
+    state = state.copyWith(
+      suspensions: [suspension, ...state.suspensions],
+      vendors: state.vendors
+          .map((item) => item.id == account.id
+              ? item.copyWith(status: AccountStatus.suspended)
+              : item)
+          .toList(),
+      customers: state.customers
+          .map((item) => item.id == account.id
+              ? item.copyWith(status: AccountStatus.suspended)
+              : item)
+          .toList(),
+      reports: state.reports
+          .map((item) => item.id == report.id ? updated : item)
+          .toList(),
+    );
+    await _persistSuspensions();
+    await _persistReport(updated);
+    await recordAudit(
+      action: AuditAction.suspendAccount,
+      targetEntityType: account.type,
+      targetEntityId: account.id,
+      targetUserName: account.name,
+      previousValue: enumLabel(account.status),
+      newValue: 'Suspended',
+      reason: cleanReason,
+      metadata: {
+        'sourceReportId': report.id,
+        'reportDecision': 'Account Suspended',
+        'suspensionId': suspension.id,
+        'startDate': startDate.toIso8601String(),
+        'endDate': endDate.toIso8601String(),
+      },
+    );
+    return null;
+  }
+
+  Future<String?> blockAccountFromReport({
+    required String reportId,
+    required String reason,
+  }) async {
+    final cleanReason = reason.trim();
+    if (cleanReason.isEmpty) return 'A blocking reason is required.';
+
+    await _wait();
+    final report = _firstOrNull(
+      state.reports.where((item) => item.id == reportId),
+    );
+    if (report == null) return 'Report not found.';
+    if (report.status == ReportStatus.resolved) {
+      return 'This report has already been resolved.';
+    }
+    final account = _findReportedAccount(report);
+    if (account == null) return 'The reported account could not be found.';
+    if (account.status == AccountStatus.blocked) {
+      return 'This account is already blocked.';
+    }
+
+    final now = DateTime.now();
+    final administrator =
+        _preferences.getString('admin_name') ?? defaultAdminName;
+    final suspensions = state.suspensions
+        .map(
+          (item) => item.accountId == account.id && item.isActive
+              ? item.lift(now)
+              : item,
+        )
+        .toList();
+    final updated = report.copyWith(
+      status: ReportStatus.resolved,
+      decision: 'Account Blocked',
+      actionTaken: 'Account Blocked',
+      resolutionNote: cleanReason,
+      resolvedAt: now,
+      resolvedBy: administrator,
+      notes: cleanReason,
+    );
+    state = state.copyWith(
+      suspensions: suspensions,
+      vendors: account.isVendor
+          ? state.vendors
+              .map((item) => item.id == account.id
+                  ? item.copyWith(
+                      status: AccountStatus.blocked,
+                      blockedReason: cleanReason,
+                      blockedFromReportId: report.id,
+                      blockedAt: now,
+                      blockedBy: administrator,
+                    )
+                  : item)
+              .toList()
+          : state.vendors,
+      customers: account.isVendor
+          ? state.customers
+          : state.customers
+              .map((item) => item.id == account.id
+                  ? item.copyWith(
+                      status: AccountStatus.blocked,
+                      blockedReason: cleanReason,
+                      blockedFromReportId: report.id,
+                      blockedAt: now,
+                      blockedBy: administrator,
+                    )
+                  : item)
+              .toList(),
+      reports: state.reports
+          .map((item) => item.id == report.id ? updated : item)
+          .toList(),
+    );
+    await _persistBlockedAccountIds();
+    await _persistBlockedDetails();
+    await _persistSuspensions();
+    await _persistReport(updated);
+    await recordAudit(
+      action: AuditAction.blockAccount,
+      targetEntityType: account.type,
+      targetEntityId: account.id,
+      targetUserName: account.name,
+      previousValue: enumLabel(account.status),
+      newValue: 'Blocked',
+      reason: cleanReason,
+      metadata: {
+        'sourceReportId': report.id,
+        'reportDecision': 'Account Blocked',
+      },
+    );
+    return null;
+  }
+
+  _ReportedAccountRef? _findReportedAccount(Report report) {
+    if (report.type == 'Vendor') {
+      final vendor = _firstOrNull(state.vendors.where(
+        (item) =>
+            item.name == report.accountIssue || item.name == report.vendorName,
+      ));
+      if (vendor == null) return null;
+      return _ReportedAccountRef(
+        id: vendor.id,
+        name: vendor.name,
+        type: 'Vendor',
+        status: vendor.status,
+        isVendor: true,
+      );
+    }
+    if (report.type == 'Customer') {
+      final customer = _firstOrNull(state.customers.where(
+        (item) => item.name == report.accountIssue,
+      ));
+      if (customer != null) {
+        return _ReportedAccountRef(
+          id: customer.id,
+          name: customer.name,
+          type: 'Customer',
+          status: customer.status,
+          isVendor: false,
+        );
+      }
+
+      final vendor = _firstOrNull(state.vendors.where(
+        (item) => item.name == report.vendorName,
+      ));
+      if (vendor != null) {
+        return _ReportedAccountRef(
+          id: vendor.id,
+          name: vendor.name,
+          type: 'Vendor',
+          status: vendor.status,
+          isVendor: true,
+        );
+      }
+    }
+    return null;
   }
 
   Future<void> addAnnouncement(Announcement announcement) async {
@@ -494,6 +856,7 @@ class AppDataController extends StateNotifier<AppDataState> {
     required DateTime endDate,
     required String note,
     required bool notifyUser,
+    String? relatedReportId,
   }) async {
     if (reason.trim().isEmpty) return 'A suspension reason is required.';
     if (!endDate.isAfter(startDate)) {
@@ -501,6 +864,16 @@ class AppDataController extends StateNotifier<AppDataState> {
     }
     if (endDate.isBefore(DateTime.now())) {
       return 'The suspension cannot end in the past.';
+    }
+    final vendor =
+        _firstOrNull(state.vendors.where((item) => item.id == accountId));
+    final customer = _firstOrNull(
+      state.customers.where((item) => item.id == accountId),
+    );
+    final currentStatus = vendor?.status ?? customer?.status;
+    if (currentStatus == null) return 'The account could not be found.';
+    if (currentStatus == AccountStatus.blocked) {
+      return 'A blocked account cannot be suspended.';
     }
     if (state.suspensions
         .any((item) => item.accountId == accountId && item.isActive)) {
@@ -515,9 +888,12 @@ class AppDataController extends StateNotifier<AppDataState> {
       startDate: startDate,
       endDate: endDate,
       administratorId: 'ADM-001',
+      administratorName:
+          _preferences.getString('admin_name') ?? defaultAdminName,
       createdAt: DateTime.now(),
       note: note.trim(),
       notifyUser: notifyUser,
+      relatedReportId: relatedReportId,
     );
     state = state.copyWith(
       suspensions: [suspension, ...state.suspensions],
@@ -538,10 +914,13 @@ class AppDataController extends StateNotifier<AppDataState> {
       targetEntityType: accountType,
       targetEntityId: accountId,
       targetUserName: accountName,
-      previousValue: 'Active',
+      previousValue: enumLabel(currentStatus),
       newValue: 'Suspended',
       reason: reason,
-      metadata: {'endDate': endDate.toIso8601String()},
+      metadata: {
+        'endDate': endDate.toIso8601String(),
+        if (relatedReportId != null) 'relatedReportId': relatedReportId,
+      },
     );
     return null;
   }
@@ -576,6 +955,9 @@ class AppDataController extends StateNotifier<AppDataState> {
       previousValue: 'Suspended',
       newValue: 'Active',
       reason: 'Suspension lifted early',
+      metadata: current.relatedReportId == null
+          ? const {}
+          : {'relatedReportId': current.relatedReportId!},
     );
     return null;
   }
@@ -611,6 +993,9 @@ class AppDataController extends StateNotifier<AppDataState> {
         previousValue: 'Suspended',
         newValue: 'Active',
         reason: 'Suspension expired automatically',
+        metadata: item.relatedReportId == null
+            ? const {}
+            : {'relatedReportId': item.relatedReportId!},
       );
     }
   }
@@ -645,6 +1030,161 @@ class AppDataController extends StateNotifier<AppDataState> {
       'admin_audit_logs',
       state.auditLogs.map((item) => jsonEncode(_auditToMap(item))).toList(),
     );
+  }
+
+  Future<void> _persistBlockedAccountIds() async {
+    await _preferences.setStringList(
+      'blocked_vendors',
+      state.vendors
+          .where((item) => item.status == AccountStatus.blocked)
+          .map((item) => item.id)
+          .toList(),
+    );
+    await _preferences.setStringList(
+      'blocked_customers',
+      state.customers
+          .where((item) => item.status == AccountStatus.blocked)
+          .map((item) => item.id)
+          .toList(),
+    );
+  }
+
+  Future<void> _persistBlockedDetails() => _preferences.setStringList(
+        'blocked_account_details',
+        [
+          ...state.vendors
+              .where((item) => item.status == AccountStatus.blocked)
+              .where((item) => item.blockedReason != null)
+              .map(
+                (item) => jsonEncode({
+                  'id': item.id,
+                  'reason': item.blockedReason,
+                  'reportId': item.blockedFromReportId,
+                  'blockedAt': item.blockedAt?.toIso8601String(),
+                  'blockedBy': item.blockedBy,
+                }),
+              ),
+          ...state.customers
+              .where((item) => item.status == AccountStatus.blocked)
+              .where((item) => item.blockedReason != null)
+              .map(
+                (item) => jsonEncode({
+                  'id': item.id,
+                  'reason': item.blockedReason,
+                  'reportId': item.blockedFromReportId,
+                  'blockedAt': item.blockedAt?.toIso8601String(),
+                  'blockedBy': item.blockedBy,
+                }),
+              ),
+        ].toList(),
+      );
+
+  Future<void> _persistApplication(VendorApplication application) =>
+      _preferences.setString(
+        'application_state_${application.id}',
+        jsonEncode({
+          'status': application.status.name,
+          'rejectionReason': application.rejectionReason,
+          'reviewedAt': application.reviewedAt?.toIso8601String(),
+          'reviewedBy': application.reviewedBy,
+        }),
+      );
+
+  VendorApplication _restoreApplication(VendorApplication application) {
+    final raw = _preferences.getString('application_state_${application.id}');
+    if (raw == null) return application;
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      return application.copyWith(
+        status: ApplicationStatus.values.byName(map['status'] as String),
+        rejectionReason: map['rejectionReason'] as String?,
+        reviewedAt: map['reviewedAt'] == null
+            ? null
+            : DateTime.tryParse(map['reviewedAt'] as String),
+        reviewedBy: map['reviewedBy'] as String?,
+      );
+    } catch (_) {
+      return application;
+    }
+  }
+
+  Future<void> _persistRenewal(RenewalRequest renewal) =>
+      _preferences.setString(
+        'renewal_state_${renewal.id}',
+        jsonEncode({'status': renewal.status.name}),
+      );
+
+  RenewalRequest _restoreRenewal(RenewalRequest renewal) {
+    final raw = _preferences.getString('renewal_state_${renewal.id}');
+    if (raw == null) return renewal;
+    try {
+      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      return renewal.copyWith(
+        status: RenewalStatus.values.byName(map['status'] as String),
+      );
+    } catch (_) {
+      return renewal;
+    }
+  }
+
+  Map<String, Map<String, String>> _readBlockedDetails() {
+    final raw = _preferences.getStringList('blocked_account_details') ?? [];
+    final details = <String, Map<String, String>>{};
+    for (final item in raw) {
+      try {
+        final map = Map<String, dynamic>.from(jsonDecode(item) as Map);
+        final id = map['id'] as String?;
+        if (id == null) continue;
+        details[id] = {
+          for (final entry in map.entries)
+            if (entry.key != 'id' && entry.value != null)
+              entry.key: entry.value.toString(),
+        };
+      } catch (_) {
+        // Ignore malformed local overrides and keep the seeded account.
+      }
+    }
+    return details;
+  }
+
+  Future<void> _persistReport(Report report) => _preferences.setString(
+        'report_state_${report.id}',
+        jsonEncode({
+          'status': report.status.name,
+          'notes': report.notes,
+          'decision': report.decision,
+          'actionTaken': report.actionTaken,
+          'resolutionNote': report.resolutionNote,
+          'resolvedAt': report.resolvedAt?.toIso8601String(),
+          'resolvedBy': report.resolvedBy,
+        }),
+      );
+
+  Report _restoreReport(Report report) {
+    final raw = _preferences.getString('report_state_${report.id}');
+    final legacyNote = _preferences.getString('report_notes_${report.id}');
+    if (raw == null && legacyNote == null) return report;
+    try {
+      final map = raw == null
+          ? <String, dynamic>{'notes': legacyNote}
+          : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final statusName = map['status'] as String?;
+      return report.copyWith(
+        status: statusName == null
+            ? report.status
+            : ReportStatus.values.byName(statusName),
+        notes: map['notes'] as String? ?? report.notes,
+        decision: map['decision'] as String?,
+        actionTaken: map['actionTaken'] as String?,
+        resolutionNote: map['resolutionNote'] as String?,
+        resolvedAt: map['resolvedAt'] == null
+            ? null
+            : DateTime.tryParse(map['resolvedAt'] as String),
+        resolvedBy: map['resolvedBy'] as String?,
+      );
+    } catch (_) {
+      return report;
+    }
   }
 
   List<AuditLog> _readAuditLogs() {
@@ -725,9 +1265,11 @@ Map<String, dynamic> _suspensionToMap(Suspension item) => {
       'startDate': item.startDate.toIso8601String(),
       'endDate': item.endDate.toIso8601String(),
       'administratorId': item.administratorId,
+      'administratorName': item.administratorName,
       'createdAt': item.createdAt.toIso8601String(),
       'note': item.note,
       'notifyUser': item.notifyUser,
+      'relatedReportId': item.relatedReportId,
       'liftedAt': item.liftedAt?.toIso8601String(),
     };
 
@@ -740,9 +1282,11 @@ Suspension _suspensionFromMap(Map<String, dynamic> map) => Suspension(
       startDate: DateTime.parse(map['startDate'] as String),
       endDate: DateTime.parse(map['endDate'] as String),
       administratorId: map['administratorId'] as String,
+      administratorName: map['administratorName'] as String? ?? 'Administrator',
       createdAt: DateTime.parse(map['createdAt'] as String),
       note: map['note'] as String,
       notifyUser: map['notifyUser'] as bool,
+      relatedReportId: map['relatedReportId'] as String?,
       liftedAt: map['liftedAt'] == null
           ? null
           : DateTime.parse(map['liftedAt'] as String),

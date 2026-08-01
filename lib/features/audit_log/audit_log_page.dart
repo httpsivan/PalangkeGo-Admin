@@ -46,7 +46,7 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
           (entity == 'All entities' || item.targetEntityType == entity);
     }).toList();
     final totalPages = (values.length / 15).ceil();
-    final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
+    final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     final visible = values.skip(safePage * 15).take(15).toList();
     return Column(
       children: [
@@ -222,6 +222,8 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
                 _detail('Target user', item.targetUserName),
                 _detail('Previous value', item.previousValue),
                 _detail('New value', item.newValue),
+                for (final entry in item.metadata.entries)
+                  _detail(enumLabel(entry.key), entry.value),
                 _detail('Reason', item.reason.isEmpty ? '—' : item.reason),
                 _detail('Timestamp', longDate.format(item.timestamp)),
               ],

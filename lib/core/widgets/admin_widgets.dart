@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -219,7 +217,7 @@ class MetricCard extends StatelessWidget {
                   ),
                 ),
               );
-    final valueStyle = TextStyle(
+    final valueStyle = GoogleFonts.montserrat(
       color: Theme.of(context).colorScheme.onSurface,
       fontSize: compact ? 21 : 26,
       fontWeight: FontWeight.w800,
@@ -779,7 +777,7 @@ class PaginationBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final int safePage = page.clamp(0, pageCount - 1) as int;
+    final int safePage = page.clamp(0, pageCount - 1);
     final pagination = AnimatedSwitcher(
       duration: AppMotion.duration(context, AppMotion.component),
       transitionBuilder: (child, animation) => FadeTransition(

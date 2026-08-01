@@ -16,7 +16,6 @@ class AdminProfileMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(adminProfileProvider);
     final width = math.min(285.0, MediaQuery.sizeOf(context).width - 32);
-    final theme = Theme.of(context);
     final colors = semanticColors(context);
 
     return MenuAnchor(
@@ -281,7 +280,6 @@ class _ProfileMenuItem extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.selected = false,
     this.foregroundColor,
     this.hoverColor,
   });
@@ -289,7 +287,6 @@ class _ProfileMenuItem extends StatefulWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool selected;
   final Color? foregroundColor;
   final Color? hoverColor;
 
@@ -324,9 +321,7 @@ class _ProfileMenuItemState extends State<_ProfileMenuItem> {
               decoration: BoxDecoration(
                 color: hovering
                     ? widget.hoverColor ?? colors.hoverSurface
-                    : widget.selected
-                        ? colors.successContainer.withOpacity(.58)
-                        : Colors.transparent,
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -339,13 +334,10 @@ class _ProfileMenuItemState extends State<_ProfileMenuItem> {
                       style: TextStyle(
                         color: foreground,
                         fontSize: 13,
-                        fontWeight:
-                            widget.selected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  if (widget.selected)
-                    Icon(Icons.check_rounded, size: 18, color: colors.success),
                 ],
               ),
             ),

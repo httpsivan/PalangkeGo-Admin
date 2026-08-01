@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/admin_notification.dart';
 import '../animations/app_motion.dart';
-import '../theme/theme_extensions.dart';
 import 'admin_widgets.dart';
 
 class NotificationBell extends ConsumerStatefulWidget {
@@ -173,7 +172,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
                         ? Text(
                             unread > 99 ? '99+' : '$unread',
                             style: TextStyle(
-                              color: colors.primaryText,
+                              color: colors.heroForeground,
                               fontSize: 8,
                               fontWeight: FontWeight.w800,
                             ),
@@ -188,7 +187,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell> {
 }
 
 class _NotificationPanel extends ConsumerStatefulWidget {
-  const _NotificationPanel({required this.onClose, super.key});
+  const _NotificationPanel({required this.onClose});
 
   final VoidCallback onClose;
 
@@ -327,7 +326,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                 unread == 0
                     ? 'You are all caught up'
                     : '$unread unread notifications',
-                style: TextStyle(fontSize: 11, color: colors.mutedText),
+                style: TextStyle(fontSize: 11, color: colors.secondaryText),
               ),
               const Spacer(),
               TextButton(
@@ -380,7 +379,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? colors.primaryText : colors.secondaryText,
+            color: selected ? colors.heroForeground : colors.secondaryText,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -419,7 +418,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
         child: Text(
           label,
           style: TextStyle(
-            color: semanticColors(context).mutedText,
+            color: semanticColors(context).secondaryText,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: .5,
@@ -483,14 +482,21 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                   const SizedBox(height: 4),
                   Text(
                     item.message,
-                    style: TextStyle(fontSize: 11.5, color: colors.mutedText),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: colors.secondaryText,
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 5),
                   Row(
                     children: [
                       Text(
                         _relativeTime(item.createdAt),
-                        style: TextStyle(fontSize: 10, color: colors.mutedText),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colors.secondaryText,
+                        ),
                       ),
                       const Spacer(),
                       IconButton(
@@ -501,8 +507,11 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                         padding: EdgeInsets.zero,
                         constraints:
                             const BoxConstraints(minWidth: 24, minHeight: 24),
-                        icon: Icon(Icons.close_rounded,
-                            size: 15, color: colors.mutedText),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          size: 15,
+                          color: colors.secondaryText,
+                        ),
                       ),
                     ],
                   ),
@@ -548,7 +557,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                   ? Icons.mark_email_read_outlined
                   : Icons.notifications_none_rounded,
               size: 42,
-              color: colors.mutedText,
+              color: colors.secondaryText,
             ),
             const SizedBox(height: 10),
             Text(
@@ -559,7 +568,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
             Text(
               'There are no new notifications right now.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: colors.mutedText),
+              style: TextStyle(fontSize: 11, color: colors.secondaryText),
             ),
           ],
         ),
@@ -592,7 +601,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               backgroundColor: colors.accentDark,
-              foregroundColor: colors.primaryText,
+              foregroundColor: colors.heroForeground,
             ),
             child: const Text(
               'View All Notifications',

@@ -10,10 +10,19 @@ import '../../core/utils/csv_exporter.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
+import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
-  const AccountsPage({super.key});
+  const AccountsPage({
+    super.key,
+    this.selectedAccountId,
+    this.openDetailsOnLoad = false,
+  });
+
+  final String? selectedAccountId;
+  final bool openDetailsOnLoad;
+
   @override
   ConsumerState<AccountsPage> createState() => _AccountsPageState();
 }
@@ -25,6 +34,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   int page = 0;
+  bool selectedAccountOpened = false;
 
   @override
   void dispose() {
@@ -58,6 +68,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(appDataProvider);
+    _openSelectedAccount();
     return Column(
       children: [
         PageHeader(
@@ -82,6 +93,35 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         ),
       ],
     );
+  }
+
+  void _openSelectedAccount() {
+    if (selectedAccountOpened ||
+        !widget.openDetailsOnLoad ||
+        widget.selectedAccountId == null) {
+      return;
+    }
+    selectedAccountOpened = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final latest = ref.read(appDataProvider);
+      final vendor = latest.vendors.cast<Vendor?>().firstWhere(
+            (item) => item?.id == widget.selectedAccountId,
+            orElse: () => null,
+          );
+      if (vendor != null) {
+        showAccountDialog(context, ref, vendor: vendor);
+        return;
+      }
+      final customer = latest.customers.cast<Customer?>().firstWhere(
+            (item) => item?.id == widget.selectedAccountId,
+            orElse: () => null,
+          );
+      if (customer != null) {
+        setState(() => customers = true);
+        showAccountDialog(context, ref, customer: customer);
+      }
+    });
   }
 
   List<Vendor> get filteredVendors => ref
@@ -111,14 +151,13 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       .toList();
 
   Widget _vendorPanel(List<Vendor> values) {
-    final categories = <String>{
+    const categories = [
       'All Categories',
-      ...values.map((vendor) => vendor.stallType),
-    }.toList()
-      ..sort();
-    categories
-      ..remove('All Categories')
-      ..insert(0, 'All Categories');
+      'Fruits',
+      'Vegetables',
+      'Meat',
+      'Fish',
+    ];
     final visible = values
         .where(
           (v) =>
@@ -133,8 +172,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         .toList()
       ..sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
     final int totalPages = (visible.length / 10).ceil();
-    final int safePage =
-        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
+    final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     return DataPanel(
       title: 'Accounts',
       child: Expanded(
@@ -212,8 +250,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         .toList()
       ..sort((a, b) => b.registeredAt.compareTo(a.registeredAt));
     final int totalPages = (visible.length / 10).ceil();
-    final int safePage =
-        totalPages == 0 ? 0 : page.clamp(0, totalPages - 1) as int;
+    final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     return DataPanel(
       title: 'Customer Directory',
       subtitle: 'Manage and monitor customer activity and status',
@@ -531,6 +568,16 @@ class _CustomerTable extends StatelessWidget {
   }
 }
 
+Suspension? _suspensionForAccount(
+  Iterable<Suspension> suspensions,
+  String accountId,
+) {
+  for (final suspension in suspensions) {
+    if (suspension.accountId == accountId) return suspension;
+  }
+  return null;
+}
+
 Future<void> showAccountDialog(
   BuildContext context,
   WidgetRef ref, {
@@ -538,9 +585,16 @@ Future<void> showAccountDialog(
   Customer? customer,
 }) {
   assert((vendor == null) != (customer == null));
+  final data = ref.read(appDataProvider);
   final account = vendor != null
-      ? _AccountDetailsData.fromVendor(vendor)
-      : _AccountDetailsData.fromCustomer(customer!);
+      ? _AccountDetailsData.fromVendor(
+          vendor,
+          suspension: _suspensionForAccount(data.suspensions, vendor.id),
+        )
+      : _AccountDetailsData.fromCustomer(
+          customer!,
+          suspension: _suspensionForAccount(data.suspensions, customer.id),
+        );
 
   Future<void> update(String notes, AccountStatus nextStatus) {
     if (vendor != null) {
@@ -602,6 +656,23 @@ Future<void> showAccountDialog(
                         onSave: (notes) => update(notes, account.status),
                         onUnblock: account.status == AccountStatus.blocked
                             ? (notes) => update(notes, AccountStatus.active)
+                            : null,
+                        onLift: account.suspension != null &&
+                                account.suspension!.liftedAt == null
+                            ? (_) => ref
+                                .read(appDataProvider.notifier)
+                                .liftSuspension(account.suspension!.id)
+                            : null,
+                        onSuspend: account.status != AccountStatus.blocked &&
+                                (account.suspension == null ||
+                                    account.suspension!.liftedAt != null)
+                            ? () => showSuspensionDialog(
+                                  context,
+                                  ref,
+                                  accountId: account.id,
+                                  accountName: account.name,
+                                  accountType: account.accountType,
+                                )
                             : null,
                       ),
                     ),
@@ -667,124 +738,126 @@ Future<bool?> showSuspensionDialog(
     });
   }
 
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) => AlertDialog(
-        title: const Text('Temporarily suspend account'),
-        content: SizedBox(
-          width: 460,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  accountName,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: reason,
-                  autofocus: true,
-                  maxLength: 120,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason *',
-                    hintText: 'Policy violation, unpaid fees, etc.',
+  try {
+    return await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Temporarily suspend account'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    accountName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                ),
-                TextField(
-                  controller: note,
-                  maxLines: 3,
-                  maxLength: 300,
-                  decoration: const InputDecoration(
-                    labelText: 'Internal note',
-                    hintText: 'Optional details for the audit trail',
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: reason,
+                    autofocus: true,
+                    maxLength: 120,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason *',
+                      hintText: 'Policy violation, unpaid fees, etc.',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _dateButton(
-                        dialogContext,
-                        'Starts',
-                        startDate,
-                        () => pickDate(dialogContext, true, setDialogState),
-                      ),
+                  TextField(
+                    controller: note,
+                    maxLines: 3,
+                    maxLength: 300,
+                    decoration: const InputDecoration(
+                      labelText: 'Internal note',
+                      hintText: 'Optional details for the audit trail',
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _dateButton(
-                        dialogContext,
-                        'Ends',
-                        endDate,
-                        () => pickDate(dialogContext, false, setDialogState),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _dateButton(
+                          dialogContext,
+                          'Starts',
+                          startDate,
+                          () => pickDate(dialogContext, true, setDialogState),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: notifyUser,
-                  onChanged: (value) =>
-                      setDialogState(() => notifyUser = value ?? true),
-                  title: const Text('Notify the account holder'),
-                  subtitle:
-                      const Text('Delivery is recorded locally in demo mode.'),
-                ),
-              ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _dateButton(
+                          dialogContext,
+                          'Ends',
+                          endDate,
+                          () => pickDate(dialogContext, false, setDialogState),
+                        ),
+                      ),
+                    ],
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: notifyUser,
+                    onChanged: (value) =>
+                        setDialogState(() => notifyUser = value ?? true),
+                    title: const Text('Notify the account holder'),
+                    subtitle: const Text(
+                        'Delivery is recorded locally in demo mode.'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: saving ? null : () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: saving
-                ? null
-                : () async {
-                    if (reason.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                            content: Text('Enter a suspension reason.')),
-                      );
-                      return;
-                    }
-                    setDialogState(() => saving = true);
-                    final error = await ref
-                        .read(appDataProvider.notifier)
-                        .createSuspension(
-                          accountId: accountId,
-                          accountName: accountName,
-                          accountType: accountType,
-                          reason: reason.text,
-                          startDate: startDate,
-                          endDate: endDate,
-                          note: note.text,
-                          notifyUser: notifyUser,
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (reason.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(
+                              content: Text('Enter a suspension reason.')),
                         );
-                    if (!dialogContext.mounted) return;
-                    if (error != null) {
-                      setDialogState(() => saving = false);
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(content: Text(error)),
-                      );
-                      return;
-                    }
-                    Navigator.pop(dialogContext, true);
-                  },
-            child: const Text('Suspend account'),
-          ),
-        ],
+                        return;
+                      }
+                      setDialogState(() => saving = true);
+                      final error = await ref
+                          .read(appDataProvider.notifier)
+                          .createSuspension(
+                            accountId: accountId,
+                            accountName: accountName,
+                            accountType: accountType,
+                            reason: reason.text,
+                            startDate: startDate,
+                            endDate: endDate,
+                            note: note.text,
+                            notifyUser: notifyUser,
+                          );
+                      if (!dialogContext.mounted) return;
+                      if (error != null) {
+                        setDialogState(() => saving = false);
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          SnackBar(content: Text(error)),
+                        );
+                        return;
+                      }
+                      Navigator.pop(dialogContext, true);
+                    },
+              child: const Text('Suspend account'),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-  reason.dispose();
-  note.dispose();
-  return result;
+    );
+  } finally {
+    reason.dispose();
+    note.dispose();
+  }
 }
 
 Widget _dateButton(
@@ -924,7 +997,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                       const SectionLabel('Account Status'),
                       const SizedBox(height: 9),
                       DropdownButtonFormField<AccountStatus>(
-                        value: current,
+                        initialValue: current,
                         items: AccountStatus.values
                             .map(
                               (value) => DropdownMenuItem(
@@ -1095,9 +1168,18 @@ class _AccountDetailsData {
     required this.residence,
     required this.accountType,
     required this.administrativeNotes,
+    required this.suspension,
+    this.blockedReason,
+    this.blockedFromReportId,
+    this.blockedAt,
+    this.blockedBy,
   });
 
-  factory _AccountDetailsData.fromVendor(Vendor vendor) => _AccountDetailsData(
+  factory _AccountDetailsData.fromVendor(
+    Vendor vendor, {
+    Suspension? suspension,
+  }) =>
+      _AccountDetailsData(
         id: vendor.id,
         name: vendor.name,
         email: vendor.email,
@@ -1111,9 +1193,17 @@ class _AccountDetailsData {
         residence: vendor.residence,
         accountType: 'Vendor / Stall Holder',
         administrativeNotes: vendor.administrativeNotes,
+        suspension: suspension,
+        blockedReason: vendor.blockedReason,
+        blockedFromReportId: vendor.blockedFromReportId,
+        blockedAt: vendor.blockedAt,
+        blockedBy: vendor.blockedBy,
       );
 
-  factory _AccountDetailsData.fromCustomer(Customer customer) =>
+  factory _AccountDetailsData.fromCustomer(
+    Customer customer, {
+    Suspension? suspension,
+  }) =>
       _AccountDetailsData(
         id: customer.id,
         name: customer.name,
@@ -1128,6 +1218,11 @@ class _AccountDetailsData {
         residence: 'Not provided',
         accountType: 'Customer',
         administrativeNotes: customer.administrativeNotes,
+        suspension: suspension,
+        blockedReason: customer.blockedReason,
+        blockedFromReportId: customer.blockedFromReportId,
+        blockedAt: customer.blockedAt,
+        blockedBy: customer.blockedBy,
       );
 
   final String id;
@@ -1143,6 +1238,11 @@ class _AccountDetailsData {
   final String residence;
   final String accountType;
   final String administrativeNotes;
+  final Suspension? suspension;
+  final String? blockedReason;
+  final String? blockedFromReportId;
+  final DateTime? blockedAt;
+  final String? blockedBy;
 }
 
 class _AccountDetailsDialog extends ConsumerStatefulWidget {
@@ -1151,12 +1251,16 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
     required this.closeRequests,
     required this.onSave,
     this.onUnblock,
+    this.onLift,
+    this.onSuspend,
   });
 
   final _AccountDetailsData account;
   final ValueNotifier<int> closeRequests;
   final Future<void> Function(String notes) onSave;
   final Future<void> Function(String notes)? onUnblock;
+  final Future<void> Function(String notes)? onLift;
+  final Future<bool?> Function()? onSuspend;
 
   @override
   ConsumerState<_AccountDetailsDialog> createState() =>
@@ -1169,10 +1273,12 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
   );
   bool saving = false;
   bool unblocking = false;
+  bool lifting = false;
+  bool suspending = false;
   bool closePromptOpen = false;
 
   bool get dirty => notes.text != widget.account.administrativeNotes;
-  bool get busy => saving || unblocking;
+  bool get busy => saving || unblocking || lifting || suspending;
 
   @override
   void initState() {
@@ -1282,6 +1388,71 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     }
   }
 
+  Future<void> _liftSuspension() async {
+    if (busy || widget.onLift == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lift suspension?'),
+        content: Text(
+          'Restore access for ${widget.account.name}? The account status will '
+          'change to Active and the related report will remain resolved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.lock_open_rounded, size: 17),
+            label: const Text('Lift suspension'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => lifting = true);
+    try {
+      await widget.onLift!(widget.account.administrativeNotes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.account.name} is active again.')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to lift suspension: $error')),
+      );
+      setState(() => lifting = false);
+    }
+  }
+
+  Future<void> _suspend() async {
+    if (busy || widget.onSuspend == null) return;
+    setState(() => suspending = true);
+    try {
+      final created = await widget.onSuspend!();
+      if (!mounted) return;
+      if (created != true) {
+        setState(() => suspending = false);
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.account.name} is now suspended.')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to suspend account: $error')),
+      );
+      setState(() => suspending = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
@@ -1307,6 +1478,15 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _summary(context),
+                      if (widget.account.status == AccountStatus.suspended &&
+                          widget.account.suspension != null) ...[
+                        const SizedBox(height: 18),
+                        _suspensionInfo(context),
+                      ],
+                      if (widget.account.status == AccountStatus.blocked) ...[
+                        const SizedBox(height: 18),
+                        _blockInfo(context),
+                      ],
                       const SizedBox(height: 18),
                       Row(
                         children: [
@@ -1502,6 +1682,128 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
         },
       );
 
+  Widget _suspensionInfo(BuildContext context) {
+    final colors = semanticColors(context);
+    final suspension = widget.account.suspension!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.warningContainer.withOpacity(.42),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: colors.warning.withOpacity(.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pause_circle_outline, size: 17, color: colors.warning),
+              const SizedBox(width: 8),
+              Text(
+                'ACCOUNT STATUS',
+                style: GoogleFonts.inter(
+                  color: colors.warning,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const StatusBadge(label: 'Suspended', kind: BadgeKind.warning),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _restrictionDetail('Suspension Reason', suspension.reason),
+          if (suspension.relatedReportId != null)
+            _restrictionDetail('Related Report', suspension.relatedReportId!),
+          _restrictionDetail(
+            'Suspension Start',
+            longDate.format(suspension.startDate),
+          ),
+          _restrictionDetail(
+            'Suspension End',
+            longDate.format(suspension.endDate),
+          ),
+          _restrictionDetail('Suspended By', suspension.administratorName),
+        ],
+      ),
+    );
+  }
+
+  Widget _blockInfo(BuildContext context) {
+    final colors = semanticColors(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.dangerContainer.withOpacity(.42),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: colors.danger.withOpacity(.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.block_outlined, size: 17, color: colors.danger),
+              const SizedBox(width: 8),
+              Text(
+                'ACCOUNT STATUS',
+                style: GoogleFonts.inter(
+                  color: colors.danger,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const StatusBadge(label: 'Blocked', kind: BadgeKind.danger),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _restrictionDetail(
+            'Blocking Reason',
+            widget.account.blockedReason ?? 'Not provided',
+          ),
+          if (widget.account.blockedFromReportId != null)
+            _restrictionDetail(
+              'Related Report',
+              widget.account.blockedFromReportId!,
+            ),
+          if (widget.account.blockedAt != null)
+            _restrictionDetail(
+              'Blocked On',
+              longDate.format(widget.account.blockedAt!),
+            ),
+          if (widget.account.blockedBy != null)
+            _restrictionDetail('Blocked By', widget.account.blockedBy!),
+        ],
+      ),
+    );
+  }
+
+  Widget _restrictionDetail(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 116,
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: semanticColors(context).mutedText,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(value, style: GoogleFonts.inter(fontSize: 11)),
+            ),
+          ],
+        ),
+      );
+
   Widget _statCard(
     BuildContext context,
     String value,
@@ -1680,6 +1982,8 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
 
   Widget _footer(BuildContext context) {
     final canUnblock = widget.onUnblock != null;
+    final canLift = widget.onLift != null;
+    final canSuspend = widget.onSuspend != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
       child: Row(
@@ -1702,18 +2006,47 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                       unblocking ? 'Unblocking...' : 'Unblock Account',
                     ),
                   )
-                : OutlinedButton(
-                    onPressed: busy
-                        ? null
-                        : () => ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Full profile view is not available yet.',
-                                ),
-                              ),
+                : canLift
+                    ? OutlinedButton.icon(
+                        onPressed: busy ? null : _liftSuspension,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: semanticColors(context).warning,
+                        ),
+                        icon: lifting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.lock_open_rounded, size: 17),
+                        label: Text(
+                          lifting ? 'Lifting...' : 'Lift Suspension',
+                        ),
+                      )
+                    : canSuspend
+                        ? OutlinedButton.icon(
+                            onPressed: busy ? null : _suspend,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: semanticColors(context).warning,
                             ),
-                    child: const Text('View Full Profile'),
-                  ),
+                            icon: suspending
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.pause_circle_outline,
+                                    size: 17,
+                                  ),
+                            label: Text(
+                              suspending ? 'Suspending...' : 'Suspend Account',
+                            ),
+                          )
+                        : const SizedBox.shrink(),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -38,7 +38,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/accounts',
-            builder: (context, state) => const AccountsPage(),
+            builder: (context, state) => AccountsPage(
+              selectedAccountId: state.uri.queryParameters['accountId'],
+              openDetailsOnLoad: state.uri.queryParameters['open'] == '1',
+            ),
           ),
           GoRoute(
             path: '/applications',

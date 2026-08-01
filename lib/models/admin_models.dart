@@ -17,6 +17,7 @@ enum AuditAction {
   unblockAccount,
   suspendAccount,
   liftSuspension,
+  resolveReport,
   editAccountStatus,
   sendAnnouncement,
   exportPdf,
@@ -165,6 +166,8 @@ class Suspension {
     required this.createdAt,
     required this.note,
     required this.notifyUser,
+    this.relatedReportId,
+    this.administratorName = 'Administrator',
     this.liftedAt,
   });
 
@@ -179,6 +182,8 @@ class Suspension {
   final DateTime createdAt;
   final String note;
   final bool notifyUser;
+  final String? relatedReportId;
+  final String administratorName;
   final DateTime? liftedAt;
 
   bool get isActive {
@@ -200,6 +205,8 @@ class Suspension {
         createdAt: createdAt,
         note: note,
         notifyUser: notifyUser,
+        relatedReportId: relatedReportId,
+        administratorName: administratorName,
         liftedAt: at,
       );
 }

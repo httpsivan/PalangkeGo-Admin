@@ -129,7 +129,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
               ),
               const SizedBox(height: 7),
               DropdownButtonFormField<String>(
-                value: audience,
+                initialValue: audience,
                 items: ['All Users', 'Vendors', 'Customers']
                     .map(
                       (value) => DropdownMenuItem(

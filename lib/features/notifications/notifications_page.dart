@@ -55,7 +55,8 @@ class NotificationsPage extends ConsumerWidget {
                         child: ListView.separated(
                           padding: const EdgeInsets.all(16),
                           itemCount: notifications.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final item = notifications[index];
                             final typeColor = _typeColor(context, item.type);
@@ -91,19 +92,24 @@ class NotificationsPage extends ConsumerWidget {
                                     if (!item.isRead)
                                       IconButton(
                                         tooltip: 'Mark as read',
-                                        onPressed: () => controller.markRead(item.id),
-                                        icon: const Icon(Icons.done_rounded, size: 18),
+                                        onPressed: () =>
+                                            controller.markRead(item.id),
+                                        icon: const Icon(Icons.done_rounded,
+                                            size: 18),
                                       ),
                                     IconButton(
                                       tooltip: 'Dismiss notification',
-                                      onPressed: () => controller.dismiss(item.id),
-                                      icon: const Icon(Icons.close_rounded, size: 18),
+                                      onPressed: () =>
+                                          controller.dismiss(item.id),
+                                      icon: const Icon(Icons.close_rounded,
+                                          size: 18),
                                     ),
                                   ],
                                 ),
                                 onTap: () {
                                   controller.markRead(item.id);
-                                  if (item.route != null) context.go(item.route!);
+                                  if (item.route != null)
+                                    context.go(item.route!);
                                 },
                               ),
                             );

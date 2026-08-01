@@ -63,46 +63,49 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
 
   Future<void> reject() async {
     final reason = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject application'),
-        content: TextField(
-          controller: reason,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(hintText: 'Add a reason...'),
+    try {
+      final value = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reject application'),
+          content: TextField(
+            controller: reason,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(hintText: 'Add a reason...'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, reason.text.trim()),
+              child: const Text('Reject'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, reason.text.trim()),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    reason.dispose();
-    if (value == null || value.isEmpty || !mounted) return;
-    setState(() => processing = true);
-    if (widget.application != null)
-      await ref.read(appDataProvider.notifier).updateApplication(
-            widget.id,
-            ApplicationStatus.rejected,
-            rejectionReason: value,
-          );
-    if (widget.renewal != null)
-      await ref
-          .read(appDataProvider.notifier)
-          .updateRenewal(widget.id, RenewalStatus.expired);
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Application rejected.')));
+      );
+      if (value == null || value.isEmpty || !mounted) return;
+      setState(() => processing = true);
+      if (widget.application != null)
+        await ref.read(appDataProvider.notifier).updateApplication(
+              widget.id,
+              ApplicationStatus.rejected,
+              rejectionReason: value,
+            );
+      if (widget.renewal != null)
+        await ref
+            .read(appDataProvider.notifier)
+            .updateRenewal(widget.id, RenewalStatus.expired);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Application rejected.')));
+      }
+    } finally {
+      reason.dispose();
     }
   }
 
@@ -276,7 +279,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       context,
       document.name,
       asset,
-      filename: '${document.filename} • ${shortDate.format(document.uploadedAt)}',
+      filename:
+          '${document.filename} • ${shortDate.format(document.uploadedAt)}',
     );
   }
 
