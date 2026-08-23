@@ -71,7 +71,7 @@ class NotificationsPage extends ConsumerWidget {
                                   side: BorderSide(color: colors.subtleBorder),
                                 ),
                                 leading: CircleAvatar(
-                                  backgroundColor: typeColor.withOpacity(.13),
+                                  backgroundColor: typeColor.withValues(alpha: .13),
                                   foregroundColor: typeColor,
                                   child: Icon(_typeIcon(item.type), size: 18),
                                 ),

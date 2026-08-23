@@ -11,18 +11,122 @@ AppSemanticColors semanticColors(BuildContext context) =>
     Theme.of(context).extension<AppSemanticColors>()!;
 
 class AppLogo extends StatelessWidget {
-  const AppLogo({super.key, this.compact = false});
+  const AppLogo({
+    super.key,
+    this.compact = false,
+    this.showTagline = true,
+    this.showAdminBadge = false,
+    this.dark = false,
+  });
+
   final bool compact;
+  final bool showTagline;
+  final bool showAdminBadge;
+  final bool dark;
 
   @override
-  Widget build(BuildContext context) => Image.asset(
-        'assets/images/palengkego_admin_logo.png',
-        width: compact ? 180 : 220,
-        height: compact ? 48 : 76,
-        fit: compact ? BoxFit.contain : BoxFit.cover,
-        alignment: Alignment.center,
-        semanticLabel: 'PalengkeGo - Skip the Roam, Order from Home',
-      );
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final primaryTextColor = dark
+        ? Colors.white
+        : (Theme.of(context).brightness == Brightness.dark
+            ? Colors.white
+            : const Color(0xFF1E293B));
+    final accentColor = dark ? const Color(0xFF34D399) : colors.accent;
+
+    final basketIcon = Image.asset(
+      'assets/images/market_basket.png',
+      width: compact ? 44 : 64,
+      height: compact ? 44 : 64,
+      fit: BoxFit.contain,
+      semanticLabel: 'PalengkeGo Market Basket',
+    );
+
+    final titleText = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: 'Palengke',
+            style: GoogleFonts.plusJakartaSans(
+              color: primaryTextColor,
+              fontSize: compact ? 19 : 23,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
+          ),
+          TextSpan(
+            text: 'Go',
+            style: GoogleFonts.plusJakartaSans(
+              color: accentColor,
+              fontSize: compact ? 19 : 23,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.4,
+            ),
+          ),
+          if (showAdminBadge) ...[
+            WidgetSpan(
+              child: Container(
+                margin: const EdgeInsets.only(left: 6, bottom: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  'ADMIN',
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: compact ? 9 : 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    final taglineText = Text(
+      'SKIP THE ROAM, ORDER FROM HOME',
+      style: GoogleFonts.inter(
+        color: dark
+            ? Colors.white70
+            : Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: 0.6),
+        fontSize: compact ? 7.5 : 8.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.0,
+      ),
+    );
+
+    return Semantics(
+      label: 'PalengkeGo - Skip the Roam, Order from Home',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          basketIcon,
+          SizedBox(width: compact ? 10 : 12),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              titleText,
+              if (showTagline && !compact) ...[
+                const SizedBox(height: 2),
+                taglineText,
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class AvatarCircle extends StatelessWidget {
@@ -87,13 +191,14 @@ class PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = semanticColors(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(34, 20, 34, 14),
+      padding: const EdgeInsets.fromLTRB(36, 24, 36, 20),
       decoration: BoxDecoration(
-        color: semanticColors(context).heroBackground,
+        color: colors.heroBackground,
         border: Border(
-          bottom: BorderSide(color: semanticColors(context).borderOnHero),
+          bottom: BorderSide(color: colors.borderOnHero),
         ),
       ),
       child: Column(
@@ -101,49 +206,145 @@ class PageHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
-              color: semanticColors(context).heroForeground,
-              fontSize: 28,
+            style: GoogleFonts.plusJakartaSans(
+              color: colors.heroForeground,
+              fontSize: 26,
               fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             subtitle,
-            style: TextStyle(
-              color: semanticColors(context).heroMuted,
-              fontSize: 12,
+            style: GoogleFonts.inter(
+              color: colors.heroMuted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
             ),
           ),
           if (tabs != null) ...[const SizedBox(height: 22), tabs!],
           if (metrics.isNotEmpty) ...[
             const SizedBox(height: 20),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final count = constraints.maxWidth >= 1100
-                    ? metrics.length
-                    : constraints.maxWidth >= 650
-                        ? 2
-                        : 1;
-                return GridView.builder(
-                  itemCount: metrics.length,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: count,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 12,
-                    mainAxisExtent: 63,
-                  ),
-                  itemBuilder: (context, index) => FadeSlideIn(
-                    delay: Duration(milliseconds: 35 * index),
-                    child: MetricCard(data: metrics[index], compact: true),
-                  ),
-                );
-              },
-            ),
+            _PageHeaderMetricRibbon(metrics: metrics),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _PageHeaderMetricRibbon extends StatelessWidget {
+  const _PageHeaderMetricRibbon({required this.metrics});
+  final List<MetricCardData> metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.subtleBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 750;
+          if (!isWide) {
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(10),
+              itemCount: metrics.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: constraints.maxWidth >= 450 ? 2 : 1,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                mainAxisExtent: 68,
+              ),
+              itemBuilder: (context, i) => _PageHeaderMetricTile(data: metrics[i]),
+            );
+          }
+          return IntrinsicHeight(
+            child: Row(
+              children: [
+                for (int i = 0; i < metrics.length; i++) ...[
+                  Expanded(
+                    child: _PageHeaderMetricTile(data: metrics[i]),
+                  ),
+                  if (i < metrics.length - 1)
+                    VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: colors.subtleBorder,
+                    ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PageHeaderMetricTile extends StatelessWidget {
+  const _PageHeaderMetricTile({required this.data});
+  final MetricCardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return InkWell(
+      onTap: data.onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              data.icon,
+              size: 18,
+              color: data.accent,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    data.label.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: colors.secondaryText,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  AnimatedCounter(
+                    value: data.value,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: colors.primaryText,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -178,7 +379,7 @@ class MetricCard extends StatelessWidget {
       width: compact ? 33 : 34,
       height: compact ? 33 : 34,
       decoration: BoxDecoration(
-        color: data.accent.withOpacity(.13),
+        color: data.accent.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Icon(data.icon, color: data.accent, size: 18),
@@ -193,7 +394,7 @@ class MetricCard extends StatelessWidget {
                   Icons.arrow_outward_rounded,
                   size: 14,
                   color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(.72),
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: .72),
                 ),
               )
             : InkWell(
@@ -213,7 +414,7 @@ class MetricCard extends StatelessWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(.72),
+                        .withValues(alpha: .72),
                   ),
                 ),
               );
@@ -228,30 +429,31 @@ class MetricCard extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(.64),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .64),
         fontSize: compact ? 11 : 11.5,
       ),
     );
-    return AnimatedHoverContainer(
+    return Semantics(
+      button: data.onTap != null,
+      label: '${data.label}: ${data.value}',
+      child: AnimatedHoverContainer(
       onTap: data.onTap,
       borderRadius: BorderRadius.circular(compact ? 12 : 14),
       child: Container(
         padding: compact
             ? const EdgeInsets.symmetric(horizontal: 14)
-            : const EdgeInsets.fromLTRB(14, 16, 12, 14),
+            : const EdgeInsets.fromLTRB(14, 12, 12, 12),
         decoration: BoxDecoration(
           color: colors.cardBackground,
           borderRadius: BorderRadius.circular(compact ? 12 : 14),
           border: Border.all(color: colors.subtleBorder),
-          boxShadow: compact
-              ? const []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: compact
             ? Row(
@@ -262,7 +464,15 @@ class MetricCard extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [value, const SizedBox(height: 4), label],
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: value,
+                        ),
+                        const SizedBox(height: 4),
+                        Flexible(child: label),
+                      ],
                     ),
                   ),
                   if (arrow != null) arrow,
@@ -279,11 +489,16 @@ class MetricCard extends StatelessWidget {
                     ],
                   ),
                   const Spacer(),
-                  value,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: value,
+                  ),
                   const SizedBox(height: 3),
-                  label,
+                  Flexible(child: label),
                 ],
               ),
+        ),
       ),
     );
   }
@@ -315,41 +530,45 @@ class StatusBadge extends StatelessWidget {
           : (const Color(0xFF8B5CF6), const Color(0xFFEDE9FE)),
       BadgeKind.neutral => (colors.mutedText, colors.hoverSurface),
     };
-    return AnimatedSwitcher(
-      duration: AppMotion.duration(context, AppMotion.component),
-      switchInCurve: AppMotion.easeOut,
-      switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: .95, end: 1).animate(animation),
-          child: child,
+    return Semantics(
+      label: 'Status: $label',
+      container: true,
+      child: AnimatedSwitcher(
+        duration: AppMotion.duration(context, AppMotion.component),
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: .95, end: 1).animate(animation),
+            child: child,
+          ),
         ),
-      ),
-      child: Container(
-        key: ValueKey('$label-${kind.name}'),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: pair.$2,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: pair.$1.withOpacity(.12)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 11, color: pair.$1),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                color: pair.$1,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
+        child: Container(
+          key: ValueKey('$label-${kind.name}'),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: pair.$2,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: pair.$1.withValues(alpha: .12)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 11, color: pair.$1),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: pair.$1,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -453,7 +672,7 @@ class FilterButton extends StatelessWidget {
           label: Text(label, style: const TextStyle(fontSize: 11)),
           style: OutlinedButton.styleFrom(
             foregroundColor:
-                Theme.of(context).colorScheme.onSurface.withOpacity(.76),
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: .76),
             side: BorderSide(color: semanticColors(context).subtleBorder),
             backgroundColor: semanticColors(context).hoverSurface,
             minimumSize: const Size(0, 38),
@@ -529,13 +748,13 @@ class DataPanel extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: colors.elevatedSurface,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.subtleBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withValues(alpha: .03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -568,7 +787,7 @@ class DataPanel extends StatelessWidget {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(.58),
+                                .withValues(alpha: .58),
                           ),
                         ),
                       ],
@@ -667,8 +886,9 @@ class ScrollableDataTable extends StatelessWidget {
   final Widget emptyState;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
           final tableWidth =
               constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
 
@@ -711,46 +931,27 @@ class ScrollableDataTable extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: SizedBox(
               width: tableWidth,
-              child: Column(
-                children: [
-                  table(tableRows: const [], headingHeight: 48),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration:
-                          AppMotion.duration(context, AppMotion.component),
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: child,
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.component),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+                child: rows.isEmpty
+                    ? KeyedSubtree(
+                        key: const ValueKey('empty'),
+                        child: emptyState,
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('rows'),
+                        child: table(tableRows: rows, headingHeight: 48),
                       ),
-                      child: rows.isEmpty
-                          ? KeyedSubtree(
-                              key: const ValueKey('empty'),
-                              child: emptyState,
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('rows'),
-                              child: Scrollbar(
-                                controller: verticalController,
-                                thumbVisibility: true,
-                                interactive: true,
-                                child: ListView(
-                                  controller: verticalController,
-                                  primary: false,
-                                  padding: const EdgeInsets.only(right: 14),
-                                  children: [
-                                    table(tableRows: rows, headingHeight: 0),
-                                  ],
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
               ),
             ),
           );
         },
-      );
+      ),
+    );
 }
 
 class PaginationBar extends StatelessWidget {
@@ -825,7 +1026,7 @@ class PaginationBar extends StatelessWidget {
       'Showing $start to $end of $total results',
       style: TextStyle(
         fontSize: 10.5,
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(.62),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .62),
       ),
     );
 

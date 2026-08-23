@@ -24,23 +24,25 @@ class _VendorApplicationsPageState
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   int page = 0;
+  late Set<String> _viewedApplicationIds;
 
-  Set<String> get _viewedApplicationIds =>
-      ref
-          .read(sharedPreferencesProvider)
-          .getStringList(_viewedApplicationsPreference)
-          ?.toSet() ??
-      <String>{};
+  @override
+  void initState() {
+    super.initState();
+    _viewedApplicationIds = ref
+            .read(sharedPreferencesProvider)
+            .getStringList(_viewedApplicationsPreference)
+            ?.toSet() ??
+        <String>{};
+  }
 
   void _markApplicationViewed(String applicationId) {
-    final preferences = ref.read(sharedPreferencesProvider);
-    final viewed = _viewedApplicationIds;
-    if (!viewed.add(applicationId)) return;
+    if (!_viewedApplicationIds.add(applicationId)) return;
     setState(() {});
-    preferences.setStringList(
-      _viewedApplicationsPreference,
-      viewed.toList(),
-    );
+    ref.read(sharedPreferencesProvider).setStringList(
+          _viewedApplicationsPreference,
+          _viewedApplicationIds.toList(),
+        );
   }
 
   @override
@@ -106,7 +108,8 @@ class _VendorApplicationsPageState
         : newestApplicationId;
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Vendor Applications',
@@ -140,75 +143,69 @@ class _VendorApplicationsPageState
             ),
           ],
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
-            child: DataPanel(
-              title: 'Recent Applications',
-              child: Expanded(
-                child: Column(
-                  children: [
-                    Toolbar(
-                      controller: search,
-                      onChanged: (_) => _resetTable(),
-                      onClear: () {
-                        search.clear();
-                        status = 'All Statuses';
-                        stallCategory = 'All Categories';
-                        _resetTable();
-                      },
-                      trailing: [
-                        _filter(status, [
-                          'All Statuses',
-                          'Verified',
-                          'Reviewing',
-                          'Invalid Docs',
-                        ], (value) {
-                          status = value;
-                          _resetTable();
-                        }),
-                        _filter(
-                            stallCategory == 'All Categories'
-                                ? 'Stall Category'
-                                : stallCategory,
-                            categories, (value) {
-                          stallCategory = value;
-                          _resetTable();
-                        }),
-                        FilterButton(
-                          label: 'Export',
-                          icon: Icons.download_outlined,
-                          onTap: () => _export(values),
-                        ),
-                      ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: DataPanel(
+            title: 'Recent Applications',
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  onChanged: (_) => _resetTable(),
+                  onClear: () {
+                    search.clear();
+                    status = 'All Statuses';
+                    stallCategory = 'All Categories';
+                    _resetTable();
+                  },
+                  trailing: [
+                    _filter(status, [
+                      'All Statuses',
+                      'Verified',
+                      'Reviewing',
+                      'Invalid Docs',
+                    ], (value) {
+                      status = value;
+                      _resetTable();
+                    }),
+                    _filter(
+                        stallCategory == 'All Categories'
+                            ? 'Stall Category'
+                            : stallCategory,
+                        categories, (value) {
+                      stallCategory = value;
+                      _resetTable();
+                    }),
+                    FilterButton(
+                      label: 'Export',
+                      icon: Icons.download_outlined,
+                      onTap: () => _export(values),
                     ),
-                    Expanded(
-                      child: _ApplicationTable(
-                        values: values.skip(safePage * 10).take(10).toList(),
-                        newestId: newApplicationId,
-                        verticalController: tableScrollController,
-                        onOpen: (item) {
-                          _markApplicationViewed(item.id);
-                          showBlurredDialog(
-                            context,
-                            (context) => VerificationDialog.application(item),
-                          );
-                        },
-                      ),
-                    ),
-                    if (values.isNotEmpty)
-                      PaginationBar(
-                        total: values.length,
-                        start: safePage * 10 + 1,
-                        end: ((safePage + 1) * 10).clamp(0, values.length),
-                        page: safePage,
-                        pageCount: totalPages,
-                        onPageChanged: _goToPage,
-                        showSummary: search.text.trim().isNotEmpty,
-                      ),
                   ],
                 ),
-              ),
+                _ApplicationTable(
+                  values: values.skip(safePage * 10).take(10).toList(),
+                  newestId: newApplicationId,
+                  verticalController: tableScrollController,
+                  onOpen: (item) {
+                    _markApplicationViewed(item.id);
+                    showBlurredDialog(
+                      context,
+                      (context) => VerificationDialog.application(item),
+                    );
+                  },
+                ),
+                if (values.isNotEmpty)
+                  PaginationBar(
+                    total: values.length,
+                    start: safePage * 10 + 1,
+                    end: ((safePage + 1) * 10).clamp(0, values.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: _goToPage,
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
             ),
           ),
         ),
@@ -375,7 +372,7 @@ class _NewApplicationIndicator extends StatelessWidget {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(.3),
+              color: color.withValues(alpha: .3),
               blurRadius: 5,
               spreadRadius: 1,
             ),

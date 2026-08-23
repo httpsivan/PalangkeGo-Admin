@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/app_config.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
 import '../mock_data.dart';
 import '../../core/theme/theme_controller.dart';
+import 'firebase_admin_service.dart';
 
 const defaultAdminName = 'Kirren Michael Fraginal';
 const defaultAdminEmail = 'admin@palengkego.gov.ph';
@@ -95,7 +98,8 @@ class AdminProfileController extends StateNotifier<AdminProfile> {
 }
 
 final authProvider = StateNotifierProvider<AuthController, bool>((ref) {
-  return AuthController(ref.watch(sharedPreferencesProvider));
+  return AuthController(ref.watch(sharedPreferencesProvider))
+    .._attachFirebase(ref);
 });
 
 class AuthController extends StateNotifier<bool> {
@@ -103,12 +107,29 @@ class AuthController extends StateNotifier<bool> {
       : super(_preferences.getBool('isLoggedIn') ?? false);
 
   final SharedPreferences _preferences;
+  bool _firebase = false;
+
+  /// In Firebase mode the Auth SDK owns the session; mirror it into this
+  /// notifier so the existing router redirect keeps working unchanged.
+  void _attachFirebase(Ref ref) {
+    _firebase = ref.read(firebaseEnabledProvider);
+    if (!_firebase) return;
+    FirebaseAdminService.instance.authState.listen((signedIn) {
+      state = signedIn;
+    });
+  }
 
   Future<String?> login(
     String email,
     String password,
     bool keepSignedIn,
   ) async {
+    if (_firebase) {
+      final error =
+          await FirebaseAdminService.instance.signIn(email, password);
+      if (error == null) state = true;
+      return error;
+    }
     await Future<void>.delayed(const Duration(milliseconds: 550));
     final savedPassword =
         _preferences.getString('admin_password') ?? defaultAdminPassword;
@@ -123,6 +144,11 @@ class AuthController extends StateNotifier<bool> {
   }
 
   Future<void> logout() async {
+    if (_firebase) {
+      await FirebaseAdminService.instance.signOut();
+      state = false; // also arrives via the authState listener
+      return;
+    }
     await _appendAuthAudit(_preferences, AuditAction.logout);
     state = false;
     await _preferences.remove('isLoggedIn');
@@ -196,26 +222,72 @@ class _ReportedAccountRef {
 final appDataProvider = StateNotifierProvider<AppDataController, AppDataState>((
   ref,
 ) {
-  return AppDataController(ref.watch(sharedPreferencesProvider));
+  final controller = AppDataController(
+    ref.watch(sharedPreferencesProvider),
+    firebaseEnabled: ref.read(firebaseEnabledProvider),
+  );
+  controller._attachRef(ref);
+  return controller;
 });
 
 class AppDataController extends StateNotifier<AppDataState> {
-  AppDataController(this._preferences)
+  AppDataController(this._preferences, {required this.firebaseEnabled})
       : super(
-          AppDataState(
-            vendors: seedVendors(),
-            customers: seedCustomers(),
-            applications: seedApplications(),
-            renewals: seedRenewals(),
-            reports: seedReports(),
-            announcements: seedAnnouncements(),
-            orders: seedOrders(),
-          ),
+          // Firebase mode starts EMPTY — live data is loaded from Firestore;
+          // seeded demo fiction must never render as real market data.
+          firebaseEnabled
+              ? const AppDataState(
+                  vendors: [],
+                  customers: [],
+                  applications: [],
+                  renewals: [],
+                  reports: [],
+                  announcements: [],
+                  orders: [],
+                )
+              : AppDataState(
+                  vendors: seedVendors(),
+                  customers: seedCustomers(),
+                  applications: seedApplications(),
+                  renewals: seedRenewals(),
+                  reports: seedReports(),
+                  announcements: seedAnnouncements(),
+                  orders: seedOrders(),
+                ),
         ) {
-    _restore();
+    if (firebaseEnabled) {
+      reload();
+    } else {
+      _restore();
+    }
   }
 
   final SharedPreferences _preferences;
+  final bool firebaseEnabled;
+  Ref? _ref;
+
+  void _attachRef(Ref ref) => _ref = ref;
+
+  /// Loads server truth. Called on startup and after every trusted
+  /// mutation — the callables (and their audit trail) are the source of
+  /// record, so local state is replaced, not merged.
+  Future<void> reload() async {
+    if (!firebaseEnabled) return;
+    try {
+      final data = await FirebaseAdminService.instance.loadAll();
+      state = state.copyWith(
+        vendors: data.vendors,
+        customers: data.customers,
+        applications: data.applications,
+        renewals: data.renewals,
+        orders: data.orders,
+        auditLogs: data.auditLogs,
+        announcements: data.announcements,
+      );
+    } catch (e) {
+      debugPrint('[admin] Firestore reload failed: $e');
+    }
+  }
 
   Future<void> _restore() async {
     final blockedVendors =
@@ -287,6 +359,15 @@ class AppDataController extends StateNotifier<AppDataState> {
   }
 
   Future<void> setVendorStatus(String id, AccountStatus status) async {
+    if (firebaseEnabled) {
+      if (status == AccountStatus.blocked || status == AccountStatus.active) {
+        final error = await FirebaseAdminService.instance
+            .setAccountBlocked(id, status == AccountStatus.blocked);
+        if (error != null) debugPrint('[admin] setAccountBlocked: $error');
+      }
+      await reload();
+      return;
+    }
     await _wait();
     final previous = _firstOrNull(state.vendors.where((item) => item.id == id));
     final vendors = state.vendors
@@ -334,6 +415,15 @@ class AppDataController extends StateNotifier<AppDataState> {
     required AccountStatus status,
     required String administrativeNotes,
   }) async {
+    if (firebaseEnabled) {
+      if (status == AccountStatus.blocked || status == AccountStatus.active) {
+        final error = await FirebaseAdminService.instance
+            .setAccountBlocked(id, status == AccountStatus.blocked);
+        if (error != null) debugPrint('[admin] setAccountBlocked: $error');
+      }
+      await reload();
+      return;
+    }
     await _wait();
     final previous = _firstOrNull(state.vendors.where((item) => item.id == id));
     final vendors = state.vendors
@@ -383,6 +473,15 @@ class AppDataController extends StateNotifier<AppDataState> {
     required AccountStatus status,
     required String administrativeNotes,
   }) async {
+    if (firebaseEnabled) {
+      if (status == AccountStatus.blocked || status == AccountStatus.active) {
+        final error = await FirebaseAdminService.instance
+            .setAccountBlocked(id, status == AccountStatus.blocked);
+        if (error != null) debugPrint('[admin] setAccountBlocked: $error');
+      }
+      await reload();
+      return;
+    }
     await _wait();
     final previous =
         _firstOrNull(state.customers.where((item) => item.id == id));
@@ -450,6 +549,19 @@ class AppDataController extends StateNotifier<AppDataState> {
     ApplicationStatus status, {
     String? rejectionReason,
   }) async {
+    if (firebaseEnabled) {
+      final error = status == ApplicationStatus.verified
+          ? await FirebaseAdminService.instance.approveKyc(id)
+          : await FirebaseAdminService.instance.rejectKyc(
+              id,
+              rejectionReason ?? 'Documents did not pass review.',
+            );
+      if (error != null) {
+        debugPrint('[admin] approveKyc failed: $error');
+      }
+      await reload(); // server truth (incl. its own audit entry) wins
+      return;
+    }
     await _wait();
     final current = _firstOrNull(
       state.applications.where((item) => item.id == id),
@@ -486,6 +598,17 @@ class AppDataController extends StateNotifier<AppDataState> {
   }
 
   Future<void> updateRenewal(String id, RenewalStatus status) async {
+    if (firebaseEnabled) {
+      final error = status == RenewalStatus.approved
+          ? await FirebaseAdminService.instance.approveRenewal(id)
+          : await FirebaseAdminService.instance.rejectRenewal(
+              id, 'Renewal did not pass review.');
+      if (error != null) {
+        debugPrint('[admin] approveRenewal failed: $error');
+      }
+      await reload();
+      return;
+    }
     await _wait();
     final current = _firstOrNull(state.renewals.where((item) => item.id == id));
     state = state.copyWith(
@@ -511,6 +634,7 @@ class AppDataController extends StateNotifier<AppDataState> {
     String notes,
   ) async {
     await _wait();
+    final current = _firstOrNull(state.reports.where((item) => item.id == id));
     state = state.copyWith(
       reports: state.reports
           .map(
@@ -524,11 +648,11 @@ class AppDataController extends StateNotifier<AppDataState> {
     final updated = _firstOrNull(state.reports.where((item) => item.id == id));
     if (updated != null) await _persistReport(updated);
     await recordAudit(
-      action: AuditAction.editAccountStatus,
+      action: AuditAction.resolveReport,
       targetEntityType: 'Report',
       targetEntityId: id,
       targetUserName: id,
-      previousValue: 'unknown',
+      previousValue: enumLabel(current?.status ?? ReportStatus.pending),
       newValue: enumLabel(status),
       reason: notes,
     );
@@ -1222,8 +1346,7 @@ class AppDataController extends StateNotifier<AppDataState> {
             .toList(),
       );
 
-  Future<void> _wait() =>
-      Future<void>.delayed(const Duration(milliseconds: 500));
+  Future<void> _wait() => Future<void>.value();
 }
 
 Map<String, dynamic> _auditToMap(AuditLog item) => {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -136,7 +137,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                             fontSize: 9,
                             color: Theme.of(
                               context,
-                            ).colorScheme.onSurface.withOpacity(.5),
+                            ).colorScheme.onSurface.withValues(alpha: .5),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -144,21 +145,25 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                           children: [
                             AvatarCircle(name: widget.applicant, size: 46),
                             const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.applicant,
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.applicant,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  'Submitted: ${shortDate.format(DateTime.now())}  •  ${widget.location}',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ],
+                                  Text(
+                                    'Submitted: ${shortDate.format(DateTime.now())}  •  ${widget.location}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -191,34 +196,44 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  OutlinedButton(
+                  OutlinedButton.icon(
                     onPressed: () => _moreDocs(context),
-                    child: const Text('Request Addl. Docs'),
+                    icon: const Icon(Icons.document_scanner_outlined, size: 15),
+                    label: const Text('Request Addl. Docs'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: semanticColors(context).subtleBorder),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                   ),
-                  const SizedBox(width: 9),
-                  FilledButton(
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
                     onPressed: processing ? null : reject,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: semanticColors(context).danger,
+                    icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                    label: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+                      backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                     ),
-                    child: const Text('Reject'),
                   ),
-                  const SizedBox(width: 9),
-                  FilledButton(
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
                     onPressed: processing ? null : approve,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: semanticColors(context).success,
-                    ),
-                    child: processing
+                    icon: processing
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 14,
+                            height: 14,
                             child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text('Approve'),
+                        : const Icon(Icons.check_rounded, size: 16),
+                    label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.w700)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                    ),
                   ),
                 ],
               ),
@@ -255,16 +270,30 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '▣ Required Documents',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Icon(
+              Icons.grid_view_rounded,
+              size: 16,
+              color: semanticColors(context).secondaryText,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Required Documents',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: semanticColors(context).primaryText,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 13),
+        const SizedBox(height: 14),
         GridView.count(
           crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.23,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: tiles,
@@ -290,13 +319,24 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     String? asset, {
     String? filename,
   }) {
+    final colors = semanticColors(context);
     final content = asset == null
-        ? Icon(
-            Icons.description_outlined,
-            size: 55,
-            color: semanticColors(context).accent,
+        ? Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.description_outlined,
+                size: 38,
+                color: colors.accent,
+              ),
+            ),
           )
         : Image.asset(asset, fit: BoxFit.cover);
+
     return InkWell(
       onTap: () => showDialog<void>(
         context: context,
@@ -306,23 +346,44 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               : Image.asset(asset),
         ),
       ),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: semanticColors(context).hoverSurface,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: semanticColors(context).subtleBorder),
+          color: colors.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.subtleBorder, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: content),
-            Padding(
-              padding: const EdgeInsets.all(10),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                child: content,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: colors.subtleBorder, width: 0.8),
+                ),
+              ),
               child: Text(
                 filename == null ? name : '$name\n$filename',
-                style: const TextStyle(
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
+                  color: colors.primaryText,
                 ),
               ),
             ),
@@ -332,77 +393,118 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     );
   }
 
-  Widget _summary(BuildContext context) => Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: semanticColors(context).infoContainer.withOpacity(.42),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'APPLICANT SUMMARY',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 14),
-                _item('BUSINESS NAME', 'Morales Artisan Crafts'),
-                _item('CATEGORY', widget.category),
-                _item('CONTACT NO.', '+63 921 555 0123'),
-                _item('EMAIL ADDRESS', 'antonio@crafts.com'),
-              ],
-            ),
+  Widget _summary(BuildContext context) {
+    final colors = semanticColors(context);
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colors.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.subtleBorder, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          if (widget.application?.rejectionReason != null &&
-              widget.application!.rejectionReason!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: semanticColors(context).dangerContainer,
-                borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'APPLICANT SUMMARY',
+                style: GoogleFonts.inter(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: colors.secondaryText,
+                ),
               ),
-              child: _item(
-                'REJECTION REASON',
-                widget.application!.rejectionReason!,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              _item('BUSINESS NAME', 'Morales Artisan Crafts'),
+              _item('CATEGORY', widget.category),
+              _item('CONTACT NO.', '+63 921 555 0123'),
+              _item('EMAIL ADDRESS', 'antonio@crafts.com'),
+            ],
+          ),
+        ),
+        if (widget.application?.rejectionReason != null &&
+            widget.application!.rejectionReason!.isNotEmpty) ...[
+          const SizedBox(height: 14),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: semanticColors(context).subtleBorder),
-              borderRadius: BorderRadius.circular(14),
+              color: colors.dangerContainer,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'INTERNAL WORKFLOW',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Schedule Site Inspection',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _appointment(context),
-                  icon: const Icon(Icons.calendar_month_outlined, size: 14),
-                  label: const Text('Set Appointment'),
-                ),
-              ],
+            child: _item(
+              'REJECTION REASON',
+              widget.application!.rejectionReason!,
             ),
           ),
         ],
-      );
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colors.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: colors.subtleBorder, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'INTERNAL WORKFLOW',
+                style: GoogleFonts.inter(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: colors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Schedule Site Inspection',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: colors.primaryText,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _appointment(context),
+                  icon: const Icon(Icons.calendar_month_outlined, size: 15),
+                  label: const Text('Set Appointment'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: colors.subtleBorder),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
   Widget _item(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 13),
         child: Column(

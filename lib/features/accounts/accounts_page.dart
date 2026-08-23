@@ -1,6 +1,3 @@
-import 'dart:html' as html;
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,15 +63,47 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final data = ref.watch(appDataProvider);
+    final data = ref.watch(
+      appDataProvider.select(
+        (s) => (vendors: s.vendors, customers: s.customers, suspensions: s.suspensions),
+      ),
+    );
     _openSelectedAccount();
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Account Management',
           subtitle:
               'Oversee stall holders, customers, and active administrative reports.',
+          metrics: [
+            MetricCardData(
+              value: '${data.vendors.where((v) => v.status == AccountStatus.active).length}',
+              label: 'Active Stall Holders',
+              icon: Icons.storefront_rounded,
+              accent: const Color(0xFF10B981),
+            ),
+            MetricCardData(
+              value: '${data.customers.where((c) => c.status == AccountStatus.active).length}',
+              label: 'Active Customers',
+              icon: Icons.people_outline_rounded,
+              accent: const Color(0xFF3B82F6),
+            ),
+            MetricCardData(
+              value: '${data.vendors.where((v) => v.status == AccountStatus.suspended).length + data.customers.where((c) => c.status == AccountStatus.suspended).length}',
+              label: 'Suspended Accounts',
+              icon: Icons.pause_circle_outline_rounded,
+              accent: const Color(0xFFF59E0B),
+            ),
+            MetricCardData(
+              value: '${data.vendors.where((v) => v.status == AccountStatus.blocked).length + data.customers.where((c) => c.status == AccountStatus.blocked).length}',
+              label: 'Blocked Accounts',
+              icon: Icons.block_rounded,
+              accent: const Color(0xFFEF4444),
+            ),
+          ],
           tabs: _Tabs(
             selected: customers,
             onChanged: (value) {
@@ -83,13 +112,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
             },
           ),
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 26, 32, 30),
-            child: customers
-                ? _customerPanel(data.customers)
-                : _vendorPanel(data.vendors),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: customers
+              ? _customerPanel(data.customers)
+              : _vendorPanel(data.vendors),
         ),
       ],
     );
@@ -175,64 +202,60 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     return DataPanel(
       title: 'Accounts',
-      child: Expanded(
-        child: Column(
-          children: [
-            Toolbar(
-              controller: search,
-              onChanged: (_) => _resetTable(),
-              onClear: () {
-                search.clear();
-                status = 'All Statuses';
-                stallCategory = 'All Categories';
+      child: Column(
+        children: [
+          Toolbar(
+            controller: search,
+            onChanged: (_) => _resetTable(),
+            onClear: () {
+              search.clear();
+              status = 'All Statuses';
+              stallCategory = 'All Categories';
+              _resetTable();
+            },
+            trailing: [
+              _filter(status, [
+                'All Statuses',
+                'Active',
+                'Offline',
+                'Suspended',
+                'Blocked',
+              ], (v) {
+                status = v;
                 _resetTable();
-              },
-              trailing: [
-                _filter(status, [
-                  'All Statuses',
-                  'Active',
-                  'Offline',
-                  'Suspended',
-                  'Blocked',
-                ], (v) {
-                  status = v;
-                  _resetTable();
-                }),
-                _filter(
-                    stallCategory == 'All Categories'
-                        ? 'Stall Category'
-                        : stallCategory,
-                    categories, (value) {
-                  stallCategory = value;
-                  _resetTable();
-                }),
-                FilterButton(
-                  label: 'Export',
-                  icon: Icons.download_outlined,
-                  onTap: () => _export(visible, 'vendors'),
-                ),
-              ],
-            ),
-            Expanded(
-              child: _VendorTable(
-                values: visible.skip(safePage * 10).take(10).toList(),
-                verticalController: tableScrollController,
-                onOpen: (vendor) =>
-                    showAccountDialog(context, ref, vendor: vendor),
+              }),
+              _filter(
+                  stallCategory == 'All Categories'
+                      ? 'Stall Category'
+                      : stallCategory,
+                  categories, (value) {
+                stallCategory = value;
+                _resetTable();
+              }),
+              FilterButton(
+                label: 'Export',
+                icon: Icons.download_outlined,
+                onTap: () => _export(visible, 'vendors'),
               ),
+            ],
+          ),
+          _VendorTable(
+            values: visible.skip(safePage * 10).take(10).toList(),
+            verticalController: tableScrollController,
+            onOpen: (vendor) =>
+                showAccountDialog(context, ref, vendor: vendor),
+          ),
+          if (visible.isNotEmpty)
+            PaginationBar(
+              total: visible.length,
+              start: safePage * 10 + 1,
+              end: ((safePage + 1) * 10).clamp(0, visible.length),
+              page: safePage,
+              pageCount: totalPages,
+              onPageChanged: _goToPage,
+              showSummary: search.text.trim().isNotEmpty,
             ),
-            if (visible.isNotEmpty)
-              PaginationBar(
-                total: visible.length,
-                start: safePage * 10 + 1,
-                end: ((safePage + 1) * 10).clamp(0, visible.length),
-                page: safePage,
-                pageCount: totalPages,
-                onPageChanged: _goToPage,
-                showSummary: search.text.trim().isNotEmpty,
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -254,58 +277,54 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     return DataPanel(
       title: 'Customer Directory',
       subtitle: 'Manage and monitor customer activity and status',
-      child: Expanded(
-        child: Column(
-          children: [
-            Toolbar(
-              controller: search,
-              onChanged: (_) => _resetTable(),
-              onClear: () {
-                search.clear();
-                status = 'All Statuses';
+      child: Column(
+        children: [
+          Toolbar(
+            controller: search,
+            onChanged: (_) => _resetTable(),
+            onClear: () {
+              search.clear();
+              status = 'All Statuses';
+              _resetTable();
+            },
+            searchHint: 'Search by name, email, or ID...',
+            trailing: [
+              _filter(status, [
+                'All Statuses',
+                'Active',
+                'Suspended',
+                'Blocked',
+              ], (v) {
+                status = v;
                 _resetTable();
-              },
-              searchHint: 'Search by name, email, or ID...',
-              trailing: [
-                _filter(status, [
-                  'All Statuses',
-                  'Active',
-                  'Suspended',
-                  'Blocked',
-                ], (v) {
-                  status = v;
-                  _resetTable();
-                }),
-                FilterButton(
-                  label: 'Export',
-                  icon: Icons.download_outlined,
-                  onTap: () => _export(visible, 'customers'),
-                ),
-              ],
-            ),
-            Expanded(
-              child: _CustomerTable(
-                values: visible.skip(safePage * 10).take(10).toList(),
-                verticalController: tableScrollController,
-                onOpen: (customer) => showAccountDialog(
-                  context,
-                  ref,
-                  customer: customer,
-                ),
+              }),
+              FilterButton(
+                label: 'Export',
+                icon: Icons.download_outlined,
+                onTap: () => _export(visible, 'customers'),
               ),
+            ],
+          ),
+          _CustomerTable(
+            values: visible.skip(safePage * 10).take(10).toList(),
+            verticalController: tableScrollController,
+            onOpen: (customer) => showAccountDialog(
+              context,
+              ref,
+              customer: customer,
             ),
-            if (visible.isNotEmpty)
-              PaginationBar(
-                total: visible.length,
-                start: safePage * 10 + 1,
-                end: ((safePage + 1) * 10).clamp(0, visible.length),
-                page: safePage,
-                pageCount: totalPages,
-                onPageChanged: _goToPage,
-                showSummary: search.text.trim().isNotEmpty,
-              ),
-          ],
-        ),
+          ),
+          if (visible.isNotEmpty)
+            PaginationBar(
+              total: visible.length,
+              start: safePage * 10 + 1,
+              end: ((safePage + 1) * 10).clamp(0, visible.length),
+              page: safePage,
+              pageCount: totalPages,
+              onPageChanged: _goToPage,
+              showSummary: search.text.trim().isNotEmpty,
+            ),
+        ],
       ),
     );
   }
@@ -328,10 +347,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         (item) => [item.id, item.name, item.email, enumLabel(item.status)],
       ),
     ]);
-    final anchor = html.AnchorElement(href: csvDataUri(csv))
-      ..setAttribute('download', 'palengkego-$name.csv')
-      ..click();
-    anchor.remove();
+    downloadCsv(csv, 'palengkego-$name.csv');
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('CSV export prepared.')));
@@ -627,11 +643,8 @@ Future<void> showAccountDialog(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => closeRequests.value++,
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                  child: ColoredBox(
-                    color: colors.overlayScrim,
-                  ),
+                child: ColoredBox(
+                  color: colors.overlayScrim,
                 ),
               ),
             ),
@@ -640,7 +653,9 @@ Future<void> showAccountDialog(
                 final narrow = constraints.maxWidth < 820;
                 final width = narrow ? constraints.maxWidth * .94 : 760.0;
                 final height = constraints.maxHeight * (narrow ? .9 : .88);
-                return Center(
+                return FocusScope(
+                  autofocus: true,
+                  child: Center(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       minWidth: narrow ? 0 : 650,
@@ -677,7 +692,8 @@ Future<void> showAccountDialog(
                       ),
                     ),
                   ),
-                );
+                ),
+              );
               },
             ),
           ],
@@ -1034,7 +1050,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(13),
                         decoration: BoxDecoration(
-                          color: colors.dangerContainer.withOpacity(.55),
+                          color: colors.dangerContainer.withValues(alpha: .55),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Column(
@@ -1082,7 +1098,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
   Widget _metric(BuildContext context, String label, String value) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: semanticColors(context).infoContainer.withOpacity(.45),
+          color: semanticColors(context).infoContainer.withValues(alpha: .45),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -1689,9 +1705,9 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.warningContainer.withOpacity(.42),
+        color: colors.warningContainer.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: colors.warning.withOpacity(.28)),
+        border: Border.all(color: colors.warning.withValues(alpha: .28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1736,9 +1752,9 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.dangerContainer.withOpacity(.42),
+        color: colors.dangerContainer.withValues(alpha: .42),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: colors.danger.withOpacity(.28)),
+        border: Border.all(color: colors.danger.withValues(alpha: .28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1814,7 +1830,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.infoContainer.withOpacity(.55),
+        color: colors.infoContainer.withValues(alpha: .55),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Row(
@@ -1861,7 +1877,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
           ),
         ),
         const SizedBox(width: 10),
-        Expanded(child: Divider(color: color.withOpacity(.25))),
+        Expanded(child: Divider(color: color.withValues(alpha: .25))),
       ],
     );
   }
@@ -1942,7 +1958,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colors.dangerContainer.withOpacity(.55),
+        color: colors.dangerContainer.withValues(alpha: .55),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Column(

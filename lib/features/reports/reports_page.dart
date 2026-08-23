@@ -53,17 +53,22 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(appDataProvider);
+    final appData = ref.watch(
+      appDataProvider.select(
+        (s) => (reports: s.reports, vendors: s.vendors, customers: s.customers),
+      ),
+    );
+    final reports = appData.reports;
     final selectedCategory = stallCategory;
     final categories = <String>{
       'All Categories',
-      ...data.reports.map((item) => item.category ?? 'FRUITS'),
+      ...reports.map((item) => item.category ?? 'FRUITS'),
     }.toList()
       ..sort();
     categories
       ..remove('All Categories')
       ..insert(0, 'All Categories');
-    final values = data.reports
+    final values = reports
         .where(
           (item) =>
               (history
@@ -80,7 +85,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         .toList();
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Reports Management',
@@ -89,129 +95,123 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           metrics: [
             MetricCardData(
               value:
-                  '${data.reports.where((item) => item.status == ReportStatus.pending).length}',
+                  '${reports.where((item) => item.status == ReportStatus.pending).length}',
               label: 'Pending Reports',
               icon: Icons.folder_copy_outlined,
               accent: const Color(0xFFEF4444),
             ),
             MetricCardData(
               value:
-                  '${data.reports.where((item) => item.status == ReportStatus.underReview).length}',
+                  '${reports.where((item) => item.status == ReportStatus.underReview).length}',
               label: 'Under Review',
               icon: Icons.visibility_outlined,
               accent: const Color(0xFF3B82F6),
             ),
             MetricCardData(
               value:
-                  '${data.reports.where((item) => item.status == ReportStatus.resolved).length}',
+                  '${reports.where((item) => item.status == ReportStatus.resolved).length}',
               label: 'Resolved',
               icon: Icons.check_circle_outline_rounded,
               accent: const Color(0xFF10B981),
             ),
             MetricCardData(
               value:
-                  '${data.vendors.where((item) => item.status == AccountStatus.blocked).length + data.customers.where((item) => item.status == AccountStatus.blocked).length}',
+                  '${appData.vendors.where((item) => item.status == AccountStatus.blocked).length + appData.customers.where((item) => item.status == AccountStatus.blocked).length}',
               label: 'Blocked Accounts',
               icon: Icons.block_outlined,
               accent: Color(0xFFEF4444),
             ),
           ],
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
-            child: DataPanel(
-              title: history ? 'Resolved Report History' : 'Review Reports',
-              headerAction: _ReportViewToggle(
-                history: history,
-                onChanged: (value) {
-                  setState(() {
-                    history = value;
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: DataPanel(
+            title: history ? 'Resolved Report History' : 'Review Reports',
+            headerAction: _ReportViewToggle(
+              history: history,
+              onChanged: (value) {
+                setState(() {
+                  history = value;
+                  status = 'All Statuses';
+                });
+                _resetTable();
+              },
+            ),
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  onChanged: (_) => _resetTable(),
+                  onClear: () {
+                    search.clear();
                     status = 'All Statuses';
-                  });
-                  _resetTable();
-                },
-              ),
-              child: Expanded(
-                child: Column(
-                  children: [
-                    Toolbar(
-                      controller: search,
-                      onChanged: (_) => _resetTable(),
-                      onClear: () {
-                        search.clear();
-                        status = 'All Statuses';
-                        stallCategory = 'All Categories';
-                        history = false;
-                        _resetTable();
-                      },
-                      trailing: [
-                        _filter(status, [
-                          'All Statuses',
-                          'Pending',
-                          'Under Review',
-                          'Resolved',
-                        ], (value) {
-                          status = value;
-                          if (value == 'Resolved') history = true;
-                          if (value != 'Resolved') history = false;
-                          _resetTable();
-                        }),
-                        _filter(
-                            selectedCategory == 'All Categories'
-                                ? 'Stall Category'
-                                : selectedCategory,
-                            categories, (value) {
-                          stallCategory = value;
-                          _resetTable();
-                        }),
-                        FilterButton(
-                          label: 'Export',
-                          icon: Icons.download_outlined,
-                          onTap: () => _export(values),
-                        ),
-                      ],
+                    stallCategory = 'All Categories';
+                    history = false;
+                    _resetTable();
+                  },
+                  trailing: [
+                    _filter(status, [
+                      'All Statuses',
+                      'Pending',
+                      'Under Review',
+                      'Resolved',
+                    ], (value) {
+                      status = value;
+                      if (value == 'Resolved') history = true;
+                      if (value != 'Resolved') history = false;
+                      _resetTable();
+                    }),
+                    _filter(
+                        selectedCategory == 'All Categories'
+                            ? 'Stall Category'
+                            : selectedCategory,
+                        categories, (value) {
+                      stallCategory = value;
+                      _resetTable();
+                    }),
+                    FilterButton(
+                      label: 'Export',
+                      icon: Icons.download_outlined,
+                      onTap: () => _export(values),
                     ),
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        switchInCurve: Curves.easeInOut,
-                        switchOutCurve: Curves.easeInOut,
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: SizeTransition(
-                            sizeFactor: animation,
-                            axisAlignment: -1,
-                            child: child,
-                          ),
-                        ),
-                        child: _ReportTable(
-                          key: ValueKey(
-                            '$history-${values.map((item) => item.id).join(',')}',
-                          ),
-                          history: history,
-                          values: values.skip(safePage * 10).take(10).toList(),
-                          verticalController: tableScrollController,
-                          onOpen: (item) => showBlurredDialog(
-                            context,
-                            (context) => ReportReviewDialog(report: item),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (values.isNotEmpty)
-                      PaginationBar(
-                        total: values.length,
-                        start: safePage * 10 + 1,
-                        end: ((safePage + 1) * 10).clamp(0, values.length),
-                        page: safePage,
-                        pageCount: totalPages,
-                        onPageChanged: _goToPage,
-                        showSummary: search.text.trim().isNotEmpty,
-                      ),
                   ],
                 ),
-              ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  switchInCurve: Curves.easeInOut,
+                  switchOutCurve: Curves.easeInOut,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SizeTransition(
+                      sizeFactor: animation,
+                      axisAlignment: -1,
+                      child: child,
+                    ),
+                  ),
+                  child: _ReportTable(
+                    key: ValueKey(
+                      '$history-${values.map((item) => item.id).join(',')}',
+                    ),
+                    history: history,
+                    values: values.skip(safePage * 10).take(10).toList(),
+                    verticalController: tableScrollController,
+                    onOpen: (item) => showBlurredDialog(
+                      context,
+                      (context) => ReportReviewDialog(report: item),
+                    ),
+                  ),
+                ),
+                if (values.isNotEmpty)
+                  PaginationBar(
+                    total: values.length,
+                    start: safePage * 10 + 1,
+                    end: ((safePage + 1) * 10).clamp(0, values.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: _goToPage,
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
             ),
           ),
         ),
@@ -829,7 +829,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: semanticColors(context).infoContainer.withOpacity(.6),
+                  color: semanticColors(context).infoContainer.withValues(alpha: .6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -1032,9 +1032,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(.09),
+        color: color.withValues(alpha: .09),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(.2)),
+        border: Border.all(color: color.withValues(alpha: .2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

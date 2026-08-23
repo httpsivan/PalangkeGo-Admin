@@ -31,12 +31,12 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(appDataProvider);
+    final auditLogs = ref.watch(appDataProvider.select((s) => s.auditLogs));
     final entities = <String>{
       'All entities',
-      ...data.auditLogs.map((item) => item.targetEntityType),
+      ...auditLogs.map((item) => item.targetEntityType),
     }.toList();
-    final values = data.auditLogs.where((item) {
+    final values = auditLogs.where((item) {
       final query = search.text.trim().toLowerCase();
       final text =
           '${item.id} ${item.administratorName} ${item.targetUserName} ${item.targetEntityId} ${item.reason}'
@@ -48,7 +48,8 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
     final totalPages = (values.length / 15).ceil();
     final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     final visible = values.skip(safePage * 15).take(15).toList();
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Admin Audit Log',
@@ -56,126 +57,120 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
               'Immutable local activity history for sensitive administrator actions.',
           metrics: [
             MetricCardData(
-                value: '${data.auditLogs.length}',
+                value: '${auditLogs.length}',
                 label: 'Recorded Actions',
                 icon: Icons.history_rounded,
                 accent: const Color(0xFF3B82F6)),
             MetricCardData(
                 value:
-                    '${data.auditLogs.where((item) => item.action == AuditAction.approveKyc || item.action == AuditAction.rejectKyc).length}',
+                    '${auditLogs.where((item) => item.action == AuditAction.approveKyc || item.action == AuditAction.rejectKyc).length}',
                 label: 'KYC Actions',
                 icon: Icons.verified_user_outlined,
                 accent: const Color(0xFF10B981)),
             MetricCardData(
                 value:
-                    '${data.auditLogs.where((item) => item.action == AuditAction.blockAccount || item.action == AuditAction.suspendAccount).length}',
+                    '${auditLogs.where((item) => item.action == AuditAction.blockAccount || item.action == AuditAction.suspendAccount).length}',
                 label: 'Account Controls',
                 icon: Icons.shield_outlined,
                 accent: const Color(0xFFF59E0B)),
           ],
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(30, 22, 30, 26),
-            child: DataPanel(
-              title: 'Activity History',
-              headerAction: FilterButton(
-                  label: 'Export CSV',
-                  icon: Icons.download_outlined,
-                  onTap: () => _export(values)),
-              child: Expanded(
-                child: Column(
-                  children: [
-                    Toolbar(
-                      controller: search,
-                      searchHint:
-                          'Search administrator, action, target, or reason...',
-                      onChanged: (_) => setState(() => page = 0),
-                      onClear: () => setState(() {
-                        search.clear();
-                        action = null;
-                        entity = 'All entities';
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: DataPanel(
+            title: 'Activity History',
+            headerAction: FilterButton(
+                label: 'Export CSV',
+                icon: Icons.download_outlined,
+                onTap: () => _export(values)),
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  searchHint:
+                      'Search administrator, action, target, or reason...',
+                  onChanged: (_) => setState(() => page = 0),
+                  onClear: () => setState(() {
+                    search.clear();
+                    action = null;
+                    entity = 'All entities';
+                    page = 0;
+                  }),
+                  trailing: [
+                    FilterMenuButton(
+                      label: action == null
+                          ? 'All Actions'
+                          : enumLabel(action!),
+                      values: [
+                        'All Actions',
+                        ...AuditAction.values.map(enumLabel),
+                      ],
+                      onSelected: (value) => setState(() {
+                        action = value == 'All Actions'
+                            ? null
+                            : AuditAction.values.firstWhere(
+                                (item) => enumLabel(item) == value,
+                              );
                         page = 0;
                       }),
-                      trailing: [
-                        FilterMenuButton(
-                          label: action == null
-                              ? 'All Actions'
-                              : enumLabel(action!),
-                          values: [
-                            'All Actions',
-                            ...AuditAction.values.map(enumLabel),
-                          ],
-                          onSelected: (value) => setState(() {
-                            action = value == 'All Actions'
-                                ? null
-                                : AuditAction.values.firstWhere(
-                                    (item) => enumLabel(item) == value,
-                                  );
-                            page = 0;
-                          }),
-                        ),
-                        FilterMenuButton(
-                          label: entity,
-                          values: entities,
-                          onSelected: (value) => setState(() {
-                            entity = value;
-                            page = 0;
-                          }),
-                        ),
-                      ],
                     ),
-                    Expanded(
-                      child: ScrollableDataTable(
-                        columns: const [
-                          DataColumn(label: Text('TIMESTAMP')),
-                          DataColumn(label: Text('ADMINISTRATOR')),
-                          DataColumn(label: Text('ACTION')),
-                          DataColumn(label: Text('TARGET')),
-                          DataColumn(label: Text('PREVIOUS')),
-                          DataColumn(label: Text('NEW VALUE')),
-                          DataColumn(label: Text('REASON')),
-                        ],
-                        rows: visible
-                            .map((item) => DataRow(
-                                  onSelectChanged: (_) => _showDetails(item),
-                                  cells: [
-                                    DataCell(
-                                        Text(longDate.format(item.timestamp))),
-                                    DataCell(Text(item.administratorName)),
-                                    DataCell(StatusBadge(
-                                        label: enumLabel(item.action),
-                                        kind: BadgeKind.info)),
-                                    DataCell(Text(
-                                        '${item.targetEntityType} / ${item.targetUserName}')),
-                                    DataCell(Text(item.previousValue)),
-                                    DataCell(Text(item.newValue)),
-                                    DataCell(Text(
-                                        item.reason.isEmpty ? '—' : item.reason,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis)),
-                                  ],
-                                ))
-                            .toList(),
-                        verticalController: scrollController,
-                        minWidth: 1120,
-                        emptyState: const EmptyState(
-                            message: 'No audit entries match these filters.'),
-                      ),
+                    FilterMenuButton(
+                      label: entity,
+                      values: entities,
+                      onSelected: (value) => setState(() {
+                        entity = value;
+                        page = 0;
+                      }),
                     ),
-                    if (values.isNotEmpty)
-                      PaginationBar(
-                        total: values.length,
-                        start: safePage * 15 + 1,
-                        end: ((safePage + 1) * 15).clamp(0, values.length),
-                        page: safePage,
-                        pageCount: totalPages,
-                        onPageChanged: (value) => setState(() => page = value),
-                        showSummary: search.text.trim().isNotEmpty,
-                      ),
                   ],
                 ),
-              ),
+                ScrollableDataTable(
+                  columns: const [
+                    DataColumn(label: Text('TIMESTAMP')),
+                    DataColumn(label: Text('ADMINISTRATOR')),
+                    DataColumn(label: Text('ACTION')),
+                    DataColumn(label: Text('TARGET')),
+                    DataColumn(label: Text('PREVIOUS')),
+                    DataColumn(label: Text('NEW VALUE')),
+                    DataColumn(label: Text('REASON')),
+                  ],
+                  rows: visible
+                      .map((item) => DataRow(
+                            onSelectChanged: (_) => _showDetails(item),
+                            cells: [
+                              DataCell(
+                                  Text(longDate.format(item.timestamp))),
+                              DataCell(Text(item.administratorName)),
+                              DataCell(StatusBadge(
+                                  label: enumLabel(item.action),
+                                  kind: BadgeKind.info)),
+                              DataCell(Text(
+                                  '${item.targetEntityType} / ${item.targetUserName}')),
+                              DataCell(Text(item.previousValue)),
+                              DataCell(Text(item.newValue)),
+                              DataCell(Text(
+                                  item.reason.isEmpty ? '—' : item.reason,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis)),
+                            ],
+                          ))
+                      .toList(),
+                  verticalController: scrollController,
+                  minWidth: 1120,
+                  emptyState: const EmptyState(
+                      message: 'No audit entries match these filters.'),
+                ),
+                if (values.isNotEmpty)
+                  PaginationBar(
+                    total: values.length,
+                    start: safePage * 15 + 1,
+                    end: ((safePage + 1) * 15).clamp(0, values.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: (value) => setState(() => page = value),
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
             ),
           ),
         ),

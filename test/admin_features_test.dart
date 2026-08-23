@@ -136,7 +136,7 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
-    final controller = AppDataController(preferences);
+    final controller = AppDataController(preferences, firebaseEnabled: false);
     final report = controller.state.reports.firstWhere(
       (item) =>
           item.type == 'Customer' && item.accountIssue == 'Juan Dela Cruz',
@@ -170,7 +170,7 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
-    final controller = AppDataController(preferences);
+    final controller = AppDataController(preferences, firebaseEnabled: false);
     final report = controller.state.reports.firstWhere(
       (item) =>
           item.type == 'Customer' && item.accountIssue == 'Juan Dela Cruz',
@@ -226,7 +226,7 @@ void main() {
       () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
-    final controller = AppDataController(preferences);
+    final controller = AppDataController(preferences, firebaseEnabled: false);
     final report = controller.state.reports.firstWhere(
       (item) =>
           item.type == 'Vendor' && item.accountIssue == 'Diosa Fruit Stand',
@@ -273,7 +273,7 @@ void main() {
   test('blocking a suspended account closes its active suspension', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
-    final controller = AppDataController(preferences);
+    final controller = AppDataController(preferences, firebaseEnabled: false);
     final vendor = controller.state.vendors.first;
     final report = controller.state.reports.firstWhere(
       (item) => item.type == 'Vendor' && item.accountIssue == vendor.name,

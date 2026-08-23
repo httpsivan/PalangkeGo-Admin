@@ -1,15 +1,25 @@
-import 'dart:html' as html;
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:csv/csv.dart';
 
-String buildCsv(List<List<Object?>> rows) =>
-    const ListToCsvConverter().convert(rows);
-String csvDataUri(String csv) =>
-    'data:text/csv;charset=utf-8,${Uri.encodeComponent(utf8.decode(utf8.encode(csv)))}';
+import 'platform_file_saver.dart';
+
+Object? _sanitizeCell(Object? value) {
+  if (value is String && RegExp(r'^[=+\-@\t\r]').hasMatch(value)) {
+    return "'$value";
+  }
+  return value;
+}
+
+String buildCsv(List<List<Object?>> rows) {
+  final sanitized = rows
+      .map((row) => row.map(_sanitizeCell).toList())
+      .toList();
+  return const ListToCsvConverter().convert(sanitized);
+}
 
 void downloadCsv(String csv, String filename) {
-  final anchor = html.AnchorElement(href: csvDataUri(csv))
-    ..setAttribute('download', filename)
-    ..click();
-  anchor.remove();
+  final bytes = Uint8List.fromList(utf8.encode(csv));
+  saveFileBytes(bytes: bytes, filename: filename, mimeType: 'text/csv;charset=utf-8');
 }

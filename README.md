@@ -2,7 +2,32 @@
 
 PalengkeGo Admin is a Flutter Web dashboard for managing a local market marketplace. It includes a responsive overview, vendor/customer accounts, KYC verification, renewals, reports, notifications, sales reporting, and an administrator audit log.
 
-> This is a front-end demo with seeded data. It is not connected to a production API, database, payment gateway, notification provider, or identity provider.
+> **Two modes.** Demo mode (default) is a front-end demo with seeded data.
+Firebase mode (`--dart-define=FIREBASE_ENABLED=true`) connects to the real
+backend: Firebase Auth admin sign-in (role-checked), live Firestore reads,
+and the trusted admin callables (`approveKyc`, `approveRenewal`,
+`setAccountBlocked`) from the main repo's `functions/` — audited to
+`adminActions`. Panels without a live backend source (reports, suspensions,
+notification delivery) show honest empty states in Firebase mode.
+
+## Running
+
+```bash
+flutter run                                   # demo mode (seeded data)
+flutter run --dart-define=FIREBASE_ENABLED=true   # live backend
+flutter run -d windows --dart-define=FIREBASE_ENABLED=true  # desktop
+```
+
+Before Firebase mode works once: run `flutterfire configure` here to generate
+`lib/firebase_options.dart` (a placeholder ships committed; startup fails
+closed with instructions while it is still a placeholder), and create an
+admin account: a Firebase Auth user whose `users/{uid}.role` is `admin`.
+
+## Windows desktop
+
+The `windows/` runner is scaffolded (`flutter create --platforms=windows .`).
+Build with `flutter build windows`. The xlsx/pdf export paths already have
+desktop implementations (`platform_file_saver_desktop.dart`).
 
 ## Local features
 

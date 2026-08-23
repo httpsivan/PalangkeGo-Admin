@@ -21,6 +21,14 @@ class AnimatedPageSwitcher extends StatelessWidget {
         reverseDuration: AppMotion.duration(context, AppMotion.component),
         switchInCurve: AppMotion.easeOut,
         switchOutCurve: Curves.easeIn,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: Alignment.topLeft,
+            children: <Widget>[
+              if (currentChild != null) currentChild,
+            ],
+          );
+        },
         transitionBuilder: (child, animation) {
           final curved = CurvedAnimation(
             parent: animation,

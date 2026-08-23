@@ -52,16 +52,16 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(appDataProvider);
+    final renewals = ref.watch(appDataProvider.select((s) => s.renewals));
     final categories = <String>{
       'All Categories',
-      ...data.renewals.map((item) => item.category),
+      ...renewals.map((item) => item.category),
     }.toList()
       ..sort();
     categories
       ..remove('All Categories')
       ..insert(0, 'All Categories');
-    final values = data.renewals
+    final values = renewals
         .where(
           (v) =>
               (search.text.trim().isEmpty ||
@@ -75,14 +75,15 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
         .toList();
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
-    final expiring = data.renewals.where((v) {
+    final expiring = renewals.where((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
       return days >= 0 && days <= 7;
     }).length;
-    final expired = data.renewals
+    final expired = renewals
         .where((v) => v.expiryDate.isBefore(DateTime.now()))
         .length;
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Renewal Management',
@@ -115,71 +116,65 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
             ),
           ],
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 25, 32, 30),
-            child: DataPanel(
-              title: 'Renewal',
-              child: Expanded(
-                child: Column(
-                  children: [
-                    Toolbar(
-                      controller: search,
-                      onChanged: (_) => _resetTable(),
-                      onClear: () {
-                        search.clear();
-                        status = 'All Statuses';
-                        stallCategory = 'All Categories';
-                        _resetTable();
-                      },
-                      trailing: [
-                        _filter(status, [
-                          'All Statuses',
-                          'Approved',
-                          'Reviewing',
-                          'Expired',
-                        ], (v) {
-                          status = v;
-                          _resetTable();
-                        }),
-                        _filter(
-                            stallCategory == 'All Categories'
-                                ? 'Stall Category'
-                                : stallCategory,
-                            categories, (value) {
-                          stallCategory = value;
-                          _resetTable();
-                        }),
-                        FilterButton(
-                          label: 'Export',
-                          icon: Icons.download_outlined,
-                          onTap: () => _export(values),
-                        ),
-                      ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: DataPanel(
+            title: 'Renewal',
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  onChanged: (_) => _resetTable(),
+                  onClear: () {
+                    search.clear();
+                    status = 'All Statuses';
+                    stallCategory = 'All Categories';
+                    _resetTable();
+                  },
+                  trailing: [
+                    _filter(status, [
+                      'All Statuses',
+                      'Approved',
+                      'Reviewing',
+                      'Expired',
+                    ], (v) {
+                      status = v;
+                      _resetTable();
+                    }),
+                    _filter(
+                        stallCategory == 'All Categories'
+                            ? 'Stall Category'
+                            : stallCategory,
+                        categories, (value) {
+                      stallCategory = value;
+                      _resetTable();
+                    }),
+                    FilterButton(
+                      label: 'Export',
+                      icon: Icons.download_outlined,
+                      onTap: () => _export(values),
                     ),
-                    Expanded(
-                      child: _Table(
-                        values: values.skip(safePage * 10).take(10).toList(),
-                        verticalController: tableScrollController,
-                        open: (v) => showBlurredDialog(
-                          context,
-                          (context) => VerificationDialog.renewal(v),
-                        ),
-                      ),
-                    ),
-                    if (values.isNotEmpty)
-                      PaginationBar(
-                        total: values.length,
-                        start: safePage * 10 + 1,
-                        end: ((safePage + 1) * 10).clamp(0, values.length),
-                        page: safePage,
-                        pageCount: totalPages,
-                        onPageChanged: _goToPage,
-                        showSummary: search.text.trim().isNotEmpty,
-                      ),
                   ],
                 ),
-              ),
+                _Table(
+                  values: values.skip(safePage * 10).take(10).toList(),
+                  verticalController: tableScrollController,
+                  open: (v) => showBlurredDialog(
+                    context,
+                    (context) => VerificationDialog.renewal(v),
+                  ),
+                ),
+                if (values.isNotEmpty)
+                  PaginationBar(
+                    total: values.length,
+                    start: safePage * 10 + 1,
+                    end: ((safePage + 1) * 10).clamp(0, values.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: _goToPage,
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
             ),
           ),
         ),
