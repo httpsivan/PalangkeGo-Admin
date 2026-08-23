@@ -41,16 +41,16 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(appDataProvider);
+    final orders = ref.watch(appDataProvider.select((s) => s.orders));
     final categories = <String>{
       'All Categories',
-      ...data.orders.expand((item) => item.items.map((line) => line.category)),
+      ...orders.expand((item) => item.items.map((line) => line.category)),
     }.toList();
     final vendors = <String>{
       'All Stall Holders',
-      ...data.orders.map((item) => item.vendorName),
+      ...orders.map((item) => item.vendorName),
     }.toList();
-    final values = _filtered(data.orders);
+    final values = _filtered(orders);
     final summary = SalesSummary.fromOrders(values);
     final totalPages = (values.length / 10).ceil();
     final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
@@ -589,9 +589,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           targetUserName: 'System',
           previousValue: '',
           newValue: '${values.length} records');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('PDF report downloaded.')));
+      }
     } finally {
       if (mounted) setState(() => exporting = false);
     }
@@ -651,9 +652,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           targetUserName: 'System',
           previousValue: '',
           newValue: '${values.length} records');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Excel workbook downloaded.')));
+      }
     } finally {
       if (mounted) setState(() => exporting = false);
     }

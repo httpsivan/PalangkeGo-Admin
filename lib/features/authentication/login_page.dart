@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/animations/animated_widgets.dart';
 import '../../core/animations/app_motion.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -31,12 +32,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   ];
 
   final formKey = GlobalKey<FormState>();
+  // Demo credentials prefill only in demo mode — Firebase mode must never
+  // pre-fill a real administrator's password.
   final email = TextEditingController();
   final password = TextEditingController();
   bool obscure = true;
   bool keepSignedIn = false;
   bool loading = false;
   String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!ref.read(firebaseEnabledProvider)) {
+      email.text = defaultAdminEmail;
+      password.text = defaultAdminPassword;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    for (final path in _loginSlides) {
+      precacheImage(AssetImage(path), context);
+    }
+  }
 
   @override
   void dispose() {
@@ -57,19 +77,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       loading = false;
       error = result;
     });
-    if (result == null) context.go('/overview');
-    if (result != null)
+    if (result == null) {
+      context.go('/overview');
+    } else {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result)));
+    }
   }
+
+  static final _loginThemeData = buildLightTheme();
 
   @override
   Widget build(BuildContext context) {
     return Theme(
       // The login screen intentionally stays light even when the dashboard
       // theme preference is dark.
-      data: buildLightTheme(),
+      data: _loginThemeData,
       child: Builder(
         builder: (loginContext) {
           final narrow = MediaQuery.sizeOf(loginContext).width < 820;
@@ -92,12 +116,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 );
           return Scaffold(
-            body: Column(
-              children: [
-                const _Header(dark: false),
-                Expanded(child: body),
-                const _Footer(),
-              ],
+            body: Form(
+              key: formKey,
+              child: Column(
+                children: [
+                  const _Header(dark: false),
+                  Expanded(child: body),
+                  const _Footer(),
+                ],
+              ),
             ),
           );
         },
@@ -121,7 +148,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
           Positioned.fill(
             child: ColoredBox(
-              color: semanticColors(context).heroBackground.withOpacity(.68),
+              color: semanticColors(context).heroBackground.withValues(alpha: .68),
             ),
           ),
           Padding(
@@ -164,9 +191,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _loginForm(BuildContext context) {
     final colors = semanticColors(context);
-    final form = Form(
-      key: formKey,
-      child: Column(
+    final form = Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -185,7 +210,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12),
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 14),
+          _ModeBadge(firebase: ref.read(firebaseEnabledProvider)),
+          const SizedBox(height: 24),
           const Text(
             'Email Address',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
@@ -193,16 +220,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: 8),
           TextFormField(
             controller: email,
+            autofocus: true,
             keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.email],
             decoration: const InputDecoration(
               hintText: 'name@nagacity.gov.ph',
               prefixIcon: Icon(Icons.mail_outline_rounded, size: 18),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'Enter your email address';
-              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim()))
+              }
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
                 return 'Enter a valid email address';
+              }
               return null;
             },
           ),
@@ -215,6 +247,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           TextFormField(
             controller: password,
             obscureText: obscure,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.password],
             onFieldSubmitted: (_) => submit(),
             decoration: InputDecoration(
               hintText: '••••••••',
@@ -235,16 +269,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: 10),
           Row(
             children: [
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: Checkbox(
-                  value: keepSignedIn,
-                  onChanged: (value) =>
-                      setState(() => keepSignedIn = value ?? false),
+              // "Keep me signed in" only exists in demo mode; in Firebase
+              // mode the Auth SDK persists the session itself.
+              if (!ref.read(firebaseEnabledProvider)) ...[
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: keepSignedIn,
+                    onChanged: (value) =>
+                        setState(() => keepSignedIn = value ?? false),
+                  ),
                 ),
-              ),
-              const Text('Keep me signed in', style: TextStyle(fontSize: 11)),
+                const Text('Keep me signed in', style: TextStyle(fontSize: 11)),
+              ],
               const Spacer(),
               TextButton(
                 onPressed: () => _forgot(context),
@@ -292,15 +330,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
           const SizedBox(height: 16),
         ],
-      ),
-    );
+      );
     final panel = Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 42),
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: form,
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: form,
+          ),
         ),
       ),
     );
@@ -429,56 +468,96 @@ class _Header extends StatelessWidget {
   const _Header({required this.dark});
   final bool dark;
   @override
-  Widget build(BuildContext context) => Container(
-        height: 72,
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        decoration: BoxDecoration(
-          color: dark ? semanticColors(context).heroBackground : Colors.white,
-          border: Border(
-            bottom: BorderSide(color: semanticColors(context).subtleBorder),
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final bg = dark ? colors.heroBackground : Theme.of(context).colorScheme.surface;
+    return Container(
+      height: 78,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 36),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(
+          bottom: BorderSide(
+            color: dark ? colors.borderOnHero : colors.subtleBorder,
           ),
         ),
-        child: Row(
-          children: [
-            if (dark)
-              Image.asset(
-                'assets/images/palengkego_admin_logo.png',
-                width: 220,
-                height: 56,
-                fit: BoxFit.contain,
-                alignment: Alignment.centerLeft,
-                semanticLabel: 'PalengkeGo Admin',
-              )
-            else ...[
-              Image.asset(
-                'assets/images/market_basket.png',
-                width: 64,
-                height: 48,
-                fit: BoxFit.contain,
-                semanticLabel: 'Market basket',
-              ),
-              const SizedBox(width: 8),
-              Image.asset(
-                'assets/images/palengkego_logo.png',
-                width: 180,
-                height: 48,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                semanticLabel: 'PalengkeGo',
-              ),
-            ],
-            const Spacer(),
-            TextButton(onPressed: () {}, child: const Text('Home')),
-            TextButton(onPressed: () {}, child: const Text('About')),
-            TextButton(onPressed: () {}, child: const Text('Contact')),
-            const SizedBox(width: 10),
-            FilledButton(
-              onPressed: () {},
-              child: const Text('Install App', style: TextStyle(fontSize: 11)),
+      ),
+      child: Row(
+        children: [
+          AppLogo(dark: dark, showAdminBadge: true),
+          const Spacer(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  child: Text(
+                    'Home',
+                    style: TextStyle(
+                      color: dark ? Colors.white70 : colors.primaryText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  child: Text(
+                    'About',
+                    style: TextStyle(
+                      color: dark ? Colors.white70 : colors.primaryText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  ),
+                  child: Text(
+                    'Contact',
+                    style: TextStyle(
+                      color: dark ? Colors.white70 : colors.primaryText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                FilledButton.icon(
+                  onPressed: () {},
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                  ),
+                  icon: const Icon(Icons.get_app_rounded, size: 18),
+                  label: const Text(
+                    'Install App',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Footer extends StatelessWidget {
@@ -514,7 +593,7 @@ class _Footer extends StatelessWidget {
                         fontSize: 9.5,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(.65),
+                        ).colorScheme.onSurface.withValues(alpha: .65),
                       ),
                     ),
                   ),
@@ -542,4 +621,48 @@ class _Footer extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Honest mode indicator — demo (seeded data) vs live Firebase. Civic
+/// clarity over decoration: a quiet pill, no glass, no gradients.
+class _ModeBadge extends StatelessWidget {
+  const _ModeBadge({required this.firebase});
+
+  final bool firebase;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<AppSemanticColors>()!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: firebase ? colors.successContainer : Colors.transparent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: firebase ? colors.success : Theme.of(context).dividerColor,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            firebase ? Icons.verified_outlined : Icons.science_outlined,
+            size: 12,
+            color: firebase ? colors.success : colors.mutedText,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            firebase ? 'Live · City of Naga market data' : 'Demo · seeded data',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.02,
+              color: firebase ? colors.success : colors.mutedText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

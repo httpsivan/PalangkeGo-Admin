@@ -33,8 +33,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       type: FileType.image,
       withData: true,
     );
-    if (mounted && result?.files.single.bytes != null)
+    if (mounted && result?.files.single.bytes != null) {
       setState(() => image = result!.files.single.bytes);
+    }
   }
 
   Future<void> save(bool draft) async {
@@ -156,8 +157,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                   width: double.infinity,
                   height: 94,
                   decoration: BoxDecoration(
-                    color: colors.infoContainer.withOpacity(.48),
-                    border: Border.all(color: colors.info.withOpacity(.35)),
+                    color: colors.infoContainer.withValues(alpha: .48),
+                    border: Border.all(color: colors.info.withValues(alpha: .35)),
                     borderRadius: BorderRadius.circular(9),
                   ),
                   child: image == null
@@ -168,7 +169,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                               Icons.add_photo_alternate_outlined,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withOpacity(.7),
+                              ).colorScheme.onSurface.withValues(alpha: .7),
                               size: 26,
                             ),
                             Text(
@@ -177,7 +178,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                                 fontSize: 11,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(.7),
+                                ).colorScheme.onSurface.withValues(alpha: .7),
                               ),
                             ),
                             Text(
@@ -186,7 +187,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                                 fontSize: 9,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onSurface.withOpacity(.45),
+                                ).colorScheme.onSurface.withValues(alpha: .45),
                               ),
                             ),
                           ],

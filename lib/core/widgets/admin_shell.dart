@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,7 +50,7 @@ class _TopNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final compact = MediaQuery.sizeOf(context).width < 900;
+    final compact = MediaQuery.sizeOf(context).width < 1050;
     return Container(
       height: 76,
       padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -65,7 +63,10 @@ class _TopNavigation extends ConsumerWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          const Align(alignment: Alignment.centerLeft, child: AppLogo()),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: AppLogo(dark: true, showAdminBadge: true),
+          ),
           if (!compact)
             Center(
               child: SingleChildScrollView(
@@ -115,9 +116,9 @@ class _TopNavigation extends ConsumerWidget {
                 children: [
                   const _ThemeToggleButton(),
                   const SizedBox(width: 6),
-                  NotificationBell(),
-                  SizedBox(width: 10),
-                  AdminProfileMenu(compact: false),
+                  const NotificationBell(),
+                  const SizedBox(width: 10),
+                  const AdminProfileMenu(compact: false),
                 ],
               ),
             ),
@@ -174,7 +175,7 @@ class _NavItemState extends State<_NavItem> {
               onTapCancel: () => setState(() => pressed = false),
               borderRadius: BorderRadius.circular(22),
               hoverColor: colors.navigationHover,
-              splashColor: colors.activeNavigation.withOpacity(.16),
+              splashColor: colors.activeNavigation.withValues(alpha: .16),
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
@@ -505,15 +506,19 @@ class _MobileDrawer extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
-                    const AppLogo(compact: true),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'PalengkeGo Admin',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                    const Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: AppLogo(compact: true, showAdminBadge: true),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close navigation',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
@@ -556,10 +561,13 @@ void showThemeSelector(BuildContext context, WidgetRef ref) {
             ),
           ),
           for (final mode in ThemeMode.values)
+            // ignore: deprecated_member_use
             RadioListTile<ThemeMode>(
               value: mode,
+              // ignore: deprecated_member_use
               groupValue: ref.read(themeModeProvider),
               title: Text(mode.name),
+              // ignore: deprecated_member_use
               onChanged: (value) {
                 if (value != null) {
                   ref.read(themeModeProvider.notifier).setMode(value);
@@ -584,10 +592,8 @@ Future<T?> showBlurredDialog<T>(
       barrierLabel: 'Close dialog',
       barrierColor: semanticColors(context).overlayScrim,
       transitionDuration: AppMotion.duration(context, AppMotion.dialog),
-      pageBuilder: (context, animation, secondaryAnimation) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: builder(context),
-      ),
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          RepaintBoundary(child: builder(context)),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
           parent: animation,

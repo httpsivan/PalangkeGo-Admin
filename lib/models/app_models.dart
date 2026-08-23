@@ -24,13 +24,17 @@ class KycDocument {
   final String? assetPath;
 }
 
+final _enumLabelCache = <Object, String>{};
+
 String enumLabel(Object value) {
-  final raw = value.toString().split('.').last;
-  final spaced = raw.replaceAllMapped(
-    RegExp(r'([A-Z])'),
-    (match) => ' ${match.group(1)}',
-  );
-  return spaced[0].toUpperCase() + spaced.substring(1);
+  return _enumLabelCache.putIfAbsent(value, () {
+    final raw = value.toString().split('.').last;
+    final spaced = raw.replaceAllMapped(
+      RegExp(r'([A-Z])'),
+      (match) => ' ${match.group(1)}',
+    );
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  });
 }
 
 class Vendor {

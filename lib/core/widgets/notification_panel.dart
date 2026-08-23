@@ -261,9 +261,15 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
                     Expanded(
                       child: visible.isEmpty
                           ? _emptyState(context)
-                          : ListView(
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                              children: _groupedItems(context, visible),
+                          : Builder(
+                              builder: (context) {
+                                final items = _groupedItems(context, visible);
+                                return ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                                  itemCount: items.length,
+                                  itemBuilder: (context, index) => items[index],
+                                );
+                              },
                             ),
                     ),
                     _footer(context, notifications),
@@ -444,7 +450,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: color.withOpacity(.13),
+                color: color.withValues(alpha: .13),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 17),

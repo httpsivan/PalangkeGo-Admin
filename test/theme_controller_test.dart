@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../lib/core/theme/theme_controller.dart';
+import 'package:palengkego_admin/core/theme/theme_controller.dart';
 
 void main() {
   test('theme defaults to light when no preference exists', () async {
