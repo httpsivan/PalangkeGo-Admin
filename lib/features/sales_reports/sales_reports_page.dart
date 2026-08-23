@@ -589,9 +589,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           targetUserName: 'System',
           previousValue: '',
           newValue: '${values.length} records');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('PDF report downloaded.')));
+      }
     } finally {
       if (mounted) setState(() => exporting = false);
     }
@@ -651,9 +652,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           targetUserName: 'System',
           previousValue: '',
           newValue: '${values.length} records');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Excel workbook downloaded.')));
+      }
     } finally {
       if (mounted) setState(() => exporting = false);
     }

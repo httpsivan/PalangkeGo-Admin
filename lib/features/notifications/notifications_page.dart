@@ -108,8 +108,9 @@ class NotificationsPage extends ConsumerWidget {
                                 ),
                                 onTap: () {
                                   controller.markRead(item.id);
-                                  if (item.route != null)
+                                  if (item.route != null) {
                                     context.go(item.route!);
+                                  }
                                 },
                               ),
                             );

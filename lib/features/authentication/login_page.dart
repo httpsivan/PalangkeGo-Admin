@@ -77,11 +77,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       loading = false;
       error = result;
     });
-    if (result == null) context.go('/overview');
-    if (result != null)
+    if (result == null) {
+      context.go('/overview');
+    } else {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result)));
+    }
   }
 
   static final _loginThemeData = buildLightTheme();
@@ -227,10 +229,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               prefixIcon: Icon(Icons.mail_outline_rounded, size: 18),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'Enter your email address';
-              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim()))
+              }
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
                 return 'Enter a valid email address';
+              }
               return null;
             },
           ),

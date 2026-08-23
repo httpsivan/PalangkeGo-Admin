@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../lib/data/mock_data.dart';
-import '../lib/data/repositories/mock_repository.dart';
-import '../lib/models/admin_models.dart';
-import '../lib/models/app_models.dart';
+import 'package:palengkego_admin/data/mock_data.dart';
+import 'package:palengkego_admin/data/repositories/mock_repository.dart';
+import 'package:palengkego_admin/models/admin_models.dart';
+import 'package:palengkego_admin/models/app_models.dart';
 
 void main() {
   test('mock list data uses unique display names', () {

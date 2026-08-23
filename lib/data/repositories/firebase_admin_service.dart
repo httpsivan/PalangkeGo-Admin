@@ -297,7 +297,7 @@ class FirebaseAdminService {
       ('Valid ID', data['validIdPhotoUrl']),
     ];
     final documents = [
-      for (final (i, entry) in docUrls.indexed)
+      for (final entry in docUrls)
         if (entry.$2 is String && (entry.$2 as String).isNotEmpty)
           KycDocument(
             name: entry.$1,

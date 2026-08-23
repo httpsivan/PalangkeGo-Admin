@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -222,12 +221,10 @@ class _ReportedAccountRef {
 final appDataProvider = StateNotifierProvider<AppDataController, AppDataState>((
   ref,
 ) {
-  final controller = AppDataController(
+  return AppDataController(
     ref.watch(sharedPreferencesProvider),
     firebaseEnabled: ref.read(firebaseEnabledProvider),
   );
-  controller._attachRef(ref);
-  return controller;
 });
 
 class AppDataController extends StateNotifier<AppDataState> {
@@ -264,9 +261,6 @@ class AppDataController extends StateNotifier<AppDataState> {
 
   final SharedPreferences _preferences;
   final bool firebaseEnabled;
-  Ref? _ref;
-
-  void _attachRef(Ref ref) => _ref = ref;
 
   /// Loads server truth. Called on startup and after every trusted
   /// mutation — the callables (and their audit trail) are the source of

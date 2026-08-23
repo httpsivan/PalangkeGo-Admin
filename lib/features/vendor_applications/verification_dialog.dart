@@ -46,14 +46,16 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     );
     if (okay != true || !mounted) return;
     setState(() => processing = true);
-    if (widget.application != null)
+    if (widget.application != null) {
       await ref
           .read(appDataProvider.notifier)
           .updateApplication(widget.id, ApplicationStatus.verified);
-    if (widget.renewal != null)
+    }
+    if (widget.renewal != null) {
       await ref
           .read(appDataProvider.notifier)
           .updateRenewal(widget.id, RenewalStatus.approved);
+    }
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(
@@ -89,16 +91,18 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       );
       if (value == null || value.isEmpty || !mounted) return;
       setState(() => processing = true);
-      if (widget.application != null)
+      if (widget.application != null) {
         await ref.read(appDataProvider.notifier).updateApplication(
               widget.id,
               ApplicationStatus.rejected,
               rejectionReason: value,
             );
-      if (widget.renewal != null)
+      }
+      if (widget.renewal != null) {
         await ref
             .read(appDataProvider.notifier)
             .updateRenewal(widget.id, RenewalStatus.expired);
+      }
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(
@@ -527,19 +531,19 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       initialDate: DateTime.now().add(const Duration(days: 1)),
     );
-    if (!mounted || date == null) return;
+    if (!context.mounted || date == null) return;
     final time = await showTimePicker(
       context: context,
       initialTime: const TimeOfDay(hour: 10, minute: 0),
     );
-    if (mounted && time != null)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Inspection scheduled for ${shortDate.format(date)} at ${time.format(context)}.',
-          ),
+    if (!context.mounted || time == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Inspection scheduled for ${shortDate.format(date)} at ${time.format(context)}.',
         ),
-      );
+      ),
+    );
   }
 
   Future<void> _moreDocs(BuildContext context) async {

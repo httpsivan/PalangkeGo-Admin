@@ -33,8 +33,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       type: FileType.image,
       withData: true,
     );
-    if (mounted && result?.files.single.bytes != null)
+    if (mounted && result?.files.single.bytes != null) {
       setState(() => image = result!.files.single.bytes);
+    }
   }
 
   Future<void> save(bool draft) async {
