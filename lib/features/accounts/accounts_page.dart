@@ -67,7 +67,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget build(BuildContext context) {
     final data = ref.watch(
       appDataProvider.select(
-        (s) => (vendors: s.vendors, customers: s.customers, suspensions: s.suspensions),
+        (s) => (
+          vendors: s.vendors,
+          customers: s.customers,
+          suspensions: s.suspensions
+        ),
       ),
     );
     _openSelectedAccount();
@@ -79,26 +83,32 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           subtitle:
               'Oversee stall holders, customers, and active administrative reports.',
           metrics: [
+            if (!customers)
+              MetricCardData(
+                value:
+                    '${data.vendors.where((v) => v.status == AccountStatus.active).length}',
+                label: 'Active Stall Holders',
+                icon: Icons.storefront_rounded,
+                accent: const Color(0xFF10B981),
+              ),
+            if (customers)
+              MetricCardData(
+                value:
+                    '${data.customers.where((c) => c.status == AccountStatus.active).length}',
+                label: 'Active Customers',
+                icon: Icons.people_outline_rounded,
+                accent: const Color(0xFF3B82F6),
+              ),
             MetricCardData(
-              value: '${data.vendors.where((v) => v.status == AccountStatus.active).length}',
-              label: 'Active Stall Holders',
-              icon: Icons.storefront_rounded,
-              accent: const Color(0xFF10B981),
-            ),
-            MetricCardData(
-              value: '${data.customers.where((c) => c.status == AccountStatus.active).length}',
-              label: 'Active Customers',
-              icon: Icons.people_outline_rounded,
-              accent: const Color(0xFF3B82F6),
-            ),
-            MetricCardData(
-              value: '${data.vendors.where((v) => v.status == AccountStatus.suspended).length + data.customers.where((c) => c.status == AccountStatus.suspended).length}',
+              value:
+                  '${data.vendors.where((v) => v.status == AccountStatus.suspended).length + data.customers.where((c) => c.status == AccountStatus.suspended).length}',
               label: 'Suspended Accounts',
               icon: Icons.pause_circle_outline_rounded,
               accent: const Color(0xFFF59E0B),
             ),
             MetricCardData(
-              value: '${data.vendors.where((v) => v.status == AccountStatus.blocked).length + data.customers.where((c) => c.status == AccountStatus.blocked).length}',
+              value:
+                  '${data.vendors.where((v) => v.status == AccountStatus.blocked).length + data.customers.where((c) => c.status == AccountStatus.blocked).length}',
               label: 'Blocked Accounts',
               icon: Icons.block_rounded,
               accent: const Color(0xFFEF4444),
@@ -242,8 +252,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           _VendorTable(
             values: visible.skip(safePage * 10).take(10).toList(),
             verticalController: tableScrollController,
-            onOpen: (vendor) =>
-                showAccountDialog(context, ref, vendor: vendor),
+            onOpen: (vendor) => showAccountDialog(context, ref, vendor: vendor),
           ),
           if (visible.isNotEmpty)
             PaginationBar(
@@ -361,7 +370,7 @@ class _Tabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          _tab(context, 'Vendors (Stall Holders)', !selected),
+          _tab(context, 'Stall Holders', !selected),
           const SizedBox(width: 8),
           _tab(context, 'Customers', selected),
         ],
@@ -656,44 +665,44 @@ Future<void> showAccountDialog(
                 return FocusScope(
                   autofocus: true,
                   child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: narrow ? 0 : 650,
-                      maxWidth: 780,
-                      maxHeight: height,
-                    ),
-                    child: SizedBox(
-                      width: width,
-                      height: height,
-                      child: _AccountDetailsDialog(
-                        account: account,
-                        closeRequests: closeRequests,
-                        onSave: (notes) => update(notes, account.status),
-                        onUnblock: account.status == AccountStatus.blocked
-                            ? (notes) => update(notes, AccountStatus.active)
-                            : null,
-                        onLift: account.suspension != null &&
-                                account.suspension!.liftedAt == null
-                            ? (_) => ref
-                                .read(appDataProvider.notifier)
-                                .liftSuspension(account.suspension!.id)
-                            : null,
-                        onSuspend: account.status != AccountStatus.blocked &&
-                                (account.suspension == null ||
-                                    account.suspension!.liftedAt != null)
-                            ? () => showSuspensionDialog(
-                                  context,
-                                  ref,
-                                  accountId: account.id,
-                                  accountName: account.name,
-                                  accountType: account.accountType,
-                                )
-                            : null,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: narrow ? 0 : 650,
+                        maxWidth: 780,
+                        maxHeight: height,
+                      ),
+                      child: SizedBox(
+                        width: width,
+                        height: height,
+                        child: _AccountDetailsDialog(
+                          account: account,
+                          closeRequests: closeRequests,
+                          onSave: (notes) => update(notes, account.status),
+                          onUnblock: account.status == AccountStatus.blocked
+                              ? (notes) => update(notes, AccountStatus.active)
+                              : null,
+                          onLift: account.suspension != null &&
+                                  account.suspension!.liftedAt == null
+                              ? (_) => ref
+                                  .read(appDataProvider.notifier)
+                                  .liftSuspension(account.suspension!.id)
+                              : null,
+                          onSuspend: account.status != AccountStatus.blocked &&
+                                  (account.suspension == null ||
+                                      account.suspension!.liftedAt != null)
+                              ? () => showSuspensionDialog(
+                                    context,
+                                    ref,
+                                    accountId: account.id,
+                                    accountName: account.name,
+                                    accountType: account.accountType,
+                                  )
+                              : null,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
+                );
               },
             ),
           ],
@@ -1207,7 +1216,7 @@ class _AccountDetailsData {
         transactions: vendor.transactions,
         phone: vendor.phone,
         residence: vendor.residence,
-        accountType: 'Vendor / Stall Holder',
+        accountType: 'Stall Holder',
         administrativeNotes: vendor.administrativeNotes,
         suspension: suspension,
         blockedReason: vendor.blockedReason,
@@ -1510,8 +1519,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                             child: _statCard(
                               context,
                               '${widget.account.orders}',
-                              widget.account.accountType ==
-                                      'Vendor / Stall Holder'
+                              widget.account.accountType == 'Stall Holder'
                                   ? 'RECENT ORDERS'
                                   : 'TOTAL ORDERS',
                               Icons.receipt_long_outlined,
@@ -1522,8 +1530,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                             child: _statCard(
                               context,
                               '\u20B1${(widget.account.transactions / 1000).toStringAsFixed(1)}K',
-                              widget.account.accountType ==
-                                      'Vendor / Stall Holder'
+                              widget.account.accountType == 'Stall Holder'
                                   ? 'RECENT REVENUE'
                                   : 'TOTAL TRANSACTIONS',
                               Icons.account_balance_wallet_outlined,
