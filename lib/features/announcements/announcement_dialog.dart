@@ -560,8 +560,9 @@ class _AnnouncementImageCropDialogState
                         if (_viewport != viewport) {
                           _viewport = viewport;
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted && _viewport == viewport)
+                            if (mounted && _viewport == viewport) {
                               setState(() {});
+                            }
                           });
                         }
                         final cropRect = _cropRect(viewport);

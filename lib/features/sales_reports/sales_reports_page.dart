@@ -55,7 +55,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     final totalPages = (values.length / 10).ceil();
     final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     final visible = values.skip(safePage * 10).take(10).toList();
-    return Column(
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Sales Reports',
@@ -89,125 +90,113 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                 accent: const Color(0xFF14B8A6)),
           ],
         ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(30, 22, 30, 26),
-            child: DataPanel(
-              title: 'Marketplace Sales',
-              subtitle: _periodLabel(),
-              headerAction: Wrap(
-                spacing: 8,
-                children: [
-                  FilterButton(
-                      label: 'Filters',
-                      icon: Icons.tune_rounded,
-                      onTap: () => _showFilters(categories, vendors)),
-                  FilterMenuButton(
-                    label: 'Sort',
-                    icon: Icons.sort_rounded,
-                    values: const [
-                      'Newest first',
-                      'Oldest first',
-                      'Highest total',
-                      'Lowest total',
-                    ],
-                    onSelected: (value) => setState(() {
-                      sort = value;
-                      page = 0;
-                    }),
-                  ),
-                  FilterButton(
-                      label: 'PDF',
-                      icon: Icons.picture_as_pdf_outlined,
-                      onTap:
-                          exporting ? null : () => _exportPdf(values, summary)),
-                  FilterButton(
-                      label: 'Excel',
-                      icon: Icons.table_chart_outlined,
-                      onTap: exporting
-                          ? null
-                          : () => _exportExcel(values, summary)),
-                ],
-              ),
-              child: Expanded(
-                child: Column(
-                  children: [
-                    Toolbar(
-                      controller: search,
-                      searchHint:
-                          'Search order, transaction, customer, stall holder, or stall...',
-                      onChanged: (_) => setState(() => page = 0),
-                      onClear: _clearFilters,
-                      trailing: [
-                        if (category != 'All Categories')
-                          _chip(
-                              category,
-                              () =>
-                                  setState(() => category = 'All Categories')),
-                        if (vendor != 'All Stall Holders')
-                          _chip(
-                              vendor,
-                              () =>
-                                  setState(() => vendor = 'All Stall Holders')),
-                        if (startDate != null || endDate != null)
-                          _chip(
-                              'Date range',
-                              () => setState(() {
-                                    startDate = null;
-                                    endDate = null;
-                                  })),
-                      ],
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: 2050,
-                          child: ScrollableDataTable(
-                            columns: const [
-                              DataColumn(label: Text('ORDER ID')),
-                              DataColumn(label: Text('TRANSACTION')),
-                              DataColumn(label: Text('DATE / TIME')),
-                              DataColumn(label: Text('CUSTOMER')),
-                              DataColumn(label: Text('STALL HOLDER')),
-                              DataColumn(label: Text('STALL')),
-                              DataColumn(label: Text('ITEMS')),
-                              DataColumn(label: Text('CATEGORY')),
-                              DataColumn(label: Text('QTY')),
-                              DataColumn(label: Text('SUBTOTAL')),
-                              DataColumn(label: Text('DISCOUNTS')),
-                              DataColumn(label: Text('DELIVERY')),
-                              DataColumn(label: Text('PLATFORM FEE')),
-                              DataColumn(label: Text('REFUND')),
-                              DataColumn(label: Text('TOTAL')),
-                              DataColumn(label: Text('PAYMENT')),
-                              DataColumn(label: Text('PAYMENT STATUS')),
-                              DataColumn(label: Text('ORDER STATUS')),
-                            ],
-                            rows: visible.map(_row).toList(),
-                            verticalController: tableController,
-                            minWidth: 2050,
-                            rowHeight: 60,
-                            emptyState: const EmptyState(
-                                message:
-                                    'No sales found. Try changing the search or filters.'),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (values.isNotEmpty)
-                      PaginationBar(
-                        total: values.length,
-                        start: safePage * 10 + 1,
-                        end: ((safePage + 1) * 10).clamp(0, values.length),
-                        page: safePage,
-                        pageCount: totalPages,
-                        onPageChanged: (value) => setState(() => page = value),
-                        showSummary: search.text.trim().isNotEmpty,
-                      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(30, 22, 30, 26),
+          child: DataPanel(
+            title: 'Marketplace Sales',
+            subtitle: _periodLabel(),
+            headerAction: Wrap(
+              spacing: 8,
+              children: [
+                FilterButton(
+                    label: 'Filters',
+                    icon: Icons.tune_rounded,
+                    onTap: () => _showFilters(categories, vendors)),
+                FilterMenuButton(
+                  label: 'Sort',
+                  icon: Icons.sort_rounded,
+                  values: const [
+                    'Newest first',
+                    'Oldest first',
+                    'Highest total',
+                    'Lowest total',
+                  ],
+                  onSelected: (value) => setState(() {
+                    sort = value;
+                    page = 0;
+                  }),
+                ),
+                FilterButton(
+                    label: 'PDF',
+                    icon: Icons.picture_as_pdf_outlined,
+                    onTap:
+                        exporting ? null : () => _exportPdf(values, summary)),
+                FilterButton(
+                    label: 'Excel',
+                    icon: Icons.table_chart_outlined,
+                    onTap: exporting
+                        ? null
+                        : () => _exportExcel(values, summary)),
+              ],
+            ),
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  searchHint:
+                      'Search order, transaction, customer, stall holder, or stall...',
+                  onChanged: (_) => setState(() => page = 0),
+                  onClear: _clearFilters,
+                  trailing: [
+                    if (category != 'All Categories')
+                      _chip(
+                          category,
+                          () =>
+                              setState(() => category = 'All Categories')),
+                    if (vendor != 'All Stall Holders')
+                      _chip(
+                          vendor,
+                          () =>
+                              setState(() => vendor = 'All Stall Holders')),
+                    if (startDate != null || endDate != null)
+                      _chip(
+                          'Date range',
+                          () => setState(() {
+                                startDate = null;
+                                endDate = null;
+                              })),
                   ],
                 ),
-              ),
+                ScrollableDataTable(
+                  columns: const [
+                    DataColumn(label: Text('ORDER ID')),
+                    DataColumn(label: Text('TRANSACTION')),
+                    DataColumn(label: Text('DATE / TIME')),
+                    DataColumn(label: Text('CUSTOMER')),
+                    DataColumn(label: Text('STALL HOLDER')),
+                    DataColumn(label: Text('STALL')),
+                    DataColumn(label: Text('ITEMS')),
+                    DataColumn(label: Text('CATEGORY')),
+                    DataColumn(label: Text('QTY')),
+                    DataColumn(label: Text('SUBTOTAL')),
+                    DataColumn(label: Text('DISCOUNTS')),
+                    DataColumn(label: Text('DELIVERY')),
+                    DataColumn(label: Text('PLATFORM FEE')),
+                    DataColumn(label: Text('REFUND')),
+                    DataColumn(label: Text('TOTAL')),
+                    DataColumn(label: Text('PAYMENT')),
+                    DataColumn(label: Text('PAYMENT STATUS')),
+                    DataColumn(label: Text('ORDER STATUS')),
+                  ],
+                  rows: visible.map(_row).toList(),
+                  verticalController: tableController,
+                  minWidth: 2050,
+                  rowHeight: 60,
+                  emptyState: const EmptyState(
+                      message:
+                          'No sales found. Try changing the search or filters.'),
+                ),
+                if (values.isNotEmpty)
+                  PaginationBar(
+                    total: values.length,
+                    start: safePage * 10 + 1,
+                    end: ((safePage + 1) * 10).clamp(0, values.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: (value) => setState(() => page = value),
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
             ),
           ),
         ),

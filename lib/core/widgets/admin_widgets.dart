@@ -559,12 +559,16 @@ class StatusBadge extends StatelessWidget {
                 Icon(icon, size: 11, color: pair.$1),
                 const SizedBox(width: 4),
               ],
-              Text(
-                label,
-                style: TextStyle(
-                  color: pair.$1,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: pair.$1,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -896,8 +900,8 @@ class ScrollableDataTable extends StatelessWidget {
             required List<DataRow> tableRows,
             required double headingHeight,
           }) =>
-              SizedBox(
-                width: tableWidth,
+              ConstrainedBox(
+                constraints: BoxConstraints(minWidth: tableWidth),
                 child: DataTable(
                   showCheckboxColumn: false,
                   headingRowColor: WidgetStatePropertyAll(
@@ -929,8 +933,8 @@ class ScrollableDataTable extends StatelessWidget {
 
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: tableWidth),
               child: AnimatedSwitcher(
                 duration: AppMotion.duration(context, AppMotion.component),
                 transitionBuilder: (child, animation) => FadeTransition(

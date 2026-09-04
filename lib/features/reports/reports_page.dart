@@ -184,7 +184,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     opacity: animation,
                     child: SizeTransition(
                       sizeFactor: animation,
-                      axisAlignment: -1,
                       child: child,
                     ),
                   ),
