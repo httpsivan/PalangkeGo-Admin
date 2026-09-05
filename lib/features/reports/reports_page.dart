@@ -20,8 +20,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
+  String targetType = 'All Types';
   bool history = false;
   int page = 0;
+
+  bool _isStallHolderReport(Report item) =>
+      item.type == 'Stall Holder' || item.type == 'Vendor';
+
+  bool _isCustomerReport(Report item) => item.type == 'Customer';
+
   @override
   void dispose() {
     search.dispose();
@@ -74,6 +81,9 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               (history
                   ? item.status == ReportStatus.resolved
                   : item.status != ReportStatus.resolved) &&
+              (targetType == 'All Types' ||
+                  (targetType == 'Stall Holders' && _isStallHolderReport(item)) ||
+                  (targetType == 'Customers' && _isCustomerReport(item))) &&
               (search.text.trim().isEmpty ||
                   '${item.id} ${item.accountIssue} ${item.submittedBy} ${item.reason}'
                       .toLowerCase()
@@ -85,41 +95,65 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         .toList();
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
+
+    final filteredForMetrics = targetType == 'All Types'
+        ? reports
+        : targetType == 'Stall Holders'
+            ? reports.where(_isStallHolderReport).toList()
+            : reports.where(_isCustomerReport).toList();
+
+    final blockedCount = targetType == 'All Types'
+        ? appData.vendors.where((item) => item.status == AccountStatus.blocked).length +
+            appData.customers.where((item) => item.status == AccountStatus.blocked).length
+        : targetType == 'Stall Holders'
+            ? appData.vendors.where((item) => item.status == AccountStatus.blocked).length
+            : appData.customers.where((item) => item.status == AccountStatus.blocked).length;
+
     return ListView(
       padding: EdgeInsets.zero,
       children: [
         PageHeader(
           title: 'Reports Management',
           subtitle:
-              'Review and manage customer reports, vendor violations, and application support requests submitted from the PalengkeGo mobile application.',
+              'Review and manage customer reports, stall holder violations, and application support requests submitted from the PalengkeGo mobile application.',
+          tabs: _ReportTabs(
+            selected: targetType,
+            onChanged: (value) {
+              setState(() => targetType = value);
+              _resetTable();
+            },
+          ),
           metrics: [
             MetricCardData(
               value:
-                  '${reports.where((item) => item.status == ReportStatus.pending).length}',
+                  '${filteredForMetrics.where((item) => item.status == ReportStatus.pending).length}',
               label: 'Pending Reports',
               icon: Icons.folder_copy_outlined,
               accent: const Color(0xFFEF4444),
             ),
             MetricCardData(
               value:
-                  '${reports.where((item) => item.status == ReportStatus.underReview).length}',
+                  '${filteredForMetrics.where((item) => item.status == ReportStatus.underReview).length}',
               label: 'Under Review',
               icon: Icons.visibility_outlined,
               accent: const Color(0xFF3B82F6),
             ),
             MetricCardData(
               value:
-                  '${reports.where((item) => item.status == ReportStatus.resolved).length}',
+                  '${filteredForMetrics.where((item) => item.status == ReportStatus.resolved).length}',
               label: 'Resolved',
               icon: Icons.check_circle_outline_rounded,
               accent: const Color(0xFF10B981),
             ),
             MetricCardData(
-              value:
-                  '${appData.vendors.where((item) => item.status == AccountStatus.blocked).length + appData.customers.where((item) => item.status == AccountStatus.blocked).length}',
-              label: 'Blocked Accounts',
+              value: '$blockedCount',
+              label: targetType == 'Stall Holders'
+                  ? 'Blocked Stall Holders'
+                  : targetType == 'Customers'
+                      ? 'Blocked Customers'
+                      : 'Blocked Accounts',
               icon: Icons.block_outlined,
-              accent: Color(0xFFEF4444),
+              accent: const Color(0xFFEF4444),
             ),
           ],
         ),
@@ -146,10 +180,23 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     search.clear();
                     status = 'All Statuses';
                     stallCategory = 'All Categories';
+                    targetType = 'All Types';
                     history = false;
                     _resetTable();
                   },
                   trailing: [
+                    _filter(
+                      targetType == 'All Types' ? 'Account Type' : targetType,
+                      const [
+                        'All Types',
+                        'Stall Holders',
+                        'Customers',
+                      ],
+                      (value) {
+                        setState(() => targetType = value);
+                        _resetTable();
+                      },
+                    ),
                     _filter(status, [
                       'All Statuses',
                       'Pending',
@@ -189,7 +236,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   ),
                   child: _ReportTable(
                     key: ValueKey(
-                      '$history-${values.map((item) => item.id).join(',')}',
+                      '$history-$targetType-${values.map((item) => item.id).join(',')}',
                     ),
                     history: history,
                     values: values.skip(safePage * 10).take(10).toList(),
@@ -243,7 +290,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       ],
       ...values.map(
         (item) => [
-          item.type,
+          item.type == 'Vendor' ? 'Stall Holder' : item.type,
           item.accountIssue,
           item.submittedBy,
           item.reason,
@@ -254,7 +301,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ],
       ),
     ]);
-    downloadCsv(csv, 'palengkego-reports.csv');
+    final filename = targetType == 'Stall Holders'
+        ? 'palengkego-stall-holder-reports.csv'
+        : targetType == 'Customers'
+            ? 'palengkego-customer-reports.csv'
+            : 'palengkego-reports.csv';
+    downloadCsv(csv, filename);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Reports CSV downloaded.')),
     );
@@ -281,7 +333,7 @@ class _ReportTable extends StatelessWidget {
             onSelectChanged: (_) => onOpen(item),
             cells: history
                 ? [
-                    DataCell(Text(item.type)),
+                    DataCell(Text(item.type == 'Vendor' ? 'Stall Holder' : item.type)),
                     DataCell(Text(item.id)),
                     DataCell(
                       Text(
@@ -314,7 +366,7 @@ class _ReportTable extends StatelessWidget {
                     DataCell(Text(item.resolvedBy ?? 'Administrator')),
                   ]
                 : [
-                    DataCell(Text(item.type)),
+                    DataCell(Text(item.type == 'Vendor' ? 'Stall Holder' : item.type)),
                     DataCell(
                       Text(
                         item.accountIssue,
@@ -327,15 +379,14 @@ class _ReportTable extends StatelessWidget {
                     DataCell(Text(item.submittedBy)),
                     DataCell(Text(item.reason)),
                     DataCell(
-                      StatusBadge(
-                        label: item.category ?? 'FRUITS',
-                        kind: BadgeKind.info,
+                      CategoryBadge(
+                        category: item.category ?? 'FRUITS',
                       ),
                     ),
                     DataCell(Text('${item.date.month}/${item.date.day}/2023')),
                     DataCell(
                       StatusBadge(
-                        label: item.status.toString().split('.').last,
+                        label: enumLabel(item.status),
                         kind: item.status == ReportStatus.resolved
                             ? BadgeKind.success
                             : item.status == ReportStatus.underReview
@@ -463,6 +514,53 @@ class _ReportViewToggle extends StatelessWidget {
       );
 }
 
+class _ReportTabs extends StatelessWidget {
+  const _ReportTabs({required this.selected, required this.onChanged});
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          _tab(context, 'All Complaints', selected == 'All Types'),
+          const SizedBox(width: 8),
+          _tab(context, 'Stall Holders', selected == 'Stall Holders'),
+          const SizedBox(width: 8),
+          _tab(context, 'Customers', selected == 'Customers'),
+        ],
+      );
+
+  Widget _tab(BuildContext context, String label, bool active) => Material(
+        color: active
+            ? semanticColors(context).activeNavigation
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: () {
+            if (label == 'All Complaints') {
+              onChanged('All Types');
+            } else {
+              onChanged(label);
+            }
+          },
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: active
+                    ? semanticColors(context).heroBackground
+                    : semanticColors(context).heroMuted,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class _ReportedAccount {
   const _ReportedAccount({
     required this.id,
@@ -494,14 +592,17 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
   }
 
   _ReportedAccount? _reportedAccount(AppDataState data) {
-    if (widget.report.type == 'Vendor') {
+    final issue = widget.report.accountIssue.trim().toLowerCase();
+    final vendorName = widget.report.vendorName.trim().toLowerCase();
+
+    if (widget.report.type == 'Vendor' || widget.report.type == 'Stall Holder') {
       for (final vendor in data.vendors) {
-        if (vendor.name == widget.report.accountIssue ||
-            vendor.name == widget.report.vendorName) {
+        final name = vendor.name.trim().toLowerCase();
+        if (name == issue || name == vendorName) {
           return _ReportedAccount(
             id: vendor.id,
             name: vendor.name,
-            type: 'Vendor / Stall Holder',
+            type: 'Stall Holder',
             status: vendor.status,
           );
         }
@@ -509,7 +610,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
     }
     if (widget.report.type == 'Customer') {
       for (final customer in data.customers) {
-        if (customer.name == widget.report.accountIssue) {
+        if (customer.name.trim().toLowerCase() == issue) {
           return _ReportedAccount(
             id: customer.id,
             name: customer.name,
@@ -519,11 +620,11 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         }
       }
       for (final vendor in data.vendors) {
-        if (vendor.name == widget.report.vendorName) {
+        if (vendor.name.trim().toLowerCase() == vendorName) {
           return _ReportedAccount(
             id: vendor.id,
             name: vendor.name,
-            type: 'Vendor / Stall Holder',
+            type: 'Stall Holder',
             status: vendor.status,
           );
         }
@@ -533,21 +634,31 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
   }
 
   String _reportedAccountTypeLabel() {
-    final account = _reportedAccount(ref.read(appDataProvider));
-    if (account == null) return widget.report.type.toUpperCase();
-    return account.type.startsWith('Vendor') ? 'VENDOR' : 'CUSTOMER';
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    if (account == null) {
+      return (widget.report.type == 'Vendor' || widget.report.type == 'Stall Holder')
+          ? 'STALL HOLDER'
+          : widget.report.type.toUpperCase();
+    }
+    return (account.type.contains('Stall Holder') || account.type.startsWith('Vendor'))
+        ? 'STALL HOLDER'
+        : 'CUSTOMER';
   }
 
   String _reportedAccountName() {
-    final account = _reportedAccount(ref.read(appDataProvider));
-    return account?.name ?? widget.report.vendorName;
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    if (account != null && account.name.isNotEmpty) return account.name;
+    return widget.report.type == 'Customer'
+        ? widget.report.accountIssue
+        : widget.report.vendorName;
   }
 
   String _reportedAccountSubtitle() {
-    final account = _reportedAccount(ref.read(appDataProvider));
-    return account?.type == 'Customer'
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    final isCustomer = widget.report.type == 'Customer' || account?.type == 'Customer';
+    return isCustomer
         ? 'Customer Account'
-        : 'Vendor: ${widget.report.owner}';
+        : 'Stall Holder: ${widget.report.owner.isNotEmpty ? widget.report.owner : widget.report.vendorName}';
   }
 
   Future<void> _dismissReport({bool markResolved = false}) async {
@@ -775,247 +886,305 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
   @override
   Widget build(BuildContext context) {
     final resolved = widget.report.status == ReportStatus.resolved;
-    final account = _reportedAccount(ref.read(appDataProvider));
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 820),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        constraints: BoxConstraints(
+          maxWidth: 780,
+          maxHeight: screenHeight * 0.88,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _header(context),
+            const Divider(height: 1),
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 16,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _info(context),
+                      const SizedBox(height: 16),
+                      Text(
+                        'REASON: ${widget.report.reason.toUpperCase()}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: semanticColors(context)
+                              .infoContainer
+                              .withValues(alpha: .6),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.report.description,
+                          style: const TextStyle(fontSize: 11, height: 1.45),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'EVIDENCE ATTACHED (2 IMAGES)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          _evidence(
+                            'assets/images/spoiled_produce.png',
+                            'Spoiled produce',
+                          ),
+                          const SizedBox(width: 10),
+                          _evidence(
+                            'assets/images/mobile_conversation.png',
+                            'Mobile conversation',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'ACCOUNT HISTORY HIGHLIGHTS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _history(context),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'INVESTIGATION FINDINGS & NOTES',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      TextField(
+                        controller: notes,
+                        minLines: 3,
+                        maxLines: 5,
+                        readOnly: resolved,
+                        decoration: const InputDecoration(
+                          hintText: 'Add investigation findings...',
+                        ),
+                      ),
+                      if (widget.report.decision != null) ...[
+                        const SizedBox(height: 14),
+                        _decisionSummary(context),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!resolved) ...[
+              const Divider(height: 1),
+              _footer(context, account),
+            ] else ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: semanticColors(context).heroBackground,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context) {
+    final cleanId = widget.report.id.startsWith('#')
+        ? widget.report.id
+        : '#${widget.report.id}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 16, 14, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  'Report Review: $cleanId',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                StatusBadge(
+                  label: enumLabel(widget.report.status),
+                  kind: widget.report.status == ReportStatus.resolved
+                      ? BadgeKind.success
+                      : widget.report.status == ReportStatus.underReview
+                          ? BadgeKind.info
+                          : BadgeKind.danger,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close_rounded),
+            tooltip: 'Close',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer(BuildContext context, _ReportedAccount? account) {
+    final outlineStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+    final warningStyle = outlineStyle.copyWith(
+      foregroundColor: WidgetStatePropertyAll(
+        semanticColors(context).warning,
+      ),
+      side: WidgetStatePropertyAll(
+        BorderSide(color: semanticColors(context).warning),
+      ),
+    );
+    final resolvedStyle = FilledButton.styleFrom(
+      backgroundColor: semanticColors(context).heroBackground,
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+    final dangerStyle = FilledButton.styleFrom(
+      backgroundColor: semanticColors(context).danger,
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+
+    final warningBtn = OutlinedButton.icon(
+      onPressed: processing
+          ? null
+          : () => action(
+                'Send warning',
+                ReportStatus.underReview,
+              ),
+      style: warningStyle,
+      icon: const Icon(Icons.warning_amber_outlined, size: 16),
+      label: const Text('Send Warning', style: TextStyle(fontSize: 11.5)),
+    );
+
+    final dismissBtn = OutlinedButton(
+      onPressed: processing ? null : _dismissReport,
+      style: outlineStyle,
+      child: const Text('Dismiss Report', style: TextStyle(fontSize: 11.5)),
+    );
+
+    final resolveBtn = FilledButton.icon(
+      onPressed: processing
+          ? null
+          : () => _dismissReport(markResolved: true),
+      style: resolvedStyle,
+      icon: const Icon(Icons.check_circle_outline, size: 16),
+      label: const Text('Mark as Resolved', style: TextStyle(fontSize: 11.5)),
+    );
+
+    final blockBtn = FilledButton.icon(
+      onPressed: processing || account == null
+          ? null
+          : () => _blockAccount(account),
+      style: dangerStyle,
+      icon: const Icon(Icons.block_outlined, size: 16),
+      label: const Text('Block Account', style: TextStyle(fontSize: 11.5)),
+    );
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).dialogTheme.backgroundColor ??
+            Theme.of(context).cardColor,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth > 650) {
+            return Row(
+              children: [
+                Expanded(child: warningBtn),
+                const SizedBox(width: 10),
+                Expanded(child: dismissBtn),
+                const SizedBox(width: 10),
+                Expanded(child: resolveBtn),
+                const SizedBox(width: 10),
+                Expanded(child: blockBtn),
+              ],
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Text(
-                          'Report Review: ${widget.report.id}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(width: 9),
-                        StatusBadge(
-                          label: enumLabel(widget.report.status),
-                          kind: widget.report.status == ReportStatus.resolved
-                              ? BadgeKind.success
-                              : widget.report.status == ReportStatus.underReview
-                                  ? BadgeKind.info
-                                  : BadgeKind.danger,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
+                  Expanded(child: warningBtn),
+                  const SizedBox(width: 10),
+                  Expanded(child: dismissBtn),
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 14),
-              _info(context),
-              const SizedBox(height: 17),
-              Text(
-                'REASON: ${widget.report.reason.toUpperCase()}',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: semanticColors(context).infoContainer.withValues(alpha: .6),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  widget.report.description,
-                  style: const TextStyle(fontSize: 11, height: 1.45),
-                ),
-              ),
-              const SizedBox(height: 17),
-              const Text(
-                'EVIDENCE ATTACHED (2 IMAGES)',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  _evidence(
-                    'assets/images/spoiled_produce.png',
-                    'Spoiled produce',
-                  ),
+                  Expanded(child: resolveBtn),
                   const SizedBox(width: 10),
-                  _evidence(
-                    'assets/images/mobile_conversation.png',
-                    'Mobile conversation',
-                  ),
+                  Expanded(child: blockBtn),
                 ],
               ),
-              const SizedBox(height: 17),
-              const Text(
-                'ACCOUNT HISTORY HIGHLIGHTS',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              _history(context),
-              const SizedBox(height: 17),
-              const Text(
-                'INVESTIGATION FINDINGS & NOTES',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 7),
-              TextField(
-                controller: notes,
-                minLines: 3,
-                maxLines: 5,
-                readOnly: resolved,
-                decoration: const InputDecoration(
-                  hintText: 'Add investigation findings...',
-                ),
-              ),
-              if (widget.report.decision != null) ...[
-                const SizedBox(height: 14),
-                _decisionSummary(context),
-              ],
-              if (!resolved) ...[
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final buttonWidth = constraints.maxWidth < 520
-                        ? constraints.maxWidth
-                        : (constraints.maxWidth - 10) / 2;
-                    final outlineStyle = OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    );
-                    final warningStyle = outlineStyle.copyWith(
-                      foregroundColor: WidgetStatePropertyAll(
-                        semanticColors(context).warning,
-                      ),
-                      side: WidgetStatePropertyAll(
-                        BorderSide(color: semanticColors(context).warning),
-                      ),
-                    );
-                    final resolvedStyle = FilledButton.styleFrom(
-                      backgroundColor: semanticColors(context).heroBackground,
-                      minimumSize: const Size(0, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    );
-                    final dangerStyle = FilledButton.styleFrom(
-                      backgroundColor: semanticColors(context).danger,
-                      minimumSize: const Size(0, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    );
-
-                    final buttons = [
-                      SizedBox(
-                        width: buttonWidth,
-                        child: OutlinedButton(
-                          onPressed: processing
-                              ? null
-                              : () => action(
-                                    'Send warning',
-                                    ReportStatus.underReview,
-                                  ),
-                          style: warningStyle,
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.warning_amber_outlined, size: 16),
-                              SizedBox(width: 8),
-                              Text('Send Warning'),
-                            ],
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: buttonWidth,
-                        child: OutlinedButton(
-                          onPressed: processing ? null : _dismissReport,
-                          style: outlineStyle,
-                          child: const Text('Dismiss Report'),
-                        ),
-                      ),
-                      SizedBox(
-                        width: buttonWidth,
-                        child: FilledButton.icon(
-                          onPressed: processing
-                              ? null
-                              : () => _dismissReport(markResolved: true),
-                          style: resolvedStyle,
-                          icon:
-                              const Icon(Icons.check_circle_outline, size: 16),
-                          label: const Text('Mark as Resolved'),
-                        ),
-                      ),
-                      SizedBox(
-                        width: buttonWidth,
-                        child: FilledButton.icon(
-                          onPressed: processing || account == null
-                              ? null
-                              : () => _blockAccount(account),
-                          style: dangerStyle,
-                          icon: const Icon(Icons.block_outlined, size: 16),
-                          label: const Text('Block Account'),
-                        ),
-                      ),
-                    ];
-
-                    if (constraints.maxWidth < 520) {
-                      return Column(
-                        children: [
-                          buttons[0],
-                          const SizedBox(height: 10),
-                          buttons[1],
-                          const SizedBox(height: 10),
-                          buttons[2],
-                          const SizedBox(height: 10),
-                          buttons[3],
-                        ],
-                      );
-                    }
-
-                    return Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(child: buttons[0]),
-                            const SizedBox(width: 10),
-                            Expanded(child: buttons[1]),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(child: buttons[2]),
-                            const SizedBox(width: 10),
-                            Expanded(child: buttons[3]),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1062,47 +1231,61 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
     );
   }
 
-  Widget _info(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(child: _infoHeading(context, 'REPORTER INFORMATION')),
-              const SizedBox(width: 24),
-              Expanded(
-                child: _infoHeading(
-                  context,
-                  'REPORTED ACCOUNT (${_reportedAccountTypeLabel()})',
-                ),
+  Widget _info(BuildContext context) {
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    final isCustomer = widget.report.type == 'Customer' || account?.type == 'Customer';
+    final reporterName = widget.report.submittedBy.trim().isNotEmpty
+        ? widget.report.submittedBy
+        : 'Unknown Reporter';
+    final reportedName = _reportedAccountName();
+    final reportedSubtitle = _reportedAccountSubtitle();
+    final reportedDetail = isCustomer
+        ? (account != null ? 'Customer ID: ${account.id}' : 'Customer Account')
+        : 'Stall No: ${widget.report.stallNumber.isNotEmpty ? widget.report.stallNumber : '—'}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _infoHeading(context, 'REPORTER INFORMATION')),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _infoHeading(
+                context,
+                'REPORTED ACCOUNT (${_reportedAccountTypeLabel()})',
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const AvatarCircle(name: 'Maria Santos', size: 34),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Maria Santos',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AvatarCircle(name: reporterName, size: 34),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reporterName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                           ),
+                        ),
+                        if (widget.report.reporterEmail.isNotEmpty)
                           Text(
                             widget.report.reporterEmail,
                             style: const TextStyle(fontSize: 9),
                           ),
-                          const SizedBox(height: 11),
+                        const SizedBox(height: 11),
+                        if (widget.report.phone.isNotEmpty)
                           Row(
                             children: [
                               const Icon(Icons.phone_outlined, size: 15),
@@ -1113,73 +1296,80 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: semanticColors(context).infoContainer,
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: Icon(
-                        Icons.storefront_outlined,
-                        color: semanticColors(context).info,
-                      ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: semanticColors(context).infoContainer,
+                      borderRadius: BorderRadius.circular(7),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _reportedAccountName(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
+                    child: Icon(
+                      isCustomer
+                          ? Icons.person_rounded
+                          : Icons.storefront_outlined,
+                      color: semanticColors(context).info,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reportedName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          reportedSubtitle,
+                          style: const TextStyle(fontSize: 9),
+                        ),
+                        const SizedBox(height: 11),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                reportedDetail,
+                                style: const TextStyle(fontSize: 10),
+                              ),
                             ),
-                          ),
-                          Text(
-                            _reportedAccountSubtitle(),
-                            style: const TextStyle(fontSize: 9),
-                          ),
-                          const SizedBox(height: 11),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Stall No: ${widget.report.stallNumber}',
-                                  style: const TextStyle(fontSize: 10),
-                                ),
-                              ),
-                              StatusBadge(
-                                label:
-                                    '${widget.report.previousViolations} PREVIOUS VIOLATIONS',
-                                kind: BadgeKind.danger,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            StatusBadge(
+                              label: widget.report.previousViolations > 0
+                                  ? '${widget.report.previousViolations} PREVIOUS VIOLATION${widget.report.previousViolations == 1 ? '' : 'S'}'
+                                  : 'NO PREVIOUS VIOLATIONS',
+                              kind: widget.report.previousViolations > 0
+                                  ? BadgeKind.danger
+                                  : BadgeKind.neutral,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
-      );
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget _infoHeading(BuildContext context, String label) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,6 +1386,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
           Divider(height: 1, color: Theme.of(context).dividerColor),
         ],
       );
+
   Widget _evidence(String asset, String label) => Expanded(
         child: InkWell(
           onTap: () => showDialog<void>(
@@ -1216,7 +1407,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: AspectRatio(
-                  aspectRatio: 1.7,
+                  aspectRatio: 2.1,
                   child: Image.asset(
                     asset,
                     fit: BoxFit.cover,
@@ -1266,31 +1457,76 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
     );
   }
 
-  Widget _history(BuildContext context) => Table(
-        border: TableBorder.all(color: semanticColors(context).subtleBorder),
-        children: [
-          TableRow(children: [
-            _cell('Date'),
-            _cell('Violation Type'),
-            _cell('Action Taken'),
-            _cell('Status'),
-          ]),
-          TableRow(children: [
-            _cell('Sep 15, 2023'),
-            _cell('Late Delivery'),
-            _cell('Warning Issued'),
-            _cell('Closed'),
-          ]),
-          TableRow(children: [
-            _cell('Aug 02, 2023'),
-            _cell('Incorrect Pricing'),
-            _cell('System Flag'),
-            _cell('Closed'),
-          ]),
-        ],
+  Widget _history(BuildContext context) {
+    if (widget.report.previousViolations == 0) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: semanticColors(context).inputSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: semanticColors(context).subtleBorder),
+        ),
+        child: Center(
+          child: Text(
+            'No previous violations recorded for this account.',
+            style: TextStyle(
+              fontSize: 11,
+              color: semanticColors(context).mutedText,
+            ),
+          ),
+        ),
       );
-  Widget _cell(String value) => Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text(value, style: const TextStyle(fontSize: 9.5)),
+    }
+
+    final account = _reportedAccount(ref.watch(appDataProvider));
+    final isCustomer = widget.report.type == 'Customer' || account?.type == 'Customer';
+
+    final rows = <TableRow>[
+      TableRow(
+        decoration: BoxDecoration(
+          color: semanticColors(context).inputSurface.withValues(alpha: .5),
+        ),
+        children: [
+          _cell('Date', isHeader: true),
+          _cell('Violation Type', isHeader: true),
+          _cell('Action Taken', isHeader: true),
+          _cell('Status', isHeader: true),
+        ],
+      ),
+      TableRow(children: [
+        _cell('Sep 15, 2023'),
+        _cell(isCustomer ? 'Dispute with Stall Holder' : 'Late Delivery'),
+        _cell('Warning Issued'),
+        _cell('Closed'),
+      ]),
+    ];
+
+    if (widget.report.previousViolations >= 2) {
+      rows.add(
+        TableRow(children: [
+          _cell('Aug 02, 2023'),
+          _cell(isCustomer ? 'Abusive Messaging' : 'Incorrect Pricing'),
+          _cell('System Flag'),
+          _cell('Closed'),
+        ]),
+      );
+    }
+
+    return Table(
+      border: TableBorder.all(color: semanticColors(context).subtleBorder),
+      children: rows,
+    );
+  }
+
+  Widget _cell(String value, {bool isHeader = false}) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: isHeader ? FontWeight.w800 : FontWeight.normal,
+          ),
+        ),
       );
 }

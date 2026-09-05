@@ -133,6 +133,34 @@ class FirebaseAdminService {
     }
   }
 
+  Future<String?> updateAnnouncement({
+    required String id,
+    required String title,
+    required String body,
+    required String targetAudience,
+  }) async {
+    try {
+      await _db.collection('systemAnnouncements').doc(id).update({
+        'title': title,
+        'body': body,
+        'targetAudience': targetAudience,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } on FirebaseException catch (e) {
+      return 'Update failed (${e.code}).';
+    }
+  }
+
+  Future<String?> deleteAnnouncement(String id) async {
+    try {
+      await _db.collection('systemAnnouncements').doc(id).delete();
+      return null;
+    } on FirebaseException catch (e) {
+      return 'Delete failed (${e.code}).';
+    }
+  }
+
   // ── Reads ───────────────────────────────────────────────────────────────────
 
   /// Loads the portal's data slices from Firestore. Only live sources are
@@ -387,10 +415,10 @@ class FirebaseAdminService {
       id: d.id,
       title: (data['title'] as String?) ?? '',
       summary: (data['body'] as String?) ?? '',
-      audience: switch (data['targetAudience'] as String?) {
-        'customers' => 'Customers',
-        'stallholders' => 'Stallholders',
-        _ => 'All',
+      audience: switch ((data['targetAudience'] as String?)?.toLowerCase()) {
+        'customers' || 'customer' => 'Customers',
+        'stallholders' || 'stall holders' || 'vendors' || 'vendor' => 'Stall Holders',
+        _ => 'All Users',
       },
       createdAt: _asDate(data['createdAt']) ?? DateTime.now(),
       isDraft: false,

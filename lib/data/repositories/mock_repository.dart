@@ -393,7 +393,7 @@ class AppDataController extends StateNotifier<AppDataState> {
           : status == AccountStatus.active
               ? AuditAction.unblockAccount
               : AuditAction.editAccountStatus,
-      targetEntityType: 'Vendor',
+      targetEntityType: 'Stall Holder',
       targetEntityId: id,
       targetUserName: previous?.name ?? id,
       previousValue: enumLabel(previous?.status ?? AccountStatus.active),
@@ -450,7 +450,7 @@ class AppDataController extends StateNotifier<AppDataState> {
           : status == AccountStatus.active
               ? AuditAction.unblockAccount
               : AuditAction.editAccountStatus,
-      targetEntityType: 'Vendor',
+      targetEntityType: 'Stall Holder',
       targetEntityId: id,
       targetUserName: previous?.name ?? id,
       previousValue: enumLabel(previous?.status ?? AccountStatus.active),
@@ -904,7 +904,7 @@ class AppDataController extends StateNotifier<AppDataState> {
   }
 
   _ReportedAccountRef? _findReportedAccount(Report report) {
-    if (report.type == 'Vendor') {
+    if (report.type == 'Vendor' || report.type == 'Stall Holder') {
       final vendor = _firstOrNull(state.vendors.where(
         (item) =>
             item.name == report.accountIssue || item.name == report.vendorName,
@@ -913,7 +913,7 @@ class AppDataController extends StateNotifier<AppDataState> {
       return _ReportedAccountRef(
         id: vendor.id,
         name: vendor.name,
-        type: 'Vendor',
+        type: 'Stall Holder',
         status: vendor.status,
         isVendor: true,
       );
@@ -939,7 +939,7 @@ class AppDataController extends StateNotifier<AppDataState> {
         return _ReportedAccountRef(
           id: vendor.id,
           name: vendor.name,
-          type: 'Vendor',
+          type: 'Stall Holder',
           status: vendor.status,
           isVendor: true,
         );
@@ -949,6 +949,20 @@ class AppDataController extends StateNotifier<AppDataState> {
   }
 
   Future<void> addAnnouncement(Announcement announcement) async {
+    if (firebaseEnabled) {
+      final targetAudience = switch (announcement.audience.toLowerCase()) {
+        'stall holders' || 'vendors' => 'stallholders',
+        'customers' => 'customers',
+        _ => 'all',
+      };
+      await FirebaseAdminService.instance.publishAnnouncement(
+        title: announcement.title,
+        body: announcement.summary,
+        targetAudience: targetAudience,
+      );
+      await reload();
+      return;
+    }
     await _wait();
     state = state.copyWith(
       announcements: [announcement, ...state.announcements],
@@ -963,6 +977,66 @@ class AppDataController extends StateNotifier<AppDataState> {
       previousValue: '',
       newValue: announcement.title,
     );
+  }
+
+  Future<void> updateAnnouncement(Announcement updated) async {
+    if (firebaseEnabled) {
+      final targetAudience = switch (updated.audience.toLowerCase()) {
+        'stall holders' || 'vendors' => 'stallholders',
+        'customers' => 'customers',
+        _ => 'all',
+      };
+      await FirebaseAdminService.instance.updateAnnouncement(
+        id: updated.id,
+        title: updated.title,
+        body: updated.summary,
+        targetAudience: targetAudience,
+      );
+      await reload();
+      return;
+    }
+    await _wait();
+    final previous =
+        state.announcements.where((a) => a.id == updated.id).firstOrNull;
+    state = state.copyWith(
+      announcements: state.announcements
+          .map((a) => a.id == updated.id ? updated : a)
+          .toList(),
+    );
+    await _preferences.setString('last_announcement', updated.title);
+    if (previous != null) {
+      await recordAudit(
+        action: AuditAction.changeSettings,
+        targetEntityType: 'Announcement',
+        targetEntityId: updated.id,
+        targetUserName: updated.audience,
+        previousValue: previous.title,
+        newValue: updated.title,
+      );
+    }
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    if (firebaseEnabled) {
+      await FirebaseAdminService.instance.deleteAnnouncement(id);
+      await reload();
+      return;
+    }
+    await _wait();
+    final target = state.announcements.where((a) => a.id == id).firstOrNull;
+    state = state.copyWith(
+      announcements: state.announcements.where((a) => a.id != id).toList(),
+    );
+    if (target != null) {
+      await recordAudit(
+        action: AuditAction.changeSettings,
+        targetEntityType: 'Announcement',
+        targetEntityId: target.id,
+        targetUserName: target.audience,
+        previousValue: target.title,
+        newValue: 'Deleted',
+      );
+    }
   }
 
   Future<String?> createSuspension({

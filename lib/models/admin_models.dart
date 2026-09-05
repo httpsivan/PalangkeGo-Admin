@@ -131,6 +131,10 @@ class SalesSummary {
 
   factory SalesSummary.fromOrders(Iterable<Order> orders) {
     final list = orders.toList();
+    final gross = list.fold<double>(0, (sum, item) => sum + item.subtotal);
+    final disc = list.fold<double>(0, (sum, item) => sum + item.discounts);
+    final ref = list.fold<double>(0, (sum, item) => sum + item.refundAmount);
+    final fees = list.fold<double>(0, (sum, item) => sum + item.platformFee);
     return SalesSummary(
       totalOrders: list.length,
       completedOrders:
@@ -144,11 +148,11 @@ class SalesSummary {
           list.where((item) => item.status == OrderStatus.cancelled).length,
       refundedOrders:
           list.where((item) => item.status == OrderStatus.refunded).length,
-      grossSales: list.fold(0, (sum, item) => sum + item.subtotal),
-      discounts: list.fold(0, (sum, item) => sum + item.discounts),
-      refunds: list.fold(0, (sum, item) => sum + item.refundAmount),
-      platformFees: list.fold(0, (sum, item) => sum + item.platformFee),
-      netRevenue: list.fold(0, (sum, item) => sum + item.netRevenue),
+      grossSales: gross,
+      discounts: disc,
+      refunds: ref,
+      platformFees: fees,
+      netRevenue: (gross - disc - ref).clamp(0.0, double.infinity),
     );
   }
 }

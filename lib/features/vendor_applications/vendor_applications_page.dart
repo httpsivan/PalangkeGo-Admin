@@ -99,7 +99,18 @@ class _VendorApplicationsPageState
                   item.category == stallCategory),
         )
         .toList()
-      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      ..sort((a, b) {
+        final aCompleted = a.status == ApplicationStatus.verified ||
+            a.status == ApplicationStatus.rejected ||
+            a.status == ApplicationStatus.invalidDocs;
+        final bCompleted = b.status == ApplicationStatus.verified ||
+            b.status == ApplicationStatus.rejected ||
+            b.status == ApplicationStatus.invalidDocs;
+        if (aCompleted != bCompleted) {
+          return aCompleted ? 1 : -1;
+        }
+        return b.submittedAt.compareTo(a.submittedAt);
+      });
     final newestApplicationId = _newestId(data.applications);
     final newApplicationId = _viewedApplicationIds.contains(
       newestApplicationId,
@@ -108,38 +119,75 @@ class _VendorApplicationsPageState
         : newestApplicationId;
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
+
+    final pendingCount = data.applications
+        .where((item) => item.status == ApplicationStatus.reviewing)
+        .length;
+    final approvedCount = data.applications
+        .where((item) => item.status == ApplicationStatus.verified)
+        .length;
+    final rejectedCount = data.applications
+        .where((item) =>
+            item.status == ApplicationStatus.rejected ||
+            item.status == ApplicationStatus.invalidDocs)
+        .length;
+
+    final now = DateTime.now();
+    final todayApplications = data.applications.where(
+      (item) =>
+          item.submittedAt.year == now.year &&
+          item.submittedAt.month == now.month &&
+          item.submittedAt.day == now.day,
+    );
+    final int newTodayCount;
+    if (todayApplications.isNotEmpty) {
+      newTodayCount = todayApplications.length;
+    } else if (data.applications.isNotEmpty) {
+      final latestDate = data.applications
+          .map((a) => a.submittedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      newTodayCount = data.applications.where((item) {
+        return item.submittedAt.year == latestDate.year &&
+            item.submittedAt.month == latestDate.month &&
+            item.submittedAt.day == latestDate.day;
+      }).length;
+    } else {
+      newTodayCount = 0;
+    }
+    final newTodayFormatted =
+        newTodayCount < 10 ? '0$newTodayCount' : '$newTodayCount';
+
     return ListView(
       padding: EdgeInsets.zero,
       children: [
         PageHeader(
-          title: 'Vendor Applications',
+          title: 'Stall Holder Applications',
           subtitle:
               'Review and verify new stall holder applications before granting access to the marketplace.',
           metrics: [
             MetricCardData(
-              value:
-                  '${data.applications.where((item) => item.status == ApplicationStatus.reviewing).length}',
+              value: '$pendingCount',
               label: 'Pending Application',
               icon: Icons.assignment_outlined,
               accent: const Color(0xFFF59E0B),
             ),
-            const MetricCardData(
-              value: '128',
+            MetricCardData(
+              value: '$approvedCount',
               label: 'Approved Application',
               icon: Icons.verified_outlined,
-              accent: Color(0xFF10B981),
+              accent: const Color(0xFF10B981),
             ),
-            const MetricCardData(
-              value: '18',
+            MetricCardData(
+              value: '$rejectedCount',
               label: 'Rejected',
               icon: Icons.cancel_outlined,
-              accent: Color(0xFFEF4444),
+              accent: const Color(0xFFEF4444),
             ),
-            const MetricCardData(
-              value: '05',
+            MetricCardData(
+              value: newTodayFormatted,
               label: 'New Today',
               icon: Icons.today_outlined,
-              accent: Color(0xFF3B82F6),
+              accent: const Color(0xFF3B82F6),
             ),
           ],
         ),
@@ -164,6 +212,7 @@ class _VendorApplicationsPageState
                       'Verified',
                       'Reviewing',
                       'Invalid Docs',
+                      'Rejected',
                     ], (value) {
                       status = value;
                       _resetTable();
@@ -245,16 +294,19 @@ class _VendorApplicationsPageState
         ],
       ),
     ]);
-    downloadCsv(csv, 'palengkego-vendor-applications.csv');
+    downloadCsv(csv, 'palengkego-stall-holder-applications.csv');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Vendor applications CSV downloaded.')),
+      const SnackBar(content: Text('Stall holder applications CSV downloaded.')),
     );
   }
 
   String? _newestId(List<VendorApplication> values) {
-    if (values.isEmpty) return null;
-    var newest = values.first;
-    for (final item in values.skip(1)) {
+    final pending = values
+        .where((item) => item.status == ApplicationStatus.reviewing)
+        .toList();
+    if (pending.isEmpty) return null;
+    var newest = pending.first;
+    for (final item in pending.skip(1)) {
       if (item.submittedAt.isAfter(newest.submittedAt)) newest = item;
     }
     return newest.id;
@@ -300,9 +352,11 @@ class _ApplicationTable extends StatelessWidget {
                 ),
               ),
               DataCell(Text(item.stallName)),
-              DataCell(StatusBadge(label: item.category, kind: BadgeKind.info)),
+              DataCell(CategoryBadge(category: item.category)),
               DataCell(
-                Text('${item.submittedAt.month}/${item.submittedAt.day}/2023'),
+                Text(
+                  '${item.submittedAt.month.toString().padLeft(2, '0')}/${item.submittedAt.day.toString().padLeft(2, '0')}/${item.submittedAt.year}',
+                ),
               ),
               DataCell(
                 ApplicationStatusBadge(status: item.status),

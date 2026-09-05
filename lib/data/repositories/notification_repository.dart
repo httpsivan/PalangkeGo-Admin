@@ -74,8 +74,8 @@ List<AdminNotification> _seedNotifications() {
   return [
     AdminNotification(
       id: 'vendor-application-1',
-      title: 'New Vendor Application',
-      message: 'Fresh Finds Cooperative submitted a vendor application.',
+      title: 'New Stall Holder Application',
+      message: 'Fresh Finds Cooperative submitted a stall holder application.',
       type: NotificationType.vendorApplication,
       createdAt: now.subtract(const Duration(minutes: 5)),
       isRead: false,
@@ -85,7 +85,7 @@ List<AdminNotification> _seedNotifications() {
     AdminNotification(
       id: 'account-update-1',
       title: 'Account Status Update',
-      message: 'Seaside Catch\'s vendor account was blocked.',
+      message: 'Seaside Catch\'s stall holder account was blocked.',
       type: NotificationType.accountUpdate,
       createdAt: now.subtract(const Duration(minutes: 38)),
       isRead: false,
@@ -125,7 +125,7 @@ List<AdminNotification> _seedNotifications() {
     AdminNotification(
       id: 'system-1',
       title: 'System Alert',
-      message: 'A vendor account has been inactive for 30 days.',
+      message: 'A stall holder account has been inactive for 30 days.',
       type: NotificationType.system,
       createdAt: now.subtract(const Duration(days: 2)),
       isRead: true,

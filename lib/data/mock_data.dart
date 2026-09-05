@@ -242,21 +242,32 @@ List<RenewalRequest> seedRenewals() {
     RenewalStatus.expired,
     RenewalStatus.approved,
   ];
-  final expiry = [14, -7, 54, -27, 4];
   final now = DateTime.now();
   return List.generate(
     25,
-    (index) => RenewalRequest(
-      id: '#RN-${92834 + index}',
-      applicant: _applicationApplicants[index],
-      stallName: _applicationStalls[index],
-      category: categories[index % categories.length],
-      expiryDate: now.add(
-        Duration(days: expiry[index % expiry.length] - index),
-      ),
-      status: statuses[index % statuses.length],
-      location: 'Block ${14 + index % 4} - Stall ${2 + index % 8}',
-    ),
+    (index) {
+      final status = statuses[index % statuses.length];
+      final DateTime expiryDate = switch (status) {
+        RenewalStatus.expired =>
+          now.subtract(Duration(days: 7 + (index % 15))),
+        RenewalStatus.reviewing => now.add(
+            Duration(
+              days: (index % 8 < 4) ? (2 + (index % 5)) : (9 + (index % 7)),
+            ),
+          ),
+        RenewalStatus.approved =>
+          now.add(Duration(days: 90 + (index * 7))),
+      };
+      return RenewalRequest(
+        id: '#RN-${92834 + index}',
+        applicant: _applicationApplicants[index],
+        stallName: _applicationStalls[index],
+        category: categories[index % categories.length],
+        expiryDate: expiryDate,
+        status: status,
+        location: 'Block ${14 + index % 4} - Stall ${2 + index % 8}',
+      );
+    },
   );
 }
 
@@ -276,7 +287,7 @@ List<Report> seedReports() {
   ];
   final priorities = [Priority.high, Priority.medium, Priority.low];
   return List.generate(25, (index) {
-    final type = ['Vendor', 'Customer', 'Application'][index % 3];
+    final type = ['Stall Holder', 'Customer', 'Application'][index % 3];
     final accountIssue = switch (index % 3) {
       0 => _names[index ~/ 3],
       1 => _customers[index ~/ 3],
@@ -295,11 +306,11 @@ List<Report> seedReports() {
       status: statuses[index % statuses.length],
       priority: priorities[index % priorities.length],
       description:
-          'The seller promised fresh produce but delivered spoiled goods repeatedly and refused a refund. When confronted, the vendor became hostile and blocked my account on the messaging feature.',
+          'The seller promised fresh produce but delivered spoiled goods repeatedly and refused a refund. When confronted, the stall holder became hostile and blocked my account on the messaging feature.',
       reporterEmail:
           '${submittedBy.toLowerCase().replaceAll(RegExp(r'[^a-z]+'), '.')}@example.com',
       phone: '+63 917 123 ${4500 + index}',
-      vendorName: type == 'Vendor'
+      vendorName: (type == 'Vendor' || type == 'Stall Holder')
           ? accountIssue
           : _names[(index + 10) % _names.length],
       owner: _customers[(index + 3) % _customers.length],
@@ -312,40 +323,89 @@ List<Report> seedReports() {
 
 List<Announcement> seedAnnouncements() => [
       Announcement(
+        id: 'ANN-1001',
         title: 'New Market Guidelines',
         summary: 'Updated safety protocols for the upcoming weekend market.',
-        audience: 'General',
+        audience: 'All Users',
         createdAt: DateTime.now().subtract(const Duration(hours: 1)),
         isDraft: false,
+        notificationType: 'Push notification',
+        state: 'Sent',
+        createdBy: 'Admin Office',
+        recipientCount: 168,
+        deliveredCount: 168,
+        failedCount: 0,
       ),
       Announcement(
+        id: 'ANN-1002',
         title: 'Maintenance Notice',
         summary: 'Payment reconciliation will be available again at 8:00 AM.',
-        audience: 'Vendors',
+        audience: 'Stall Holders',
         createdAt: DateTime.now().subtract(const Duration(days: 1)),
         isDraft: false,
+        notificationType: 'In-app notice',
+        state: 'Sent',
+        createdBy: 'Finance Admin',
+        recipientCount: 42,
+        deliveredCount: 42,
+        failedCount: 0,
       ),
       Announcement(
+        id: 'ANN-1003',
         title: 'Holiday Operating Hours',
         summary:
             'Please review the special opening schedule for public holidays.',
         audience: 'All Users',
         createdAt: DateTime.now().subtract(const Duration(days: 2)),
         isDraft: false,
+        notificationType: 'Push notification',
+        state: 'Sent',
+        createdBy: 'Admin Office',
+        recipientCount: 168,
+        deliveredCount: 165,
+        failedCount: 3,
       ),
       Announcement(
-        title: 'Vendor Orientation',
+        id: 'ANN-1004',
+        title: 'Stall Holder Orientation & Training',
         summary: 'New stall holders can reserve a training slot this week.',
-        audience: 'Vendors',
+        audience: 'Stall Holders',
         createdAt: DateTime.now().subtract(const Duration(days: 4)),
         isDraft: false,
+        notificationType: 'In-app notice',
+        state: 'Sent',
+        createdBy: 'Market Supervisor',
+        recipientCount: 42,
+        deliveredCount: 42,
+        failedCount: 0,
       ),
       Announcement(
-        title: 'Fresh Finds Rewards',
+        id: 'ANN-1005',
+        title: 'Fresh Finds Rewards Campaign',
         summary: 'Customers can now redeem points at participating stalls.',
         audience: 'Customers',
         createdAt: DateTime.now().subtract(const Duration(days: 5)),
         isDraft: false,
+        notificationType: 'Push notification',
+        state: 'Sent',
+        createdBy: 'Marketing Desk',
+        recipientCount: 126,
+        deliveredCount: 126,
+        failedCount: 0,
+      ),
+      Announcement(
+        id: 'ANN-1006',
+        title: 'Weekend Market Sanitation Protocol Draft',
+        summary: 'Scheduled deep cleaning for fish and meat market aisles.',
+        audience: 'Stall Holders',
+        createdAt: DateTime.now().subtract(const Duration(days: 7)),
+        isDraft: true,
+        notificationType: 'In-app notice',
+        state: 'Draft',
+        createdBy: 'Admin Office',
+        recipientCount: 42,
+        deliveredCount: 0,
+        failedCount: 0,
       ),
     ];
 

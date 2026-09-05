@@ -72,15 +72,30 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
               (stallCategory == 'All Categories' ||
                   v.category == stallCategory),
         )
-        .toList();
+        .toList()
+      ..sort((a, b) {
+        final aCompleted = a.status == RenewalStatus.approved ||
+            a.status == RenewalStatus.expired;
+        final bCompleted = b.status == RenewalStatus.approved ||
+            b.status == RenewalStatus.expired;
+        if (aCompleted != bCompleted) {
+          return aCompleted ? 1 : -1;
+        }
+        return a.expiryDate.compareTo(b.expiryDate);
+      });
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
+    final totalApproved = renewals
+        .where((v) => v.status == RenewalStatus.approved)
+        .length;
     final expiring = renewals.where((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
       return days >= 0 && days <= 7;
     }).length;
     final expired = renewals
-        .where((v) => v.expiryDate.isBefore(DateTime.now()))
+        .where((v) =>
+            v.status == RenewalStatus.expired ||
+            v.expiryDate.isBefore(DateTime.now()))
         .length;
     return ListView(
       padding: EdgeInsets.zero,
@@ -90,17 +105,17 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
           subtitle:
               'Review and process renewal requests from existing stall holders.',
           metrics: [
-            const MetricCardData(
-              value: '42',
+            MetricCardData(
+              value: '${renewals.length}',
               label: 'Total Request',
               icon: Icons.assignment_outlined,
-              accent: Color(0xFF10B981),
+              accent: const Color(0xFF10B981),
             ),
-            const MetricCardData(
-              value: '312',
+            MetricCardData(
+              value: '$totalApproved',
               label: 'Approved Application',
               icon: Icons.verified_outlined,
-              accent: Color(0xFF6B7280),
+              accent: const Color(0xFF6B7280),
             ),
             MetricCardData(
               value: '$expiring',
@@ -262,7 +277,7 @@ class _Table extends StatelessWidget {
             ),
           ),
           DataCell(Text(v.stallName)),
-          DataCell(StatusBadge(label: v.category, kind: BadgeKind.info)),
+          DataCell(CategoryBadge(category: v.category)),
           DataCell(
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

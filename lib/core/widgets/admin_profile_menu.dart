@@ -253,6 +253,15 @@ class _AdminProfileDropdown extends ConsumerWidget {
             ),
             Divider(height: 1, color: theme.dividerColor.withValues(alpha: .65)),
             _ProfileMenuItem(
+              icon: Icons.history_rounded,
+              label: 'Audit log',
+              onTap: () {
+                MenuController.maybeOf(context)?.close();
+                context.go('/audit-log');
+              },
+            ),
+            Divider(height: 1, color: theme.dividerColor.withValues(alpha: .65)),
+            _ProfileMenuItem(
               icon: Icons.edit_outlined,
               label: 'Change profile',
               onTap: () {

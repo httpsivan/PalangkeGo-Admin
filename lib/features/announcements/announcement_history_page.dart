@@ -1,0 +1,784 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/formatters.dart';
+import '../../core/widgets/admin_shell.dart';
+import '../../core/widgets/admin_widgets.dart';
+import '../../data/repositories/mock_repository.dart';
+import '../../models/app_models.dart';
+import 'announcement_dialog.dart';
+
+class AnnouncementHistoryPage extends ConsumerStatefulWidget {
+  const AnnouncementHistoryPage({super.key});
+
+  @override
+  ConsumerState<AnnouncementHistoryPage> createState() =>
+      _AnnouncementHistoryPageState();
+}
+
+class _AnnouncementHistoryPageState
+    extends ConsumerState<AnnouncementHistoryPage> {
+  final search = TextEditingController();
+  final scrollController = ScrollController();
+  String selectedAudience = 'All Audiences';
+  String selectedStatus = 'All Statuses';
+  String selectedSort = 'Newest First';
+  int page = 0;
+
+  @override
+  void dispose() {
+    search.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  void _resetPagination() {
+    setState(() => page = 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final announcements =
+        ref.watch(appDataProvider.select((s) => s.announcements));
+
+    // Metrics calculations
+    final totalCount = announcements.length;
+    final deliveredCount = announcements
+        .where((a) => a.state == 'Sent' || (!a.isDraft && a.deliveredCount > 0))
+        .length;
+    final totalReach = announcements.fold<int>(
+      0,
+      (sum, a) => sum + a.deliveredCount,
+    );
+    final draftOrQueuedCount = announcements
+        .where((a) => a.isDraft || a.state == 'Draft' || a.state == 'Queued locally')
+        .length;
+
+    // Filtered & sorted list
+    final filtered = announcements.where((item) {
+      final query = search.text.trim().toLowerCase();
+      final matchesQuery = query.isEmpty ||
+          item.id.toLowerCase().contains(query) ||
+          item.title.toLowerCase().contains(query) ||
+          item.summary.toLowerCase().contains(query) ||
+          item.createdBy.toLowerCase().contains(query);
+
+      final matchesAudience = selectedAudience == 'All Audiences' ||
+          item.audience.toLowerCase() == selectedAudience.toLowerCase() ||
+          (selectedAudience == 'Stall Holders' &&
+              item.audience.toLowerCase() == 'vendors');
+
+      final matchesStatus = selectedStatus == 'All Statuses' ||
+          (selectedStatus == 'Sent' &&
+              (item.state == 'Sent' || (!item.isDraft && item.state != 'Draft'))) ||
+          (selectedStatus == 'Draft' && (item.isDraft || item.state == 'Draft')) ||
+          (selectedStatus == 'Queued' && item.state == 'Queued locally');
+
+      return matchesQuery && matchesAudience && matchesStatus;
+    }).toList();
+
+    // Sort
+    if (selectedSort == 'Oldest First') {
+      filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    } else {
+      filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }
+
+    const pageSize = 15;
+    final totalPages = (filtered.length / pageSize).ceil();
+    final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
+    final visible = filtered.skip(safePage * pageSize).take(pageSize).toList();
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        PageHeader(
+          title: 'Announcement History',
+          subtitle:
+              'Review broadcast logs, delivery performance, audience reach, and scheduled notices.',
+          trailing: FilledButton.icon(
+            onPressed: () => showBlurredDialog(
+              context,
+              (_) => const AnnouncementDialog(),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('New Announcement'),
+          ),
+          metrics: [
+            MetricCardData(
+              value: '$totalCount',
+              label: 'Total Announcements',
+              icon: Icons.campaign_outlined,
+              accent: const Color(0xFF10B981),
+            ),
+            MetricCardData(
+              value: '$deliveredCount',
+              label: 'Delivered Notices',
+              icon: Icons.mark_email_read_outlined,
+              accent: const Color(0xFF3B82F6),
+            ),
+            MetricCardData(
+              value: '$totalReach',
+              label: 'Total Audience Reach',
+              icon: Icons.people_outline_rounded,
+              accent: const Color(0xFF8B5CF6),
+            ),
+            MetricCardData(
+              value: '$draftOrQueuedCount',
+              label: 'Drafts & Queued',
+              icon: Icons.edit_note_rounded,
+              accent: const Color(0xFFF59E0B),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          child: DataPanel(
+            title: 'Broadcast Log',
+            headerAction: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FilterButton(
+                  label: 'Export CSV',
+                  icon: Icons.download_outlined,
+                  onTap: () => _export(filtered),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Toolbar(
+                  controller: search,
+                  searchHint: 'Search announcement title, body, or ID...',
+                  onChanged: (_) => _resetPagination(),
+                  onClear: () => setState(() {
+                    search.clear();
+                    selectedAudience = 'All Audiences';
+                    selectedStatus = 'All Statuses';
+                    selectedSort = 'Newest First';
+                    _resetPagination();
+                  }),
+                  trailing: [
+                    FilterMenuButton(
+                      label: selectedAudience,
+                      values: const [
+                        'All Audiences',
+                        'All Users',
+                        'Stall Holders',
+                        'Customers',
+                      ],
+                      onSelected: (value) {
+                        setState(() => selectedAudience = value);
+                        _resetPagination();
+                      },
+                    ),
+                    FilterMenuButton(
+                      label: selectedStatus,
+                      values: const [
+                        'All Statuses',
+                        'Sent',
+                        'Draft',
+                        'Queued',
+                      ],
+                      onSelected: (value) {
+                        setState(() => selectedStatus = value);
+                        _resetPagination();
+                      },
+                    ),
+                    FilterMenuButton(
+                      label: selectedSort,
+                      values: const [
+                        'Newest First',
+                        'Oldest First',
+                      ],
+                      onSelected: (value) {
+                        setState(() => selectedSort = value);
+                        _resetPagination();
+                      },
+                    ),
+                  ],
+                ),
+                ScrollableDataTable(
+                  columns: const [
+                    DataColumn(label: Text('DATE & TIME')),
+                    DataColumn(label: Text('ANNOUNCEMENT')),
+                    DataColumn(label: Text('AUDIENCE')),
+                    DataColumn(label: Text('CHANNEL')),
+                    DataColumn(label: Text('REACH')),
+                    DataColumn(label: Text('AUTHOR')),
+                    DataColumn(label: Text('STATUS')),
+                    DataColumn(label: Text('ACTIONS')),
+                  ],
+                  rows: visible
+                      .map(
+                        (item) => DataRow(
+                          onSelectChanged: (_) => _showDetails(item),
+                          cells: [
+                            // Date & Time
+                            DataCell(
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    longDate.format(item.createdAt),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    relativeTime(item.createdAt),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: colors.mutedText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Announcement Title & Excerpt
+                            DataCell(
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 320),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      item.summary,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: colors.mutedText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Audience
+                            DataCell(
+                              StatusBadge(
+                                label: (item.audience.toLowerCase() == 'vendors' ||
+                                        item.audience.toLowerCase() == 'stall holders')
+                                    ? 'Stall Holders'
+                                    : item.audience,
+                                kind: switch (item.audience.toLowerCase()) {
+                                  'vendors' || 'stall holders' => BadgeKind.info,
+                                  'customers' => BadgeKind.warning,
+                                  _ => BadgeKind.success,
+                                },
+                              ),
+                            ),
+                            // Channel
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    item.notificationType.contains('Push')
+                                        ? Icons.notifications_active_outlined
+                                        : Icons.chat_bubble_outline_rounded,
+                                    size: 14,
+                                    color: colors.mutedText,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.notificationType,
+                                    style: const TextStyle(fontSize: 11.5),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Reach
+                            DataCell(
+                              item.isDraft || item.state == 'Draft'
+                                  ? Text('—', style: TextStyle(color: colors.mutedText))
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          size: 13,
+                                          color: Color(0xFF10B981),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          '${item.deliveredCount} / ${item.recipientCount}',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                            // Author
+                            DataCell(
+                              Text(
+                                item.createdBy.isEmpty ? 'ADM-001' : item.createdBy,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                            ),
+                            // Status
+                            DataCell(
+                              StatusBadge(
+                                label: item.isDraft
+                                    ? 'Draft'
+                                    : (item.state.isEmpty ? 'Sent' : item.state),
+                                kind: item.isDraft || item.state == 'Draft'
+                                    ? BadgeKind.neutral
+                                    : (item.state == 'Queued locally'
+                                        ? BadgeKind.warning
+                                        : BadgeKind.success),
+                              ),
+                            ),
+                            // Actions
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'View Details',
+                                    icon: const Icon(
+                                      Icons.visibility_outlined,
+                                      size: 16,
+                                    ),
+                                    onPressed: () => _showDetails(item),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Edit Announcement',
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      size: 16,
+                                    ),
+                                    onPressed: () => _editAnnouncement(item),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Duplicate as New',
+                                    icon: const Icon(
+                                      Icons.copy_rounded,
+                                      size: 15,
+                                    ),
+                                    onPressed: () => _duplicateAnnouncement(item),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete Announcement',
+                                    icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 16,
+                                      color: colors.danger,
+                                    ),
+                                    onPressed: () => _confirmDelete(item),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      .toList(),
+                  verticalController: scrollController,
+                  minWidth: 1040,
+                  emptyState: const EmptyState(
+                    message: 'No announcements match the selected criteria.',
+                  ),
+                ),
+                if (filtered.isNotEmpty)
+                  PaginationBar(
+                    total: filtered.length,
+                    start: safePage * pageSize + 1,
+                    end: ((safePage + 1) * pageSize).clamp(0, filtered.length),
+                    page: safePage,
+                    pageCount: totalPages,
+                    onPageChanged: (value) => setState(() => page = value),
+                    showSummary: search.text.trim().isNotEmpty,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showDetails(Announcement item) async {
+    final action = await showBlurredDialog<String>(
+      context,
+      (dialogCtx) => _AnnouncementDetailDialog(
+        announcement: item,
+        onEdit: () => Navigator.of(dialogCtx).pop('edit'),
+        onDuplicate: () => Navigator.of(dialogCtx).pop('duplicate'),
+        onDelete: () => Navigator.of(dialogCtx).pop('delete'),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'edit') {
+      _editAnnouncement(item);
+    } else if (action == 'duplicate') {
+      _duplicateAnnouncement(item);
+    } else if (action == 'delete') {
+      _confirmDelete(item);
+    }
+  }
+
+  void _editAnnouncement(Announcement item) {
+    showBlurredDialog(
+      context,
+      (_) => AnnouncementDialog(
+        announcementToEdit: item,
+      ),
+    );
+  }
+
+  void _duplicateAnnouncement(Announcement item) {
+    showBlurredDialog(
+      context,
+      (_) => AnnouncementDialog(
+        initialTitle: '${item.title} (Copy)',
+        initialBody: item.summary,
+        initialAudience: item.audience,
+        initialNotify: item.notificationType.contains('Push'),
+      ),
+    );
+  }
+
+  void _confirmDelete(Announcement item) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Announcement'),
+        content: Text(
+          'Are you sure you want to delete "${item.title}" from announcement history? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && mounted) {
+        ref.read(appDataProvider.notifier).deleteAnnouncement(item.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Announcement "${item.title}" has been deleted.'),
+          ),
+        );
+      }
+    });
+  }
+
+  void _export(List<Announcement> items) {
+    final csv = buildCsv([
+      [
+        'Announcement ID',
+        'Title',
+        'Summary / Body',
+        'Target Audience',
+        'Channel',
+        'Status',
+        'Author',
+        'Recipients',
+        'Delivered',
+        'Failed',
+        'Created Timestamp',
+      ],
+      ...items.map(
+        (a) => [
+          a.id.isEmpty ? '—' : a.id,
+          a.title,
+          a.summary,
+          a.audience,
+          a.notificationType,
+          a.isDraft ? 'Draft' : a.state,
+          a.createdBy,
+          a.recipientCount,
+          a.deliveredCount,
+          a.failedCount,
+          longDate.format(a.createdAt),
+        ],
+      ),
+    ]);
+    downloadCsv(csv, 'palengkego-announcement-history.csv');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Announcement history exported to CSV.')),
+    );
+  }
+}
+
+class _AnnouncementDetailDialog extends StatelessWidget {
+  const _AnnouncementDetailDialog({
+    required this.announcement,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onDelete,
+  });
+
+  final Announcement announcement;
+  final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final isDraft =
+        announcement.isDraft || announcement.state.toLowerCase() == 'draft';
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: colors.infoContainer,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: colors.info.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.campaign_rounded,
+                      color: colors.accent,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              announcement.id.isEmpty
+                                  ? 'Announcement Details'
+                                  : announcement.id,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            StatusBadge(
+                              label: isDraft ? 'Draft' : announcement.state,
+                              kind: isDraft
+                                  ? BadgeKind.neutral
+                                  : (announcement.state == 'Queued locally'
+                                      ? BadgeKind.warning
+                                      : BadgeKind.success),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Created by ${announcement.createdBy.isEmpty ? "Admin" : announcement.createdBy} • ${longDate.format(announcement.createdAt)} (${relativeTime(announcement.createdAt)})',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.mutedText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // Title
+              Text(
+                announcement.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Metadata Cards Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _metaCard(
+                      context,
+                      icon: Icons.people_alt_outlined,
+                      label: 'Target Audience',
+                      value: announcement.audience,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _metaCard(
+                      context,
+                      icon: Icons.notifications_none_rounded,
+                      label: 'Notification Channel',
+                      value: announcement.notificationType,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _metaCard(
+                      context,
+                      icon: Icons.check_circle_outline_rounded,
+                      label: 'Delivery Reach',
+                      value: isDraft
+                          ? 'Not sent (Draft)'
+                          : '${announcement.deliveredCount} of ${announcement.recipientCount}',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Body Message
+              const Text(
+                'Message Content',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.tableHeader,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colors.subtleBorder),
+                ),
+                child: SelectableText(
+                  announcement.summary,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+
+              // Actions
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.danger,
+                      side: BorderSide(
+                        color: colors.danger.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                    label: const Text('Delete'),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                    label: const Text('Edit'),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: onDuplicate,
+                    icon: const Icon(Icons.copy_rounded, size: 15),
+                    label: const Text('Duplicate as New'),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _metaCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final colors = semanticColors(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.tableHeader,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.subtleBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: colors.mutedText),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: colors.mutedText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

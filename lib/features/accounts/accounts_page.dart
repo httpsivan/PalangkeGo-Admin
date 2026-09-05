@@ -83,7 +83,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           subtitle:
               'Oversee stall holders, customers, and active administrative reports.',
           metrics: [
-            if (!customers)
+            if (!customers) ...[
               MetricCardData(
                 value:
                     '${data.vendors.where((v) => v.status == AccountStatus.active).length}',
@@ -91,7 +91,21 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 icon: Icons.storefront_rounded,
                 accent: const Color(0xFF10B981),
               ),
-            if (customers)
+              MetricCardData(
+                value:
+                    '${data.vendors.where((v) => v.status == AccountStatus.suspended).length}',
+                label: 'Suspended Accounts',
+                icon: Icons.pause_circle_outline_rounded,
+                accent: const Color(0xFFF59E0B),
+              ),
+              MetricCardData(
+                value:
+                    '${data.vendors.where((v) => v.status == AccountStatus.blocked).length}',
+                label: 'Blocked Accounts',
+                icon: Icons.block_rounded,
+                accent: const Color(0xFFEF4444),
+              ),
+            ] else ...[
               MetricCardData(
                 value:
                     '${data.customers.where((c) => c.status == AccountStatus.active).length}',
@@ -99,20 +113,21 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 icon: Icons.people_outline_rounded,
                 accent: const Color(0xFF3B82F6),
               ),
-            MetricCardData(
-              value:
-                  '${data.vendors.where((v) => v.status == AccountStatus.suspended).length + data.customers.where((c) => c.status == AccountStatus.suspended).length}',
-              label: 'Suspended Accounts',
-              icon: Icons.pause_circle_outline_rounded,
-              accent: const Color(0xFFF59E0B),
-            ),
-            MetricCardData(
-              value:
-                  '${data.vendors.where((v) => v.status == AccountStatus.blocked).length + data.customers.where((c) => c.status == AccountStatus.blocked).length}',
-              label: 'Blocked Accounts',
-              icon: Icons.block_rounded,
-              accent: const Color(0xFFEF4444),
-            ),
+              MetricCardData(
+                value:
+                    '${data.customers.where((c) => c.status == AccountStatus.suspended).length}',
+                label: 'Suspended Accounts',
+                icon: Icons.pause_circle_outline_rounded,
+                accent: const Color(0xFFF59E0B),
+              ),
+              MetricCardData(
+                value:
+                    '${data.customers.where((c) => c.status == AccountStatus.blocked).length}',
+                label: 'Blocked Accounts',
+                icon: Icons.block_rounded,
+                accent: const Color(0xFFEF4444),
+              ),
+            ],
           ],
           tabs: _Tabs(
             selected: customers,
@@ -245,7 +260,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               FilterButton(
                 label: 'Export',
                 icon: Icons.download_outlined,
-                onTap: () => _export(visible, 'vendors'),
+                onTap: () => _export(visible, 'stall-holders'),
               ),
             ],
           ),
@@ -438,7 +453,7 @@ class _VendorTable extends StatelessWidget {
                   ],
                 ),
               ),
-              DataCell(Text(vendor.stallType)),
+              DataCell(CategoryBadge(category: vendor.stallType)),
               DataCell(Text(shortDate.format(vendor.registeredAt))),
               DataCell(
                 StatusBadge(
@@ -1666,12 +1681,17 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
           final metadata = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.account.stallType,
-                style: GoogleFonts.inter(
-                    fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
+              if (CategoryColors.isCategory(widget.account.stallType)) ...[
+                CategoryBadge(category: widget.account.stallType),
+                const SizedBox(height: 6),
+              ] else ...[
+                Text(
+                  widget.account.stallType,
+                  style: GoogleFonts.inter(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+              ],
               Text(
                 widget.account.location,
                 style: GoogleFonts.inter(

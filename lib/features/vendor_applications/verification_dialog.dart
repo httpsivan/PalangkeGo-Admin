@@ -201,9 +201,9 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => _moreDocs(context),
+                    onPressed: processing ? null : _moreDocs,
                     icon: const Icon(Icons.document_scanner_outlined, size: 15),
-                    label: const Text('Request Addl. Docs'),
+                    label: const Text('Request Additional Documents'),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: semanticColors(context).subtleBorder),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -429,10 +429,23 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _item('BUSINESS NAME', 'Morales Artisan Crafts'),
-              _item('CATEGORY', widget.category),
+              _item('BUSINESS NAME', widget.stall),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('CATEGORY', style: TextStyle(fontSize: 8.5)),
+                    const SizedBox(height: 5),
+                    CategoryBadge(category: widget.category),
+                  ],
+                ),
+              ),
               _item('CONTACT NO.', '+63 921 555 0123'),
-              _item('EMAIL ADDRESS', 'antonio@crafts.com'),
+              _item(
+                'EMAIL ADDRESS',
+                '${widget.applicant.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '.')}@gmail.com',
+              ),
             ],
           ),
         ),
@@ -448,67 +461,17 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
             ),
             child: _item(
-              'REJECTION REASON',
+              widget.application!.status == ApplicationStatus.invalidDocs
+                  ? 'REQUIRED DOCUMENTS / NOTES'
+                  : 'REJECTION REASON',
               widget.application!.rejectionReason!,
             ),
           ),
         ],
-        const SizedBox(height: 14),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: colors.cardBackground,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colors.subtleBorder, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'INTERNAL WORKFLOW',
-                style: GoogleFonts.inter(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                  color: colors.secondaryText,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Schedule Site Inspection',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colors.primaryText,
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _appointment(context),
-                  icon: const Icon(Icons.calendar_month_outlined, size: 15),
-                  label: const Text('Set Appointment'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: colors.subtleBorder),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
+
   Widget _item(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 13),
         child: Column(
@@ -524,52 +487,77 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           ],
         ),
       );
-  Future<void> _appointment(BuildContext context) async {
-    final date = await showDatePicker(
-      context: context,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-    );
-    if (!context.mounted || date == null) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 10, minute: 0),
-    );
-    if (!context.mounted || time == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Inspection scheduled for ${shortDate.format(date)} at ${time.format(context)}.',
-        ),
-      ),
-    );
-  }
 
-  Future<void> _moreDocs(BuildContext context) async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Request additional documents'),
-        content: const Text(
-          'Choose the missing documents and add a message for the applicant.',
+  Future<void> _moreDocs() async {
+    final notes = TextEditingController();
+    try {
+      final value = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Request Additional Documents'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Specify the missing or updated documents required from the applicant:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notes,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText:
+                      'e.g. Please upload a clear Mayor\'s Permit and valid Sanitary Clearance...',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                notes.text.trim().isEmpty
+                    ? 'Additional documents required'
+                    : notes.text.trim(),
+              ),
+              child: const Text('Send Request'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      );
+      if (value == null || !mounted) return;
+      setState(() => processing = true);
+      if (widget.application != null) {
+        await ref.read(appDataProvider.notifier).updateApplication(
+              widget.id,
+              ApplicationStatus.invalidDocs,
+              rejectionReason: value,
+            );
+      }
+      if (widget.renewal != null) {
+        await ref
+            .read(appDataProvider.notifier)
+            .updateRenewal(widget.id, RenewalStatus.reviewing);
+      }
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Additional documents requested from ${widget.applicant}.',
+            ),
           ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                const SnackBar(content: Text('Document request sent.')),
-              );
-            },
-            child: const Text('Send request'),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } finally {
+      notes.dispose();
+    }
   }
 }

@@ -5,7 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/app_models.dart';
 import '../animations/animated_widgets.dart';
 import '../animations/app_motion.dart';
+import '../theme/category_colors.dart';
 import '../theme/theme_extensions.dart';
+
+export '../theme/category_colors.dart';
 
 AppSemanticColors semanticColors(BuildContext context) =>
     Theme.of(context).extension<AppSemanticColors>()!;
@@ -183,11 +186,13 @@ class PageHeader extends StatelessWidget {
     required this.subtitle,
     this.metrics = const [],
     this.tabs,
+    this.trailing,
   });
   final String title;
   final String subtitle;
   final List<MetricCardData> metrics;
   final Widget? tabs;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -204,28 +209,45 @@ class PageHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.plusJakartaSans(
-              color: colors.heroForeground,
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              color: colors.heroMuted,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w400,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: colors.heroForeground,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        color: colors.heroMuted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[
+                const SizedBox(width: 16),
+                trailing!,
+              ],
+            ],
           ),
           if (tabs != null) ...[const SizedBox(height: 22), tabs!],
           if (metrics.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _PageHeaderMetricRibbon(metrics: metrics),
+            PageHeaderMetricRibbon(metrics: metrics),
           ],
         ],
       ),
@@ -233,8 +255,8 @@ class PageHeader extends StatelessWidget {
   }
 }
 
-class _PageHeaderMetricRibbon extends StatelessWidget {
-  const _PageHeaderMetricRibbon({required this.metrics});
+class PageHeaderMetricRibbon extends StatelessWidget {
+  const PageHeaderMetricRibbon({super.key, required this.metrics});
   final List<MetricCardData> metrics;
 
   @override
@@ -263,12 +285,15 @@ class _PageHeaderMetricRibbon extends StatelessWidget {
               padding: const EdgeInsets.all(10),
               itemCount: metrics.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: constraints.maxWidth >= 450 ? 2 : 1,
+                crossAxisCount: constraints.maxWidth >= 450
+                    ? (metrics.length > 4 ? 3 : 2)
+                    : 1,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
                 mainAxisExtent: 68,
               ),
-              itemBuilder: (context, i) => _PageHeaderMetricTile(data: metrics[i]),
+              itemBuilder: (context, i) =>
+                  PageHeaderMetricTile(data: metrics[i]),
             );
           }
           return IntrinsicHeight(
@@ -276,7 +301,7 @@ class _PageHeaderMetricRibbon extends StatelessWidget {
               children: [
                 for (int i = 0; i < metrics.length; i++) ...[
                   Expanded(
-                    child: _PageHeaderMetricTile(data: metrics[i]),
+                    child: PageHeaderMetricTile(data: metrics[i]),
                   ),
                   if (i < metrics.length - 1)
                     VerticalDivider(
@@ -294,8 +319,8 @@ class _PageHeaderMetricRibbon extends StatelessWidget {
   }
 }
 
-class _PageHeaderMetricTile extends StatelessWidget {
-  const _PageHeaderMetricTile({required this.data});
+class PageHeaderMetricTile extends StatelessWidget {
+  const PageHeaderMetricTile({super.key, required this.data});
   final MetricCardData data;
 
   @override
@@ -333,12 +358,13 @@ class _PageHeaderMetricTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   AnimatedCounter(
                     value: data.value,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: colors.primaryText,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
+                    style: data.valueStyle ??
+                        GoogleFonts.plusJakartaSans(
+                          color: colors.primaryText,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
                   ),
                 ],
               ),
@@ -667,26 +693,60 @@ class FilterButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => AnimatedButtonFeedback(
-        enabled: onTap != null,
-        child: OutlinedButton.icon(
-          onPressed: onTap,
-          icon: Icon(icon, size: 15),
-          label: Text(label, style: const TextStyle(fontSize: 11)),
-          style: OutlinedButton.styleFrom(
-            foregroundColor:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: .76),
-            side: BorderSide(color: semanticColors(context).subtleBorder),
-            backgroundColor: semanticColors(context).hoverSurface,
-            minimumSize: const Size(0, 38),
-            padding: const EdgeInsets.symmetric(horizontal: 11),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(9),
-            ),
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final isCategory = CategoryColors.isCategory(label);
+    final categoryStyle = isCategory ? CategoryColors.get(label) : null;
+
+    return AnimatedButtonFeedback(
+      enabled: onTap != null,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: categoryStyle?.text ??
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: .76),
+          side: BorderSide(
+            color: categoryStyle?.border ?? colors.subtleBorder,
+          ),
+          backgroundColor: categoryStyle?.background ?? colors.hoverSurface,
+          minimumSize: const Size(0, 38),
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9),
           ),
         ),
-      );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isCategory) ...[
+              CategoryDot(category: label, size: 7),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isCategory ? FontWeight.w700 : FontWeight.normal,
+                color: categoryStyle?.text,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Icon(
+              icon,
+              size: 15,
+              color: categoryStyle?.text ??
+                  Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: .76),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class FilterMenuButton extends StatelessWidget {
@@ -711,8 +771,29 @@ class FilterMenuButton extends StatelessWidget {
             MenuItemButton(
               onPressed: () => onSelected(value),
               child: SizedBox(
-                width: 140,
-                child: Text(value, style: const TextStyle(fontSize: 12)),
+                width: 145,
+                child: Row(
+                  children: [
+                    if (CategoryColors.isCategory(value)) ...[
+                      CategoryDot(category: value, size: 7.5),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: CategoryColors.isCategory(value)
+                              ? CategoryColors.get(value).text
+                              : null,
+                          fontWeight: CategoryColors.isCategory(value)
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],

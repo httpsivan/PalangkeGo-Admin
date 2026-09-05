@@ -354,4 +354,37 @@ class Announcement {
   final int recipientCount;
   final int deliveredCount;
   final int failedCount;
+
+  Announcement copyWith({
+    String? id,
+    String? title,
+    String? summary,
+    String? audience,
+    DateTime? createdAt,
+    bool? isDraft,
+    String? notificationType,
+    String? state,
+    DateTime? scheduledAt,
+    DateTime? expiresAt,
+    String? createdBy,
+    int? recipientCount,
+    int? deliveredCount,
+    int? failedCount,
+  }) =>
+      Announcement(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        summary: summary ?? this.summary,
+        audience: audience ?? this.audience,
+        createdAt: createdAt ?? this.createdAt,
+        isDraft: isDraft ?? this.isDraft,
+        notificationType: notificationType ?? this.notificationType,
+        state: state ?? this.state,
+        scheduledAt: scheduledAt ?? this.scheduledAt,
+        expiresAt: expiresAt ?? this.expiresAt,
+        createdBy: createdBy ?? this.createdBy,
+        recipientCount: recipientCount ?? this.recipientCount,
+        deliveredCount: deliveredCount ?? this.deliveredCount,
+        failedCount: failedCount ?? this.failedCount,
+      );
 }

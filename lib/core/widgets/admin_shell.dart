@@ -17,10 +17,10 @@ class AdminShell extends ConsumerWidget {
   static const navItems = [
     ('Overview', '/overview', Icons.home_outlined),
     ('Accounts', '/accounts', Icons.people_outline_rounded),
-    ('Vendor Application', '/applications', Icons.verified_user_outlined),
-    ('Renewal', '/renewal', Icons.campaign_outlined),
+    ('Stall Holder Application', '/applications', Icons.verified_user_outlined),
+    ('Renewal', '/renewal', Icons.autorenew_rounded),
     ('Complaint', '/reports', Icons.report_problem_outlined),
-    ('Audit Log', '/audit-log', Icons.history_rounded),
+    ('Announcements', '/announcements', Icons.campaign_rounded),
   ];
 
   @override

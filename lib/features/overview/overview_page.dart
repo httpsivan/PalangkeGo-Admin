@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/utils/formatters.dart';
-import '../../core/animations/animated_widgets.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/mock_data.dart';
@@ -22,12 +21,20 @@ class _PanelState {
     required this.title,
     this.isFullWidth = false,
     this.isExpanded = false,
-  });
+    bool? defaultFullWidth,
+    bool? defaultExpanded,
+  })  : defaultFullWidth = defaultFullWidth ?? isFullWidth,
+        defaultExpanded = defaultExpanded ?? isExpanded;
 
   final OverviewPanelId id;
   final String title;
   bool isFullWidth;
   bool isExpanded;
+  final bool defaultFullWidth;
+  final bool defaultExpanded;
+
+  bool get isZoomed =>
+      isFullWidth != defaultFullWidth || isExpanded != defaultExpanded;
 }
 
 class OverviewPage extends ConsumerStatefulWidget {
@@ -112,8 +119,14 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               ),
             ),
           );
+          final kycActionItems = data.applications
+              .where((item) => item.status == ApplicationStatus.reviewing)
+              .toList()
+            ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
           childWidget = _ApprovalTable(
-            items: data.applications
+            items: (kycActionItems.isNotEmpty
+                    ? kycActionItems
+                    : data.applications)
                 .take(state.isExpanded ? 6 : 3)
                 .toList(),
           );
@@ -128,15 +141,29 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           break;
 
         case OverviewPanelId.announcements:
-          headerAction = IconButton(
-            onPressed: () => showBlurredDialog(
-              context,
-              (context) => const AnnouncementDialog(),
-            ),
-            icon: const Icon(Icons.add_rounded, size: 18),
+          headerAction = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Announcement History',
+                onPressed: () => context.go('/announcements'),
+                icon: const Icon(Icons.history_rounded, size: 18),
+              ),
+              IconButton(
+                tooltip: 'New Announcement',
+                onPressed: () => showBlurredDialog(
+                  context,
+                  (context) => const AnnouncementDialog(),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 18),
+              ),
+            ],
           );
           childWidget = data.announcements.isNotEmpty
-              ? _Announcement(announcement: data.announcements.first)
+              ? _Announcement(
+                  announcement: data.announcements.first,
+                  totalCount: data.announcements.length,
+                )
               : Padding(
                   padding: const EdgeInsets.all(20),
                   child: Center(
@@ -181,11 +208,11 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
         final current = _panels[i];
         final isNextHalf = (i + 1 < _panels.length) && !_panels[i + 1].isFullWidth;
 
-        if (!isDesktop || current.isFullWidth || !isNextHalf) {
+        if (!isDesktop || current.isFullWidth) {
           widgets.add(buildPanelWidget(current, i));
           widgets.add(const SizedBox(height: 18));
           i++;
-        } else {
+        } else if (isNextHalf) {
           final next = _panels[i + 1];
           widgets.add(
             Row(
@@ -199,6 +226,19 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           );
           widgets.add(const SizedBox(height: 18));
           i += 2;
+        } else {
+          widgets.add(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: buildPanelWidget(current, i)),
+                const SizedBox(width: 18),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          );
+          widgets.add(const SizedBox(height: 18));
+          i++;
         }
       }
       return widgets;
@@ -401,22 +441,37 @@ class _ResizablePanelState extends State<_ResizablePanel> {
                 _isResizing = false;
               });
             },
+            onPanCancel: () {
+              setState(() {
+                _dragX = 0;
+                _dragY = 0;
+                _isResizing = false;
+              });
+            },
             child: Tooltip(
-              message: 'Drag corner horizontally for width, vertically for height.\nClick to toggle width.',
+              message: widget.state.isZoomed
+                  ? 'Click to return to original size'
+                  : 'Click to zoom\nDrag corner to resize',
               child: InkWell(
                 onTap: () {
-                  widget.state.isFullWidth = !widget.state.isFullWidth;
+                  if (widget.state.isZoomed) {
+                    widget.state.isFullWidth = widget.state.defaultFullWidth;
+                    widget.state.isExpanded = widget.state.defaultExpanded;
+                  } else {
+                    widget.state.isFullWidth = true;
+                    widget.state.isExpanded = true;
+                  }
                   widget.onStateChanged();
                 },
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
                     color: _isResizing
                         ? const Color(0xFF10B981)
                         : colors.cardBackground,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: _isResizing
                           ? const Color(0xFF059669)
@@ -431,33 +486,12 @@ class _ResizablePanelState extends State<_ResizablePanel> {
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.state.isFullWidth
-                            ? Icons.view_column_outlined
-                            : Icons.crop_square_rounded,
-                        size: 13,
-                        color: _isResizing ? Colors.white : colors.secondaryText,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        widget.state.isFullWidth ? 'SPAN 100%' : 'SPAN 50%',
-                        style: GoogleFonts.inter(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: _isResizing ? Colors.white : colors.secondaryText,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Icon(
-                        Icons.open_in_full_rounded,
-                        size: 11,
-                        color: _isResizing ? Colors.white : colors.secondaryText,
-                      ),
-                    ],
+                  child: Icon(
+                    widget.state.isZoomed
+                        ? Icons.close_fullscreen_rounded
+                        : Icons.open_in_full_rounded,
+                    size: 13,
+                    color: _isResizing ? Colors.white : colors.secondaryText,
                   ),
                 ),
               ),
@@ -505,17 +539,12 @@ class _OverviewHero extends ConsumerWidget {
         .where(
             (application) => application.status == ApplicationStatus.reviewing)
         .length;
-    final overviewNumberStyle = GoogleFonts.montserrat(
-      fontSize: 26,
-      fontWeight: FontWeight.w800,
-    );
     final metrics = [
       MetricCardData(
         value: '$activeVendors',
         label: 'Active Stall Holders',
         icon: Icons.storefront_rounded,
         accent: const Color(0xFF3B82F6),
-        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/accounts'),
       ),
       MetricCardData(
@@ -523,7 +552,6 @@ class _OverviewHero extends ConsumerWidget {
         label: 'Pending KYC Requests',
         icon: Icons.assignment_outlined,
         accent: const Color(0xFFF59E0B),
-        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/applications'),
       ),
       MetricCardData(
@@ -531,30 +559,27 @@ class _OverviewHero extends ConsumerWidget {
         label: 'Total Orders',
         icon: Icons.shopping_bag_outlined,
         accent: const Color(0xFFEF4444),
-        valueStyle: overviewNumberStyle,
       ),
       MetricCardData(
         value: _shortPeso(sales.netRevenue),
         label: 'Net Revenue',
         icon: Icons.payments_outlined,
         accent: const Color(0xFF10B981),
-        valueStyle: overviewNumberStyle,
       ),
       MetricCardData(
         value: '$activeCustomers',
         label: 'Active Customers',
         icon: Icons.trending_up_rounded,
         accent: const Color(0xFF8B5CF6),
-        valueStyle: overviewNumberStyle,
         onTap: () => context.go('/accounts'),
       ),
     ];
     final hour = DateTime.now().hour;
     final greeting = hour < 12
-        ? 'Good Morning,'
+        ? 'Marhay na Aga,'
         : hour < 18
-            ? 'Good Afternoon,'
-            : 'Good Evening,';
+            ? 'Marhay na Hapon,'
+            : 'Marhay na Banggi,';
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= 1080;
@@ -627,128 +652,11 @@ class _OverviewHero extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              _ExecutiveMetricRibbon(metrics: metrics),
+              PageHeaderMetricRibbon(metrics: metrics),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-class _ExecutiveMetricRibbon extends StatelessWidget {
-  const _ExecutiveMetricRibbon({required this.metrics});
-  final List<MetricCardData> metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = semanticColors(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.subtleBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 900;
-          if (!isWide) {
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(12),
-              itemCount: metrics.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: constraints.maxWidth >= 550 ? 3 : 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                mainAxisExtent: 80,
-              ),
-              itemBuilder: (context, i) => _ExecutiveMetricTile(data: metrics[i]),
-            );
-          }
-          return IntrinsicHeight(
-            child: Row(
-              children: [
-                for (int i = 0; i < metrics.length; i++) ...[
-                  Expanded(
-                    child: _ExecutiveMetricTile(data: metrics[i]),
-                  ),
-                  if (i < metrics.length - 1)
-                    VerticalDivider(
-                      width: 1,
-                      thickness: 1,
-                      color: colors.subtleBorder,
-                    ),
-                ],
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ExecutiveMetricTile extends StatelessWidget {
-  const _ExecutiveMetricTile({required this.data});
-  final MetricCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = semanticColors(context);
-    return InkWell(
-      onTap: data.onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  data.icon,
-                  size: 16,
-                  color: data.accent,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    data.label.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: colors.secondaryText,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            AnimatedCounter(
-              value: data.value,
-              style: GoogleFonts.plusJakartaSans(
-                color: colors.primaryText,
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -780,7 +688,7 @@ class _ApprovalTable extends StatelessWidget {
                 ),
               ),
               DataCell(Text(item.stallName)),
-              DataCell(StatusBadge(label: item.category, kind: BadgeKind.info)),
+              DataCell(CategoryBadge(category: item.category)),
               DataCell(
                 ApplicationStatusBadge(status: item.status),
               ),
@@ -879,48 +787,81 @@ class _ApprovalTable extends StatelessWidget {
 }
 
 class _Announcement extends StatelessWidget {
-  const _Announcement({required this.announcement});
+  const _Announcement({required this.announcement, this.totalCount = 1});
   final Announcement announcement;
+  final int totalCount;
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: semanticColors(context).hoverSurface,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  StatusBadge(
-                    label: announcement.audience,
-                    kind: BadgeKind.success,
-                  ),
-                  const Spacer(),
-                  Text(
-                    relativeTime(announcement.createdAt),
-                    style: const TextStyle(fontSize: 10),
-                  ),
-                ],
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () => context.go('/announcements'),
+              borderRadius: BorderRadius.circular(9),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: semanticColors(context).hoverSurface,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        StatusBadge(
+                          label: announcement.audience.toLowerCase() == 'vendors'
+                              ? 'Stall Holders'
+                              : announcement.audience,
+                          kind: switch (announcement.audience.toLowerCase()) {
+                            'vendors' || 'stall holders' => BadgeKind.info,
+                            'customers' => BadgeKind.warning,
+                            _ => BadgeKind.success,
+                          },
+                        ),
+                        const Spacer(),
+                        Text(
+                          relativeTime(announcement.createdAt),
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      announcement.title,
+                      style:
+                          const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      announcement.summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.5),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 10),
-              Text(
-                announcement.title,
-                style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () => context.go('/announcements'),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 13),
+                label: Text(
+                  'View all history ($totalCount) →',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                announcement.summary,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10.5),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 }
