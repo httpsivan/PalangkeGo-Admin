@@ -266,6 +266,7 @@ List<RenewalRequest> seedRenewals() {
         expiryDate: expiryDate,
         status: status,
         location: 'Block ${14 + index % 4} - Stall ${2 + index % 8}',
+        submittedAt: DateTime(2023, 10, 24).subtract(Duration(days: index)),
       );
     },
   );

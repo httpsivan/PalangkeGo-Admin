@@ -376,6 +376,7 @@ class FirebaseAdminService {
           ),
       status: status,
       location: (stall['location'] as String?) ?? 'Unassigned',
+      submittedAt: _asDate(data['submittedAt']) ?? _asDate(data['createdAt']),
     );
   }
 

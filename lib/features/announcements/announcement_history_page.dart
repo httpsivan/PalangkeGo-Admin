@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -140,10 +141,17 @@ class _AnnouncementHistoryPageState
             headerAction: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                FilterButton(
-                  label: 'Export CSV',
-                  icon: Icons.download_outlined,
-                  onTap: () => _export(filtered),
+                ExportButton(
+                  onExportPdf: () => _exportAnnouncements(
+                    allAnnouncements: announcements,
+                    filteredAnnouncements: filtered,
+                    format: ExportFormat.pdf,
+                  ),
+                  onExportExcel: () => _exportAnnouncements(
+                    allAnnouncements: announcements,
+                    filteredAnnouncements: filtered,
+                    format: ExportFormat.excel,
+                  ),
                 ),
               ],
             ),
@@ -353,37 +361,29 @@ class _AnnouncementHistoryPageState
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
+                                  TableActionIconButton(
                                     tooltip: 'View Details',
-                                    icon: const Icon(
-                                      Icons.visibility_outlined,
-                                      size: 16,
-                                    ),
+                                    icon: Icons.visibility_outlined,
                                     onPressed: () => _showDetails(item),
                                   ),
-                                  IconButton(
+                                  const SizedBox(width: 4),
+                                  TableActionIconButton(
                                     tooltip: 'Edit Announcement',
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 16,
-                                    ),
+                                    icon: Icons.edit_outlined,
                                     onPressed: () => _editAnnouncement(item),
                                   ),
-                                  IconButton(
+                                  const SizedBox(width: 4),
+                                  TableActionIconButton(
                                     tooltip: 'Duplicate as New',
-                                    icon: const Icon(
-                                      Icons.copy_rounded,
-                                      size: 15,
-                                    ),
-                                    onPressed: () => _duplicateAnnouncement(item),
+                                    icon: Icons.copy_rounded,
+                                    onPressed: () =>
+                                        _duplicateAnnouncement(item),
                                   ),
-                                  IconButton(
+                                  const SizedBox(width: 4),
+                                  TableActionIconButton(
                                     tooltip: 'Delete Announcement',
-                                    icon: Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 16,
-                                      color: colors.danger,
-                                    ),
+                                    icon: Icons.delete_outline_rounded,
+                                    color: colors.danger,
                                     onPressed: () => _confirmDelete(item),
                                   ),
                                 ],
@@ -492,40 +492,30 @@ class _AnnouncementHistoryPageState
     });
   }
 
-  void _export(List<Announcement> items) {
-    final csv = buildCsv([
-      [
-        'Announcement ID',
-        'Title',
-        'Summary / Body',
-        'Target Audience',
-        'Channel',
-        'Status',
-        'Author',
-        'Recipients',
-        'Delivered',
-        'Failed',
-        'Created Timestamp',
-      ],
-      ...items.map(
-        (a) => [
-          a.id.isEmpty ? '—' : a.id,
-          a.title,
-          a.summary,
-          a.audience,
-          a.notificationType,
-          a.isDraft ? 'Draft' : a.state,
-          a.createdBy,
-          a.recipientCount,
-          a.deliveredCount,
-          a.failedCount,
-          longDate.format(a.createdAt),
-        ],
-      ),
-    ]);
-    downloadCsv(csv, 'palengkego-announcement-history.csv');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Announcement history exported to CSV.')),
+  Future<void> _exportAnnouncements({
+    required List<Announcement> allAnnouncements,
+    required List<Announcement> filteredAnnouncements,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(selectedAudience);
+    filterLabels.add(selectedStatus);
+    filterLabels.add(selectedSort);
+
+    final doc = AnnouncementExportData.build(
+      allAnnouncements: allAnnouncements,
+      filteredAnnouncements: filteredAnnouncements,
+      activeFilters: filterLabels.join(' | '),
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
     );
   }
 }

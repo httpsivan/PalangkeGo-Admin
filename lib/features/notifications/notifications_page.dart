@@ -29,17 +29,58 @@ class NotificationsPage extends ConsumerWidget {
               headerAction: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
+                  OutlinedButton.icon(
                     onPressed: notifications.any((item) => !item.isRead)
                         ? controller.markAllRead
                         : null,
-                    child: const Text('Mark all as read'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.secondaryText,
+                      backgroundColor: colors.hoverSurface,
+                      side: BorderSide(color: colors.subtleBorder),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      minimumSize: const Size(0, 32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.done_all_rounded, size: 15),
+                    label: const Text(
+                      'Mark all as read',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  TextButton(
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
                     onPressed: notifications.any((item) => item.isRead)
                         ? controller.clearRead
                         : null,
-                    child: const Text('Clear read'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.secondaryText,
+                      backgroundColor: colors.hoverSurface,
+                      side: BorderSide(color: colors.subtleBorder),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      minimumSize: const Size(0, 32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.clear_all_rounded, size: 15),
+                    label: const Text(
+                      'Clear read',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -62,7 +103,7 @@ class NotificationsPage extends ConsumerWidget {
                             final typeColor = _typeColor(context, item.type);
                             return Material(
                               color: item.isRead
-                                  ? colors.elevatedSurface
+                                   ? colors.elevatedSurface
                                   : colors.selectedSurface,
                               borderRadius: BorderRadius.circular(10),
                               child: ListTile(
@@ -87,22 +128,21 @@ class NotificationsPage extends ConsumerWidget {
                                   style: TextStyle(color: colors.secondaryText),
                                 ),
                                 trailing: Wrap(
-                                  spacing: 2,
+                                  spacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     if (!item.isRead)
-                                      IconButton(
+                                      TableActionIconButton(
                                         tooltip: 'Mark as read',
+                                        icon: Icons.done_rounded,
                                         onPressed: () =>
                                             controller.markRead(item.id),
-                                        icon: const Icon(Icons.done_rounded,
-                                            size: 18),
                                       ),
-                                    IconButton(
+                                    TableActionIconButton(
                                       tooltip: 'Dismiss notification',
+                                      icon: Icons.close_rounded,
                                       onPressed: () =>
                                           controller.dismiss(item.id),
-                                      icon: const Icon(Icons.close_rounded,
-                                          size: 18),
                                     ),
                                   ],
                                 ),

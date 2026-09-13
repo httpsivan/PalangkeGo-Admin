@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -16,6 +18,7 @@ class ReportsPage extends ConsumerStatefulWidget {
 }
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
+  static const _viewedReportsPreference = 'reports_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
@@ -23,6 +26,48 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   String targetType = 'All Types';
   bool history = false;
   int page = 0;
+  late Set<String> _viewedReportIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewedReportIds = ref
+            .read(sharedPreferencesProvider)
+            .getStringList(_viewedReportsPreference)
+            ?.toSet() ??
+        <String>{};
+  }
+
+  void _markReportViewed(String id) {
+    if (!_viewedReportIds.add(id)) return;
+    setState(() {});
+    ref.read(sharedPreferencesProvider).setStringList(
+          _viewedReportsPreference,
+          _viewedReportIds.toList(),
+        );
+  }
+
+  String? _newestReportId(List<Report> values) {
+    final pending = values
+        .where((item) => item.status == ReportStatus.pending)
+        .toList();
+    if (pending.isEmpty) {
+      final active = values
+          .where((item) => item.status != ReportStatus.resolved)
+          .toList();
+      if (active.isEmpty) return null;
+      var newest = active.first;
+      for (final item in active.skip(1)) {
+        if (item.date.isAfter(newest.date)) newest = item;
+      }
+      return newest.id;
+    }
+    var newest = pending.first;
+    for (final item in pending.skip(1)) {
+      if (item.date.isAfter(newest.date)) newest = item;
+    }
+    return newest.id;
+  }
 
   bool _isStallHolderReport(Report item) =>
       item.type == 'Stall Holder' || item.type == 'Vendor';
@@ -92,7 +137,36 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               (selectedCategory == 'All Categories' ||
                   (item.category ?? 'FRUITS') == selectedCategory),
         )
-        .toList();
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final now = DateTime.now();
+    final todayReports = reports.where(
+      (item) =>
+          item.status != ReportStatus.resolved &&
+          item.date.year == now.year &&
+          item.date.month == now.month &&
+          item.date.day == now.day,
+    );
+    final todayPending = todayReports.where(
+      (item) => item.status == ReportStatus.pending,
+    );
+    final Set<String> newReportIds;
+    if (todayPending.isNotEmpty) {
+      newReportIds = todayPending
+          .map((item) => item.id)
+          .where((id) => !_viewedReportIds.contains(id))
+          .toSet();
+    } else if (todayReports.isNotEmpty) {
+      newReportIds = todayReports
+          .map((item) => item.id)
+          .where((id) => !_viewedReportIds.contains(id))
+          .toSet();
+    } else {
+      final newestId = _newestReportId(reports);
+      newReportIds = newestId != null && !_viewedReportIds.contains(newestId)
+          ? {newestId}
+          : <String>{};
+    }
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
 
@@ -216,10 +290,17 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       stallCategory = value;
                       _resetTable();
                     }),
-                    FilterButton(
-                      label: 'Export',
-                      icon: Icons.download_outlined,
-                      onTap: () => _export(values),
+                    ExportButton(
+                      onExportPdf: () => _exportComplaints(
+                        allReports: reports,
+                        filteredReports: values,
+                        format: ExportFormat.pdf,
+                      ),
+                      onExportExcel: () => _exportComplaints(
+                        allReports: reports,
+                        filteredReports: values,
+                        format: ExportFormat.excel,
+                      ),
                     ),
                   ],
                 ),
@@ -240,11 +321,15 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     ),
                     history: history,
                     values: values.skip(safePage * 10).take(10).toList(),
+                    newReportIds: newReportIds,
                     verticalController: tableScrollController,
-                    onOpen: (item) => showBlurredDialog(
-                      context,
-                      (context) => ReportReviewDialog(report: item),
-                    ),
+                    onOpen: (item) {
+                      _markReportViewed(item.id);
+                      showBlurredDialog(
+                        context,
+                        (context) => ReportReviewDialog(report: item),
+                      );
+                    },
                   ),
                 ),
                 if (values.isNotEmpty)
@@ -276,39 +361,30 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         onSelected: onChanged,
       );
 
-  void _export(List<Report> values) {
-    final csv = buildCsv([
-      [
-        'Type',
-        'Account / Issue',
-        'Submitted By',
-        'Reason',
-        'Category',
-        'Date',
-        'Status',
-        'Priority'
-      ],
-      ...values.map(
-        (item) => [
-          item.type == 'Vendor' ? 'Stall Holder' : item.type,
-          item.accountIssue,
-          item.submittedBy,
-          item.reason,
-          item.category ?? 'FRUITS',
-          item.date.toIso8601String(),
-          enumLabel(item.status),
-          enumLabel(item.priority),
-        ],
-      ),
-    ]);
-    final filename = targetType == 'Stall Holders'
-        ? 'palengkego-stall-holder-reports.csv'
-        : targetType == 'Customers'
-            ? 'palengkego-customer-reports.csv'
-            : 'palengkego-reports.csv';
-    downloadCsv(csv, filename);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reports CSV downloaded.')),
+  Future<void> _exportComplaints({
+    required List<Report> allReports,
+    required List<Report> filteredReports,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(targetType);
+    filterLabels.add(status);
+    if (stallCategory != 'All Categories') filterLabels.add(stallCategory);
+
+    final doc = ComplaintExportData.build(
+      allReports: allReports,
+      filteredReports: filteredReports,
+      activeFilters: filterLabels.join(' | '),
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
     );
   }
 }
@@ -318,96 +394,142 @@ class _ReportTable extends StatelessWidget {
     super.key,
     required this.history,
     required this.values,
+    required this.newReportIds,
     required this.verticalController,
     required this.onOpen,
   });
   final bool history;
   final List<Report> values;
+  final Set<String> newReportIds;
   final ScrollController verticalController;
   final ValueChanged<Report> onOpen;
   @override
   Widget build(BuildContext context) {
+    final colors = semanticColors(context);
     final rows = values
         .map(
-          (item) => DataRow(
-            onSelectChanged: (_) => onOpen(item),
-            cells: history
-                ? [
-                    DataCell(Text(item.type == 'Vendor' ? 'Stall Holder' : item.type)),
-                    DataCell(Text(item.id)),
-                    DataCell(
-                      Text(
-                        item.accountIssue,
-                        style: TextStyle(
-                          color: semanticColors(context).accent,
-                          fontWeight: FontWeight.w800,
+          (item) {
+            final isNew = !history && newReportIds.contains(item.id);
+            return DataRow(
+              color: isNew
+                  ? WidgetStateProperty.resolveWith<Color?>((states) {
+                      if (states.contains(WidgetState.hovered)) {
+                        return colors.info.withValues(alpha: 0.13);
+                      }
+                      return colors.info.withValues(alpha: 0.07);
+                    })
+                  : null,
+              onSelectChanged: (_) => onOpen(item),
+              cells: history
+                  ? [
+                      DataCell(Text(item.type == 'Vendor' ? 'Stall Holder' : item.type)),
+                      DataCell(Text(item.id)),
+                      DataCell(
+                        Text(
+                          item.accountIssue,
+                          style: TextStyle(
+                            color: colors.accent,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                    ),
-                    DataCell(Text(item.reason)),
-                    DataCell(
-                      StatusBadge(
-                        label: item.decision ?? 'Resolved',
-                        kind: item.decision == 'No Violation'
-                            ? BadgeKind.neutral
-                            : item.decision == 'Account Blocked'
-                                ? BadgeKind.danger
-                                : BadgeKind.warning,
-                      ),
-                    ),
-                    DataCell(Text(item.actionTaken ?? 'Resolved')),
-                    DataCell(
-                      Text(
-                        item.resolvedAt == null
-                            ? '—'
-                            : longDate.format(item.resolvedAt!),
-                      ),
-                    ),
-                    DataCell(Text(item.resolvedBy ?? 'Administrator')),
-                  ]
-                : [
-                    DataCell(Text(item.type == 'Vendor' ? 'Stall Holder' : item.type)),
-                    DataCell(
-                      Text(
-                        item.accountIssue,
-                        style: TextStyle(
-                          color: semanticColors(context).accent,
-                          fontWeight: FontWeight.w800,
+                      DataCell(Text(item.reason)),
+                      DataCell(
+                        StatusBadge(
+                          label: item.decision ?? 'Resolved',
+                          kind: item.decision == 'No Violation'
+                              ? BadgeKind.neutral
+                              : item.decision == 'Account Blocked'
+                                  ? BadgeKind.danger
+                                  : BadgeKind.warning,
                         ),
                       ),
-                    ),
-                    DataCell(Text(item.submittedBy)),
-                    DataCell(Text(item.reason)),
-                    DataCell(
-                      CategoryBadge(
-                        category: item.category ?? 'FRUITS',
-                      ),
-                    ),
-                    DataCell(Text('${item.date.month}/${item.date.day}/2023')),
-                    DataCell(
-                      StatusBadge(
-                        label: enumLabel(item.status),
-                        kind: item.status == ReportStatus.resolved
-                            ? BadgeKind.success
-                            : item.status == ReportStatus.underReview
-                                ? BadgeKind.info
-                                : BadgeKind.danger,
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        enumLabel(item.priority),
-                        style: TextStyle(
-                          color: item.priority == Priority.high
-                              ? semanticColors(context).danger
-                              : item.priority == Priority.medium
-                                  ? semanticColors(context).warning
-                                  : semanticColors(context).mutedText,
+                      DataCell(Text(item.actionTaken ?? 'Resolved')),
+                      DataCell(
+                        Text(
+                          item.resolvedAt == null
+                              ? '—'
+                              : longDate.format(item.resolvedAt!),
                         ),
                       ),
-                    ),
-                  ],
-          ),
+                      DataCell(Text(item.resolvedBy ?? 'Administrator')),
+                    ]
+                  : [
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isNew)
+                              Container(
+                                width: 3.5,
+                                height: 24,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  color: colors.info,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            Text(item.type == 'Vendor' ? 'Stall Holder' : item.type),
+                          ],
+                        ),
+                      ),
+                      DataCell(
+                        Wrap(
+                          spacing: 7,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              item.accountIssue,
+                              style: TextStyle(
+                                color: colors.accent,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (isNew)
+                              const StatusBadge(
+                                label: 'NEW',
+                                kind: BadgeKind.info,
+                              ),
+                          ],
+                        ),
+                      ),
+                      DataCell(Text(item.submittedBy)),
+                      DataCell(Text(item.reason)),
+                      DataCell(
+                        CategoryBadge(
+                          category: item.category ?? 'FRUITS',
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          '${item.date.month.toString().padLeft(2, '0')}/${item.date.day.toString().padLeft(2, '0')}/${item.date.year}',
+                        ),
+                      ),
+                      DataCell(
+                        StatusBadge(
+                          label: enumLabel(item.status),
+                          kind: item.status == ReportStatus.resolved
+                              ? BadgeKind.success
+                              : item.status == ReportStatus.underReview
+                                  ? BadgeKind.info
+                                  : BadgeKind.danger,
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          enumLabel(item.priority),
+                          style: TextStyle(
+                            color: item.priority == Priority.high
+                                ? colors.danger
+                                : item.priority == Priority.medium
+                                    ? colors.warning
+                                    : colors.mutedText,
+                          ),
+                        ),
+                      ),
+                    ],
+            );
+          },
         )
         .toList();
     return ScrollableDataTable(
@@ -495,23 +617,69 @@ class _ReportViewToggle extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   @override
-  Widget build(BuildContext context) => SegmentedButton<bool>(
-        segments: const [
-          ButtonSegment<bool>(
-            value: false,
-            label: Text('Review'),
-            icon: Icon(Icons.inbox_outlined, size: 15),
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return SegmentedButton<bool>(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const Color(0xFFD1FAE5);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return colors.hoverSurface;
+          }
+          return colors.cardBackground;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const Color(0xFF065F46);
+          }
+          return colors.secondaryText;
+        }),
+        textStyle: WidgetStateProperty.resolveWith((states) {
+          final isSelected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          );
+        }),
+        iconColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const Color(0xFF065F46);
+          }
+          return colors.secondaryText;
+        }),
+        side: WidgetStatePropertyAll(
+          BorderSide(color: colors.subtleBorder),
+        ),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-          ButtonSegment<bool>(
-            value: true,
-            label: Text('Resolved'),
-            icon: Icon(Icons.history_rounded, size: 15),
-          ),
-        ],
-        selected: {history},
-        showSelectedIcon: false,
-        onSelectionChanged: (selection) => onChanged(selection.first),
-      );
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        ),
+        elevation: const WidgetStatePropertyAll(0),
+        mouseCursor: const WidgetStatePropertyAll(SystemMouseCursors.click),
+      ),
+      segments: const [
+        ButtonSegment<bool>(
+          value: false,
+          label: Text('Review'),
+          icon: Icon(Icons.inbox_outlined, size: 15),
+        ),
+        ButtonSegment<bool>(
+          value: true,
+          label: Text('Resolved'),
+          icon: Icon(Icons.history_rounded, size: 15),
+        ),
+      ],
+      selected: {history},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) => onChanged(selection.first),
+    );
+  }
 }
 
 class _ReportTabs extends StatelessWidget {

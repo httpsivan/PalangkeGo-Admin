@@ -104,6 +104,47 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     }
   }
 
+  static Widget _buildFloatingDateRangePicker(
+      BuildContext context, Widget? child) {
+    final media = MediaQuery.of(context);
+    final dialogWidth = (media.size.width * 0.9).clamp(320.0, 440.0);
+    final dialogHeight = (media.size.height * 0.85).clamp(420.0, 560.0);
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: dialogWidth,
+          maxHeight: dialogHeight,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: MediaQuery(
+            data: media.copyWith(
+              size: Size(dialogWidth, dialogHeight),
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                      primary: const Color(0xFF10B981),
+                    ),
+                datePickerTheme: DatePickerThemeData(
+                  rangePickerShape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  rangePickerElevation: 12,
+                ),
+              ),
+              child: child!,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
     final range = await showDateRangePicker(
@@ -116,16 +157,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               start: now.subtract(const Duration(days: 7)),
               end: now,
             ),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: const Color(0xFF10B981),
-                ),
-          ),
-          child: child!,
-        );
-      },
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: _buildFloatingDateRangePicker,
     );
 
     if (range != null) {
@@ -248,7 +281,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                         Expanded(
                           flex: 27,
                           child: _buildTopSellersCard(
-                              colors, filteredOrders),
+                              colors, filteredOrders, allOrders: orders),
                         ),
                       ],
                     )
@@ -265,7 +298,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _buildTopSellersCard(
-                              colors, filteredOrders),
+                              colors, filteredOrders, allOrders: orders),
                         ),
                       ],
                     ),
@@ -276,7 +309,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                         colors, filteredOrders, summary.grossSales),
                     const SizedBox(height: 16),
                     _buildTopSellersCard(
-                        colors, filteredOrders),
+                        colors, filteredOrders, allOrders: orders),
                   ],
 
                   const SizedBox(height: 24),
@@ -702,7 +735,11 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   // TOP SELLERS CARD
   // ---------------------------------------------------------------------------
-  Widget _buildTopSellersCard(AppSemanticColors colors, List<Order> orders) {
+  Widget _buildTopSellersCard(
+    AppSemanticColors colors,
+    List<Order> orders, {
+    List<Order>? allOrders,
+  }) {
     // Dynamic calculation from current filtered orders
     final vendorMap = <String, (int count, double revenue)>{};
     for (final o in orders) {
@@ -712,9 +749,21 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     final sortedVendors = vendorMap.entries.toList()
       ..sort((a, b) => b.value.$2.compareTo(a.value.$2));
 
+    // Dynamic calculation for all-time orders
+    final allVendorMap = <String, (int count, double revenue)>{};
+    final effectiveAllOrders = allOrders ?? orders;
+    for (final o in effectiveAllOrders) {
+      final current = allVendorMap[o.vendorName] ?? (0, 0.0);
+      allVendorMap[o.vendorName] = (current.$1 + 1, current.$2 + o.total);
+    }
+    final sortedAllVendors = allVendorMap.entries.toList()
+      ..sort((a, b) => b.value.$2.compareTo(a.value.$2));
+
     final count = topSellersPeriod
         ? sortedVendors.length.clamp(0, 4)
-        : topSellerNames.length.clamp(0, 4);
+        : (sortedAllVendors.isNotEmpty
+            ? sortedAllVendors.length.clamp(0, 4)
+            : topSellerNames.length.clamp(0, 4));
 
     return Container(
       decoration: BoxDecoration(
@@ -809,6 +858,11 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
 
               if (topSellersPeriod) {
                 final entry = sortedVendors[index];
+                sellerName = entry.key;
+                orderSubtext = '${entry.value.$1} orders';
+                revenueText = _fmtMoney(entry.value.$2);
+              } else if (sortedAllVendors.isNotEmpty) {
+                final entry = sortedAllVendors[index];
                 sellerName = entry.key;
                 orderSubtext = '${entry.value.$1} orders';
                 revenueText = _fmtMoney(entry.value.$2);
@@ -970,6 +1024,12 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           FilterButton(
             label: 'Filters',
             icon: Icons.tune_rounded,
+            isActive: category != 'All Categories' ||
+                vendor != 'All Stall Holders' ||
+                orderStatus != null ||
+                paymentStatus != null ||
+                minimum.text.trim().isNotEmpty ||
+                maximum.text.trim().isNotEmpty,
             onTap: () => _showFilters(categories, vendors),
           ),
           FilterMenuButton(
@@ -1419,6 +1479,9 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                                     ? DateTimeRange(
                                         start: nextStart!, end: nextEnd!)
                                     : null,
+                                barrierColor:
+                                    Colors.black.withValues(alpha: 0.45),
+                                builder: _buildFloatingDateRangePicker,
                               );
                               if (range != null) {
                                 setDialogState(() {

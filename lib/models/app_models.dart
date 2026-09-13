@@ -217,6 +217,7 @@ class RenewalRequest {
     required this.expiryDate,
     required this.status,
     required this.location,
+    this.submittedAt,
   });
 
   final String id;
@@ -226,8 +227,13 @@ class RenewalRequest {
   final DateTime expiryDate;
   final RenewalStatus status;
   final String location;
+  final DateTime? submittedAt;
 
-  RenewalRequest copyWith({RenewalStatus? status}) => RenewalRequest(
+  RenewalRequest copyWith({
+    RenewalStatus? status,
+    DateTime? submittedAt,
+  }) =>
+      RenewalRequest(
         id: id,
         applicant: applicant,
         stallName: stallName,
@@ -235,6 +241,7 @@ class RenewalRequest {
         expiryDate: expiryDate,
         status: status ?? this.status,
         location: location,
+        submittedAt: submittedAt ?? this.submittedAt,
       );
 }
 

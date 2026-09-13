@@ -110,12 +110,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(flex: 51, child: _market(loginContext, false)),
-                      Expanded(flex: 49, child: _loginForm(loginContext)),
+                      Expanded(flex: 52, child: _market(loginContext, false)),
+                      Expanded(flex: 48, child: _loginForm(loginContext)),
                     ],
                   ),
                 );
           return Scaffold(
+            backgroundColor: const Color(0xFFF8FAFC),
             body: Form(
               key: formKey,
               child: Column(
@@ -134,8 +135,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _market(BuildContext context, bool compact) {
     return Container(
-      height: compact ? 245 : double.infinity,
-      constraints: const BoxConstraints(minHeight: 245),
+      height: compact ? 260 : double.infinity,
+      constraints: const BoxConstraints(minHeight: 260),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
@@ -146,42 +147,81 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           Positioned.fill(
             child: const _LoginSlideshow(images: _loginSlides),
           ),
+          // Subtle green overlay to maintain PalengkeGo identity while keeping market details crisp
           Positioned.fill(
-            child: ColoredBox(
-              color: semanticColors(context).heroBackground.withValues(alpha: .68),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.38, 0.68, 1.0],
+                  colors: [
+                    const Color(0xFF0F4A3C).withValues(alpha: 0.18),
+                    const Color(0xFF0B382D).withValues(alpha: 0.32),
+                    const Color(0xFF07271F).withValues(alpha: 0.62),
+                    const Color(0xFF041813).withValues(alpha: 0.88),
+                  ],
+                ),
+              ),
             ),
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              compact ? 28 : 36,
-              compact ? 34 : 150,
-              30,
-              30,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'NAGA CITY PEOPLE’S MALL',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: .7,
+          // Promotional text aligned at the bottom with high contrast and readable hierarchy
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 24 : 44,
+                24,
+                compact ? 24 : 44,
+                compact ? 24 : 48,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      'NAGA CITY PEOPLE’S MALL',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: compact ? 9.5 : 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 15),
-                Text(
-                  'Skip the Roam,\nOrder from Home.',
-                  style: GoogleFonts.radley(
-                    color: Colors.white,
-                    fontSize: 28,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
+                  SizedBox(height: compact ? 10 : 16),
+                  Text(
+                    'Skip the Roam,\nOrder from Home.',
+                    style: GoogleFonts.radley(
+                      color: Colors.white,
+                      fontSize: compact ? 26 : 36,
+                      height: 1.22,
+                      fontWeight: FontWeight.w600,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          offset: const Offset(0, 2),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -191,194 +231,479 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Widget _loginForm(BuildContext context) {
     final colors = semanticColors(context);
-    final form = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Welcome Back, Admin!',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              color: colors.accent,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
+    final isDesktop = MediaQuery.sizeOf(context).width >= 820;
+
+    final formContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Welcome Back, Admin!',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            color: colors.heroBackground,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Authorized personnel only',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: colors.secondaryText,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Center(child: _ModeBadge(firebase: ref.read(firebaseEnabledProvider))),
+        const SizedBox(height: 26),
+        Text(
+          'Email Address',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: colors.primaryText,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: email,
+          autofocus: true,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autofillHints: const [AutofillHints.email],
+          style: GoogleFonts.inter(
+            fontSize: 13.5,
+            color: colors.primaryText,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: 'admin@nagacity.gov.ph',
+            hintStyle: TextStyle(
+              color: colors.disabledText,
+              fontSize: 13,
             ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Authorized personnel only',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12),
-          ),
-          const SizedBox(height: 14),
-          _ModeBadge(firebase: ref.read(firebaseEnabledProvider)),
-          const SizedBox(height: 24),
-          const Text(
-            'Email Address',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: email,
-            autofocus: true,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.email],
-            decoration: const InputDecoration(
-              hintText: 'name@nagacity.gov.ph',
-              prefixIcon: Icon(Icons.mail_outline_rounded, size: 18),
+            prefixIcon: Icon(
+              Icons.mail_outline_rounded,
+              size: 19,
+              color: colors.secondaryText,
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Enter your email address';
-              }
-              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value.trim())) {
-                return 'Enter a valid email address';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Password',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: password,
-            obscureText: obscure,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.password],
-            onFieldSubmitted: (_) => submit(),
-            decoration: InputDecoration(
-              hintText: '••••••••',
-              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
-              suffixIcon: IconButton(
-                onPressed: () => setState(() => obscure = !obscure),
-                icon: Icon(
-                  obscure
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  size: 18,
-                ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.heroBackground,
+                width: 1.8,
               ),
             ),
-            validator: (value) =>
-                value == null || value.isEmpty ? 'Enter your password' : null,
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.danger,
+                width: 1.2,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.danger,
+                width: 1.8,
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              // "Keep me signed in" only exists in demo mode; in Firebase
-              // mode the Auth SDK persists the session itself.
-              if (!ref.read(firebaseEnabledProvider)) ...[
-                SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: Checkbox(
-                    value: keepSignedIn,
-                    onChanged: (value) =>
-                        setState(() => keepSignedIn = value ?? false),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Enter your administrator email';
+            }
+            if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                .hasMatch(value.trim())) {
+              return 'Enter a valid email address';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Password',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: colors.primaryText,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: password,
+          obscureText: obscure,
+          textInputAction: TextInputAction.done,
+          autofillHints: const [AutofillHints.password],
+          onFieldSubmitted: (_) => submit(),
+          style: GoogleFonts.inter(
+            fontSize: 13.5,
+            color: colors.primaryText,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: '••••••••',
+            hintStyle: TextStyle(
+              color: colors.disabledText,
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(
+              Icons.lock_outline_rounded,
+              size: 19,
+              color: colors.secondaryText,
+            ),
+            suffixIcon: Tooltip(
+              message: obscure ? 'Show password' : 'Hide password',
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: IconButton(
+                  onPressed: () => setState(() => obscure = !obscure),
+                  icon: Icon(
+                    obscure
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 19,
+                    color: colors.secondaryText,
                   ),
                 ),
-                const Text('Keep me signed in', style: TextStyle(fontSize: 11)),
-              ],
-              const Spacer(),
-              TextButton(
-                onPressed: () => _forgot(context),
-                child: const Text(
-                  'Forgot password?',
-                  style: TextStyle(fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-          if (error != null)
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: colors.dangerContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                error!,
-                style: TextStyle(color: colors.danger, fontSize: 11),
               ),
             ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 44,
-            child: AnimatedButtonFeedback(
-              enabled: !loading,
-              child: FilledButton(
-                onPressed: loading ? null : submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.heroBackground,
-                ),
-                child: loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.heroBackground,
+                width: 1.8,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.danger,
+                width: 1.2,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: colors.danger,
+                width: 1.8,
+              ),
+            ),
+          ),
+          validator: (value) =>
+              value == null || value.isEmpty ? 'Enter your password' : null,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (!ref.read(firebaseEnabledProvider))
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => keepSignedIn = !keepSignedIn),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Checkbox(
+                            value: keepSignedIn,
+                            activeColor: colors.heroBackground,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            side: const BorderSide(
+                              color: Color(0xFF94A3B8),
+                              width: 1.5,
+                            ),
+                            onChanged: (value) =>
+                                setState(() => keepSignedIn = value ?? false),
+                          ),
                         ),
-                      )
-                    : const Text('Log In'),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Keep me signed in',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: InkWell(
+                onTap: () => _forgot(context),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                  child: Text(
+                    'Forgot password?',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.heroBackground,
+                    ),
+                  ),
+                ),
               ),
             ),
+          ],
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.dangerContainer,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: colors.danger.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 16,
+                  color: colors.danger,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    error!,
+                    style: GoogleFonts.inter(
+                      color: colors.danger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => setState(() => error = null),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: colors.danger,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
         ],
-      );
+        const SizedBox(height: 22),
+        SizedBox(
+          height: 48,
+          child: AnimatedButtonFeedback(
+            enabled: !loading,
+            child: FilledButton(
+              onPressed: loading ? null : submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.heroBackground,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    colors.heroBackground.withValues(alpha: 0.6),
+                disabledForegroundColor: Colors.white70,
+                elevation: 1,
+                shadowColor: colors.heroBackground.withValues(alpha: 0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: loading
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Authenticating...',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Log In',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final card = Container(
+      constraints: const BoxConstraints(maxWidth: 440),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 36 : 24,
+        vertical: isDesktop ? 36 : 28,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: formContent,
+    );
+
     final panel = Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 42),
+      color: const Color(0xFFF8FAFC),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Center(
         child: SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: form,
-          ),
+          child: card,
         ),
       ),
     );
+
     final animatedPanel = FadeSlideIn(
       begin: const Offset(0, .035),
       child: panel,
     );
-    return MediaQuery.sizeOf(context).width >= 820
+
+    return isDesktop
         ? SizedBox.expand(child: animatedPanel)
         : animatedPanel;
   }
 
   Future<void> _forgot(BuildContext context) async {
     final controller = TextEditingController(text: email.text);
+    final colors = semanticColors(context);
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset password'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Administrator email'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          'Reset Password',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: colors.heroBackground,
+          ),
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter your administrator email address to receive password reset instructions.',
+                style: GoogleFonts.inter(
+                  fontSize: 12.5,
+                  color: colors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.inter(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Administrator Email',
+                  hintText: 'admin@nagacity.gov.ph',
+                  prefixIcon: const Icon(Icons.mail_outline_rounded, size: 18),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colors.secondaryText),
+            ),
           ),
           FilledButton(
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(this.context).showSnackBar(
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'If the account exists, a reset link has been sent.',
+                    'If the account exists, password reset instructions have been sent.',
                   ),
                 ),
               );
             },
-            child: const Text('Send link'),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.heroBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Send Reset Link'),
           ),
         ],
       ),
@@ -467,12 +792,226 @@ class _LoginSlideshowState extends State<_LoginSlideshow> {
 class _Header extends StatelessWidget {
   const _Header({required this.dark});
   final bool dark;
+
+  void _showInfoDialog(BuildContext context, String title, String content) {
+    final colors = semanticColors(context);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: colors.heroBackground,
+          ),
+        ),
+        content: SizedBox(
+          width: 460,
+          child: Text(
+            content,
+            style: GoogleFonts.inter(fontSize: 13.5, height: 1.55),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.heroBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInstallDialog(BuildContext context) {
+    final colors = semanticColors(context);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colors.heroBackground.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.download_rounded,
+                color: colors.heroBackground,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Install PalengkeGo',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: colors.heroBackground,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Access PalengkeGo quickly directly from your desktop or mobile device.',
+                style: GoogleFonts.inter(
+                  fontSize: 13.5,
+                  color: colors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.hoverSurface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.subtleBorder),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.desktop_windows_outlined,
+                      size: 20,
+                      color: colors.heroBackground,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Desktop Web App (PWA)',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors.primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Click the install icon in your browser address bar (Chrome, Edge) to install the PalengkeGo Admin portal as a standalone desktop app.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.hoverSurface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.subtleBorder),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.phone_android_outlined,
+                      size: 20,
+                      color: colors.heroBackground,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mobile Application',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: colors.primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Stallholder and customer Android APK builds are distributed through the MEPO Operations Office.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.heroBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Got It'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem({
+    required BuildContext context,
+    required String label,
+    required VoidCallback onTap,
+    required AppSemanticColors colors,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        hoverColor: colors.accent.withValues(alpha: 0.08),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: dark ? Colors.white : const Color(0xFF1E293B),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
-    final bg = dark ? colors.heroBackground : Theme.of(context).colorScheme.surface;
+    final bg = dark ? colors.heroBackground : Colors.white;
     return Container(
-      height: 78,
+      height: 72,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 36),
       decoration: BoxDecoration(
@@ -492,63 +1031,69 @@ class _Header extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  ),
-                  child: Text(
-                    'Home',
-                    style: TextStyle(
-                      color: dark ? Colors.white70 : colors.primaryText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                _navItem(
+                  context: context,
+                  label: 'Home',
+                  colors: colors,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You are on the PalengkeGo Admin Portal.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+                _navItem(
+                  context: context,
+                  label: 'About',
+                  colors: colors,
+                  onTap: () => _showInfoDialog(
+                    context,
+                    'About PalengkeGo',
+                    'PalengkeGo is the official digital market management platform for Naga City People’s Mall, developed in partnership with the Market Enterprise and Promotions Office (MEPO).\n\nIt streamlines stall holder operations, digital payments, market space management, and customer deliveries to bring the vibrant culture of the public market into the modern digital age.',
                   ),
                 ),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  ),
-                  child: Text(
-                    'About',
-                    style: TextStyle(
-                      color: dark ? Colors.white70 : colors.primaryText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  ),
-                  child: Text(
-                    'Contact',
-                    style: TextStyle(
-                      color: dark ? Colors.white70 : colors.primaryText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                const SizedBox(width: 4),
+                _navItem(
+                  context: context,
+                  label: 'Contact',
+                  colors: colors,
+                  onTap: () => _showInfoDialog(
+                    context,
+                    'Contact MEPO Office',
+                    'Market Enterprise and Promotions Office (MEPO)\nCity Government of Naga\n\n📍 Location: 2nd Floor, Naga City People’s Mall, Gen. Luna St., Naga City, Camarines Sur\n📞 Phone: (054) 881-2500 / local 1204\n📧 Email: mepo@nagacity.gov.ph\n🌐 Website: naga.gov.ph',
                   ),
                 ),
                 const SizedBox(width: 14),
                 FilledButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _showInstallDialog(context),
+                  icon: const Icon(
+                    Icons.download_rounded,
+                    size: 17,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    'Install App',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: colors.accent,
+                    backgroundColor: const Color(0xFF0F4A3C),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
                     ),
-                  ),
-                  icon: const Icon(Icons.get_app_rounded, size: 18),
-                  label: const Text(
-                    'Install App',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -562,65 +1107,141 @@ class _Header extends StatelessWidget {
 
 class _Footer extends StatelessWidget {
   const _Footer();
-  @override
-  Widget build(BuildContext context) => Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: semanticColors(context).subtleBorder),
+
+  void _showInfo(BuildContext context, String title, String content) {
+    final colors = semanticColors(context);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: colors.heroBackground,
           ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  ClipOval(
-                    child: Image.asset(
-                      'assets/images/naga_city_seal.png',
-                      width: 24,
-                      height: 24,
-                      fit: BoxFit.cover,
-                      semanticLabel: 'City of Naga official seal',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Naga City People’s Mall — Market Enterprise and Promotions Office (MEPO)',
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: .65),
-                      ),
-                    ),
-                  ),
-                ],
+        content: SizedBox(
+          width: 440,
+          child: Text(
+            content,
+            style: GoogleFonts.inter(fontSize: 13, height: 1.5),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.heroBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
-            if (MediaQuery.sizeOf(context).width > 560) ...[
-              TextButton(
-                onPressed: () {},
-                child: const Text('Privacy Policy',
-                    style: TextStyle(fontSize: 10)),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'Terms of Service',
-                  style: TextStyle(fontSize: 10),
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text('Support', style: TextStyle(fontSize: 10)),
-              ),
-            ],
-          ],
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 36),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: colors.subtleBorder),
         ),
-      );
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                ClipOval(
+                  child: Image.asset(
+                    'assets/images/naga_city_seal.png',
+                    width: 22,
+                    height: 22,
+                    fit: BoxFit.cover,
+                    semanticLabel: 'City of Naga official seal',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Naga City People’s Mall — Market Enterprise and Promotions Office (MEPO)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: colors.secondaryText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (MediaQuery.sizeOf(context).width > 680) ...[
+            _footerLink(
+              context,
+              'Privacy Policy',
+              () => _showInfo(
+                context,
+                'Privacy Policy',
+                'PalengkeGo and the Market Enterprise and Promotions Office (MEPO) of Naga City are committed to protecting administrator and constituent privacy. Access to this portal is logged and monitored for security and compliance with the Data Privacy Act of 2012.',
+              ),
+            ),
+            _footerLink(
+              context,
+              'Terms of Service',
+              () => _showInfo(
+                context,
+                'Terms of Service',
+                'This portal is strictly for authorized personnel of the Market Enterprise and Promotions Office (MEPO), City Government of Naga. Unauthorized access or misuse is subject to administrative sanctions and applicable Philippine laws.',
+              ),
+            ),
+            _footerLink(
+              context,
+              'Support',
+              () => _showInfo(
+                context,
+                'MEPO Administrator Support',
+                'For account issues, credential resets, or technical support, please contact the MEPO IT Operations Desk at admin-support@nagacity.gov.ph or local trunkline 1204.',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _footerLink(BuildContext context, String label, VoidCallback onTap) {
+    final colors = semanticColors(context);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        hoverColor: colors.selectedSurface,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: colors.secondaryText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Honest mode indicator — demo (seeded data) vs live Firebase. Civic

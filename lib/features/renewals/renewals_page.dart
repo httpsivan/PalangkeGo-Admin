@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -16,11 +18,33 @@ class RenewalsPage extends ConsumerStatefulWidget {
 }
 
 class _RenewalsPageState extends ConsumerState<RenewalsPage> {
+  static const _viewedRenewalsPreference = 'renewals_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   int page = 0;
+  late Set<String> _viewedRenewalIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewedRenewalIds = ref
+            .read(sharedPreferencesProvider)
+            .getStringList(_viewedRenewalsPreference)
+            ?.toSet() ??
+        <String>{};
+  }
+
+  void _markRenewalViewed(String id) {
+    if (!_viewedRenewalIds.add(id)) return;
+    setState(() {});
+    ref.read(sharedPreferencesProvider).setStringList(
+          _viewedRenewalsPreference,
+          _viewedRenewalIds.toList(),
+        );
+  }
+
   @override
   void dispose() {
     search.dispose();
@@ -81,8 +105,33 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
         if (aCompleted != bCompleted) {
           return aCompleted ? 1 : -1;
         }
-        return a.expiryDate.compareTo(b.expiryDate);
+        final aDate = a.submittedAt ?? a.expiryDate;
+        final bDate = b.submittedAt ?? b.expiryDate;
+        return bDate.compareTo(aDate);
       });
+    final now = DateTime.now();
+    final todayRenewals = renewals.where((item) {
+      final date = item.submittedAt;
+      return date != null &&
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    });
+    final todayReviewing = todayRenewals.where(
+      (item) => item.status == RenewalStatus.reviewing,
+    );
+    final Set<String> newRenewalIds;
+    if (todayReviewing.isNotEmpty) {
+      newRenewalIds = todayReviewing
+          .map((item) => item.id)
+          .where((id) => !_viewedRenewalIds.contains(id))
+          .toSet();
+    } else {
+      final newestId = _newestRenewalId(renewals);
+      newRenewalIds = newestId != null && !_viewedRenewalIds.contains(newestId)
+          ? {newestId}
+          : <String>{};
+    }
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
     final totalApproved = renewals
@@ -164,20 +213,31 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
                       stallCategory = value;
                       _resetTable();
                     }),
-                    FilterButton(
-                      label: 'Export',
-                      icon: Icons.download_outlined,
-                      onTap: () => _export(values),
+                    ExportButton(
+                      onExportPdf: () => _exportRenewals(
+                        allRenewals: renewals,
+                        filteredRenewals: values,
+                        format: ExportFormat.pdf,
+                      ),
+                      onExportExcel: () => _exportRenewals(
+                        allRenewals: renewals,
+                        filteredRenewals: values,
+                        format: ExportFormat.excel,
+                      ),
                     ),
                   ],
                 ),
                 _Table(
                   values: values.skip(safePage * 10).take(10).toList(),
+                  newRenewalIds: newRenewalIds,
                   verticalController: tableScrollController,
-                  open: (v) => showBlurredDialog(
-                    context,
-                    (context) => VerificationDialog.renewal(v),
-                  ),
+                  open: (v) {
+                    _markRenewalViewed(v.id);
+                    showBlurredDialog(
+                      context,
+                      (context) => VerificationDialog.renewal(v),
+                    );
+                  },
                 ),
                 if (values.isNotEmpty)
                   PaginationBar(
@@ -208,30 +268,29 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
         onSelected: onChanged,
       );
 
-  void _export(List<RenewalRequest> values) {
-    final csv = buildCsv([
-      [
-        'Application ID',
-        'Applicant',
-        'Stall Name',
-        'Category',
-        'Expiry Date',
-        'KYC Status',
-      ],
-      ...values.map(
-        (item) => [
-          item.id,
-          item.applicant,
-          item.stallName,
-          item.category,
-          item.expiryDate.toIso8601String(),
-          enumLabel(item.status),
-        ],
-      ),
-    ]);
-    downloadCsv(csv, 'palengkego-renewals.csv');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Renewals CSV downloaded.')),
+  Future<void> _exportRenewals({
+    required List<RenewalRequest> allRenewals,
+    required List<RenewalRequest> filteredRenewals,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(status);
+    filterLabels.add(stallCategory);
+
+    final doc = RenewalExportData.build(
+      allRenewals: allRenewals,
+      filteredRenewals: filteredRenewals,
+      activeFilters: filterLabels.join(' | '),
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
     );
   }
 
@@ -240,39 +299,91 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
         RenewalStatus.reviewing => 'Reviewing',
         RenewalStatus.expired => 'Expired',
       };
+
+  String? _newestRenewalId(List<RenewalRequest> values) {
+    final reviewing = values
+        .where((item) => item.status == RenewalStatus.reviewing)
+        .toList();
+    if (reviewing.isEmpty) return null;
+    var newest = reviewing.first;
+    for (final item in reviewing.skip(1)) {
+      final itemDate = item.submittedAt ?? item.expiryDate;
+      final newestDate = newest.submittedAt ?? newest.expiryDate;
+      if (itemDate.isAfter(newestDate)) newest = item;
+    }
+    return newest.id;
+  }
 }
 
 class _Table extends StatelessWidget {
   const _Table({
     required this.values,
+    required this.newRenewalIds,
     required this.verticalController,
     required this.open,
   });
   final List<RenewalRequest> values;
+  final Set<String> newRenewalIds;
   final ScrollController verticalController;
   final ValueChanged<RenewalRequest> open;
   @override
   Widget build(BuildContext context) {
+    final colors = semanticColors(context);
     final rows = values.map((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
+      final isNew = newRenewalIds.contains(v.id);
       return DataRow(
+        color: isNew
+            ? WidgetStateProperty.resolveWith<Color?>((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return colors.info.withValues(alpha: 0.13);
+                }
+                return colors.info.withValues(alpha: 0.07);
+              })
+            : null,
         onSelectChanged: (_) => open(v),
         cells: [
           DataCell(
-            Text(
-              v.id,
-              style: TextStyle(
-                color: semanticColors(context).accent,
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isNew)
+                  Container(
+                    width: 3.5,
+                    height: 24,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: colors.info,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                Text(
+                  v.id,
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
           DataCell(
-            Row(
+            Wrap(
+              spacing: 7,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 AvatarCircle(name: v.applicant, size: 28),
-                const SizedBox(width: 7),
-                Text(v.applicant),
+                Text(
+                  v.applicant,
+                  style: isNew
+                      ? const TextStyle(fontWeight: FontWeight.w700)
+                      : null,
+                ),
+                if (isNew)
+                  const StatusBadge(
+                    label: 'NEW',
+                    kind: BadgeKind.info,
+                  ),
               ],
             ),
           ),
@@ -289,8 +400,8 @@ class _Table extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 9,
                     color: days < 0
-                        ? semanticColors(context).danger
-                        : semanticColors(context).warning,
+                        ? colors.danger
+                        : colors.warning,
                   ),
                 ),
               ],
@@ -307,7 +418,7 @@ class _Table extends StatelessWidget {
             ),
           ),
           DataCell(
-            TextButton(onPressed: () => open(v), child: const Text('Review')),
+            TableActionReviewButton(onPressed: () => open(v)),
           ),
         ],
       );

@@ -229,7 +229,8 @@ void main() {
     final controller = AppDataController(preferences, firebaseEnabled: false);
     final report = controller.state.reports.firstWhere(
       (item) =>
-          item.type == 'Vendor' && item.accountIssue == 'Diosa Fruit Stand',
+          (item.type == 'Vendor' || item.type == 'Stall Holder') &&
+          item.accountIssue == 'Diosa Fruit Stand',
     );
 
     final error = await controller.blockAccountFromReport(
@@ -276,7 +277,9 @@ void main() {
     final controller = AppDataController(preferences, firebaseEnabled: false);
     final vendor = controller.state.vendors.first;
     final report = controller.state.reports.firstWhere(
-      (item) => item.type == 'Vendor' && item.accountIssue == vendor.name,
+      (item) =>
+          (item.type == 'Vendor' || item.type == 'Stall Holder') &&
+          item.accountIssue == vendor.name,
     );
 
     final suspensionError = await controller.createSuspension(

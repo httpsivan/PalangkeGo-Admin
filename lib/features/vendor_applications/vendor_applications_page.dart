@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/theme_controller.dart';
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -111,12 +112,29 @@ class _VendorApplicationsPageState
         }
         return b.submittedAt.compareTo(a.submittedAt);
       });
-    final newestApplicationId = _newestId(data.applications);
-    final newApplicationId = _viewedApplicationIds.contains(
-      newestApplicationId,
-    )
-        ? null
-        : newestApplicationId;
+    final now = DateTime.now();
+    final todayApplications = data.applications.where(
+      (item) =>
+          item.submittedAt.year == now.year &&
+          item.submittedAt.month == now.month &&
+          item.submittedAt.day == now.day,
+    );
+    final todayReviewing = todayApplications.where(
+      (item) => item.status == ApplicationStatus.reviewing,
+    );
+    final Set<String> newApplicationIds;
+    if (todayReviewing.isNotEmpty) {
+      newApplicationIds = todayReviewing
+          .map((item) => item.id)
+          .where((id) => !_viewedApplicationIds.contains(id))
+          .toSet();
+    } else {
+      final newestApplicationId = _newestId(data.applications);
+      newApplicationIds = newestApplicationId != null &&
+              !_viewedApplicationIds.contains(newestApplicationId)
+          ? {newestApplicationId}
+          : <String>{};
+    }
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
 
@@ -132,13 +150,6 @@ class _VendorApplicationsPageState
             item.status == ApplicationStatus.invalidDocs)
         .length;
 
-    final now = DateTime.now();
-    final todayApplications = data.applications.where(
-      (item) =>
-          item.submittedAt.year == now.year &&
-          item.submittedAt.month == now.month &&
-          item.submittedAt.day == now.day,
-    );
     final int newTodayCount;
     if (todayApplications.isNotEmpty) {
       newTodayCount = todayApplications.length;
@@ -225,16 +236,23 @@ class _VendorApplicationsPageState
                       stallCategory = value;
                       _resetTable();
                     }),
-                    FilterButton(
-                      label: 'Export',
-                      icon: Icons.download_outlined,
-                      onTap: () => _export(values),
+                    ExportButton(
+                      onExportPdf: () => _exportApplications(
+                        allApplications: data.applications,
+                        filteredApplications: values,
+                        format: ExportFormat.pdf,
+                      ),
+                      onExportExcel: () => _exportApplications(
+                        allApplications: data.applications,
+                        filteredApplications: values,
+                        format: ExportFormat.excel,
+                      ),
                     ),
                   ],
                 ),
                 _ApplicationTable(
                   values: values.skip(safePage * 10).take(10).toList(),
-                  newestId: newApplicationId,
+                  newApplicationIds: newApplicationIds,
                   verticalController: tableScrollController,
                   onOpen: (item) {
                     _markApplicationViewed(item.id);
@@ -273,30 +291,29 @@ class _VendorApplicationsPageState
         onSelected: onChanged,
       );
 
-  void _export(List<VendorApplication> values) {
-    final csv = buildCsv([
-      [
-        'Application ID',
-        'Applicant',
-        'Stall Name',
-        'Category',
-        'Date Submitted',
-        'KYC Status',
-      ],
-      ...values.map(
-        (item) => [
-          item.id,
-          item.applicant,
-          item.stallName,
-          item.category,
-          item.submittedAt.toIso8601String(),
-          enumLabel(item.status),
-        ],
-      ),
-    ]);
-    downloadCsv(csv, 'palengkego-stall-holder-applications.csv');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Stall holder applications CSV downloaded.')),
+  Future<void> _exportApplications({
+    required List<VendorApplication> allApplications,
+    required List<VendorApplication> filteredApplications,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(status);
+    filterLabels.add(stallCategory);
+
+    final doc = ApplicationExportData.build(
+      allApplications: allApplications,
+      filteredApplications: filteredApplications,
+      activeFilters: filterLabels.join(' | '),
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
     );
   }
 
@@ -316,59 +333,94 @@ class _VendorApplicationsPageState
 class _ApplicationTable extends StatelessWidget {
   const _ApplicationTable({
     required this.values,
-    required this.newestId,
+    required this.newApplicationIds,
     required this.verticalController,
     required this.onOpen,
   });
   final List<VendorApplication> values;
-  final String? newestId;
+  final Set<String> newApplicationIds;
   final ScrollController verticalController;
   final ValueChanged<VendorApplication> onOpen;
   @override
   Widget build(BuildContext context) {
+    final colors = semanticColors(context);
     final rows = values
         .map(
-          (item) => DataRow(
-            onSelectChanged: (_) => onOpen(item),
-            cells: [
-              DataCell(
-                Text(
-                  item.id,
-                  style: TextStyle(
-                    color: semanticColors(context).accent,
-                    fontWeight: FontWeight.w800,
+          (item) {
+            final isNew = newApplicationIds.contains(item.id);
+            return DataRow(
+              color: isNew
+                  ? WidgetStateProperty.resolveWith<Color?>((states) {
+                      if (states.contains(WidgetState.hovered)) {
+                        return colors.info.withValues(alpha: 0.13);
+                      }
+                      return colors.info.withValues(alpha: 0.07);
+                    })
+                  : null,
+              onSelectChanged: (_) => onOpen(item),
+              cells: [
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isNew)
+                        Container(
+                          width: 3.5,
+                          height: 24,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: colors.info,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      Text(
+                        item.id,
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              DataCell(
-                Wrap(
-                  spacing: 7,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    AvatarCircle(name: item.applicant, size: 28),
-                    Text(item.applicant),
-                    if (item.id == newestId) const _NewApplicationIndicator(),
-                  ],
+                DataCell(
+                  Wrap(
+                    spacing: 7,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      AvatarCircle(name: item.applicant, size: 28),
+                      Text(
+                        item.applicant,
+                        style: isNew
+                            ? const TextStyle(fontWeight: FontWeight.w700)
+                            : null,
+                      ),
+                      if (isNew)
+                        const StatusBadge(
+                          label: 'NEW',
+                          kind: BadgeKind.info,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              DataCell(Text(item.stallName)),
-              DataCell(CategoryBadge(category: item.category)),
-              DataCell(
-                Text(
-                  '${item.submittedAt.month.toString().padLeft(2, '0')}/${item.submittedAt.day.toString().padLeft(2, '0')}/${item.submittedAt.year}',
+                DataCell(Text(item.stallName)),
+                DataCell(CategoryBadge(category: item.category)),
+                DataCell(
+                  Text(
+                    '${item.submittedAt.month.toString().padLeft(2, '0')}/${item.submittedAt.day.toString().padLeft(2, '0')}/${item.submittedAt.year}',
+                  ),
                 ),
-              ),
-              DataCell(
-                ApplicationStatusBadge(status: item.status),
-              ),
-              DataCell(
-                TextButton(
-                  onPressed: () => onOpen(item),
-                  child: const Text('Review'),
+                DataCell(
+                  ApplicationStatusBadge(status: item.status),
                 ),
-              ),
-            ],
-          ),
+                DataCell(
+                  TableActionReviewButton(
+                    onPressed: () => onOpen(item),
+                  ),
+                ),
+              ],
+            );
+          },
         )
         .toList();
     return ScrollableDataTable(
@@ -406,33 +458,6 @@ class _ApplicationTable extends StatelessWidget {
         ),
       ],
       rows: rows,
-    );
-  }
-}
-
-class _NewApplicationIndicator extends StatelessWidget {
-  const _NewApplicationIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    final color = semanticColors(context).info;
-    return Tooltip(
-      message: 'New application',
-      child: Container(
-        width: 9,
-        height: 9,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: .3),
-              blurRadius: 5,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

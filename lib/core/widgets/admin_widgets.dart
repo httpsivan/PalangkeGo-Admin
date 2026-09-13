@@ -627,12 +627,32 @@ class Toolbar extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        style: TextStyle(
+          fontSize: 12,
+          color: semanticColors(context).primaryText,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search_rounded, size: 18),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 18,
+            color: semanticColors(context).secondaryText,
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 36, minHeight: 36),
           hintText: searchHint,
+          hintStyle: TextStyle(
+            color: semanticColors(context).mutedText,
+            fontSize: 12,
+          ),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
+                  tooltip: 'Clear search',
+                  splashRadius: 16,
                   onPressed: () {
                     controller.clear();
                     onChanged('');
@@ -649,11 +669,26 @@ class Toolbar extends StatelessWidget {
       children: [
         ...trailing,
         if (onClear != null)
-          TextButton(
-            onPressed: onClear,
-            child: const Text(
-              'Clear Filters',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          AnimatedButtonFeedback(
+            child: OutlinedButton.icon(
+              onPressed: onClear,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: semanticColors(context).secondaryText,
+                backgroundColor: semanticColors(context).hoverSurface,
+                side: BorderSide(
+                  color: semanticColors(context).subtleBorder,
+                ),
+                minimumSize: const Size(0, 38),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9),
+                ),
+              ),
+              icon: const Icon(Icons.restart_alt_rounded, size: 14),
+              label: const Text(
+                'Clear Filters',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
       ],
@@ -689,10 +724,12 @@ class FilterButton extends StatelessWidget {
     required this.label,
     this.icon = Icons.keyboard_arrow_down_rounded,
     this.onTap,
+    this.isActive = false,
   });
   final String label;
   final IconData icon;
   final VoidCallback? onTap;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
@@ -700,17 +737,24 @@ class FilterButton extends StatelessWidget {
     final isCategory = CategoryColors.isCategory(label);
     final categoryStyle = isCategory ? CategoryColors.get(label) : null;
 
+    final effectiveBackground = categoryStyle?.background ??
+        (isActive
+            ? colors.hoverSurface.withValues(alpha: 0.95)
+            : colors.hoverSurface);
+    final effectiveBorder = categoryStyle?.border ??
+        (isActive
+            ? colors.secondaryText.withValues(alpha: 0.45)
+            : colors.subtleBorder);
+
     return AnimatedButtonFeedback(
       enabled: onTap != null,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: categoryStyle?.text ??
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: .76),
-          side: BorderSide(
-            color: categoryStyle?.border ?? colors.subtleBorder,
-          ),
-          backgroundColor: categoryStyle?.background ?? colors.hoverSurface,
+              (isActive ? colors.primaryText : colors.secondaryText),
+          side: BorderSide(color: effectiveBorder),
+          backgroundColor: effectiveBackground,
           minimumSize: const Size(0, 38),
           padding: const EdgeInsets.symmetric(horizontal: 11),
           shape: RoundedRectangleBorder(
@@ -728,8 +772,11 @@ class FilterButton extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isCategory ? FontWeight.w700 : FontWeight.normal,
-                color: categoryStyle?.text,
+                fontWeight: (isCategory || isActive)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: categoryStyle?.text ??
+                    (isActive ? colors.primaryText : colors.secondaryText),
               ),
             ),
             const SizedBox(width: 5),
@@ -737,10 +784,7 @@ class FilterButton extends StatelessWidget {
               icon,
               size: 15,
               color: categoryStyle?.text ??
-                  Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: .76),
+                  (isActive ? colors.primaryText : colors.secondaryText),
             ),
           ],
         ),
@@ -764,51 +808,359 @@ class FilterMenuButton extends StatelessWidget {
   final IconData icon;
 
   @override
-  Widget build(BuildContext context) => MenuAnchor(
-        alignmentOffset: const Offset(0, 4),
-        menuChildren: [
-          for (final value in values)
-            MenuItemButton(
-              onPressed: () => onSelected(value),
-              child: SizedBox(
-                width: 145,
-                child: Row(
-                  children: [
-                    if (CategoryColors.isCategory(value)) ...[
-                      CategoryDot(category: value, size: 7.5),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: CategoryColors.isCategory(value)
-                              ? CategoryColors.get(value).text
-                              : null,
-                          fontWeight: CategoryColors.isCategory(value)
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final isDefault = label.startsWith('All ') ||
+        label == 'Newest First' ||
+        label == 'Stall Category' ||
+        label == 'Account Type';
+    final isActive = !isDefault && values.contains(label);
+
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 4),
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(colors.cardBackground),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: colors.subtleBorder),
+          ),
+        ),
+        elevation: const WidgetStatePropertyAll(6),
+        shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.08)),
+      ),
+      menuChildren: [
+        for (final value in values)
+          MenuItemButton(
+            onPressed: () => onSelected(value),
+            style: MenuItemButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 160),
+              child: Row(
+                children: [
+                  if (CategoryColors.isCategory(value)) ...[
+                    CategoryDot(category: value, size: 7.5),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: value == label
+                            ? (CategoryColors.isCategory(value)
+                                ? CategoryColors.get(value).text
+                                : colors.accent)
+                            : (CategoryColors.isCategory(value)
+                                ? CategoryColors.get(value).text
+                                : colors.primaryText),
+                        fontWeight: value == label
+                            ? FontWeight.w700
+                            : (CategoryColors.isCategory(value)
+                                ? FontWeight.w600
+                                : FontWeight.normal),
                       ),
                     ),
+                  ),
+                  if (value == label) ...[
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.check_rounded,
+                      size: 15,
+                      color: CategoryColors.isCategory(value)
+                          ? CategoryColors.get(value).text
+                          : colors.accent,
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
-        ],
-        builder: (context, controller, child) => FilterButton(
-          label: label,
-          icon: icon,
-          onTap: () {
-            if (controller.isOpen) {
-              controller.close();
-            } else {
-              controller.open();
+          ),
+      ],
+      builder: (context, controller, child) => FilterButton(
+        label: label,
+        icon: icon,
+        isActive: isActive,
+        onTap: () {
+          if (controller.isOpen) {
+            controller.close();
+          } else {
+            controller.open();
+          }
+        },
+      ),
+    );
+  }
+}
+
+class ExportButton extends StatelessWidget {
+  const ExportButton({
+    super.key,
+    this.label = 'Export',
+    this.icon = Icons.download_rounded,
+    this.onTap,
+    this.onExportPdf,
+    this.onExportExcel,
+    this.tooltip = 'Export data',
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final VoidCallback? onExportPdf;
+  final VoidCallback? onExportExcel;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    final hasMenu = onExportPdf != null || onExportExcel != null;
+    final isEnabled = hasMenu || onTap != null;
+
+    if (hasMenu) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: PopupMenuButton<String>(
+          tooltip: tooltip,
+          enabled: isEnabled,
+          offset: const Offset(0, 42),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: colors.subtleBorder),
+          ),
+          color: Colors.white,
+          elevation: 6,
+          onSelected: (action) {
+            if (action == 'pdf') {
+              onExportPdf?.call();
+            } else if (action == 'excel') {
+              onExportExcel?.call();
             }
           },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'pdf',
+              height: 40,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      size: 16,
+                      color: Color(0xFFEF4444),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Export PDF',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: colors.primaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(height: 1),
+            PopupMenuItem(
+              value: 'excel',
+              height: 40,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.table_chart_outlined,
+                      size: 16,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Export Excel',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: colors.primaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: colors.hoverSurface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: colors.subtleBorder),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 15, color: colors.secondaryText),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: colors.secondaryText,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 14,
+                  color: colors.mutedText,
+                ),
+              ],
+            ),
+          ),
         ),
       );
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: AnimatedButtonFeedback(
+        enabled: isEnabled,
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            foregroundColor:
+                isEnabled ? colors.secondaryText : colors.disabledText,
+            backgroundColor: colors.hoverSurface,
+            side: BorderSide(
+              color: colors.subtleBorder,
+            ),
+            minimumSize: const Size(0, 38),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+            ),
+          ),
+          icon: Icon(icon, size: 15),
+          label: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: isEnabled ? colors.secondaryText : colors.disabledText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TableActionIconButton extends StatelessWidget {
+  const TableActionIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+    this.size = 32,
+    this.iconSize = 15,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: colors.hoverSurface,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          hoverColor: colors.selectedSurface,
+          child: Container(
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: colors.subtleBorder),
+            ),
+            child: Icon(
+              icon,
+              size: iconSize,
+              color: color ?? colors.secondaryText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TableActionReviewButton extends StatelessWidget {
+  const TableActionReviewButton({
+    super.key,
+    required this.onPressed,
+    this.label = 'Review',
+    this.tooltip = 'Review application',
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Tooltip(
+      message: tooltip,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colors.accent,
+          backgroundColor: colors.hoverSurface,
+          side: BorderSide(color: colors.subtleBorder),
+          minimumSize: const Size(0, 30),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class DataPanel extends StatelessWidget {
@@ -990,8 +1342,9 @@ class ScrollableDataTable extends StatelessWidget {
                   ),
                   headingTextStyle: GoogleFonts.inter(
                     color: semanticColors(context).secondaryText,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
                   ),
                   dataTextStyle: GoogleFonts.inter(
                     color: semanticColors(context).primaryText,

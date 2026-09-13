@@ -14,6 +14,7 @@ ThemeData buildLightTheme() {
 
   return base.copyWith(
     brightness: Brightness.light,
+    splashFactory: InkRipple.splashFactory,
     scaffoldBackgroundColor: const Color(0xFFF8FAFC),
     canvasColor: const Color(0xFFF8FAFC),
     cardColor: Colors.white,

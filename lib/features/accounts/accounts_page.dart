@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -257,10 +258,19 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 stallCategory = value;
                 _resetTable();
               }),
-              FilterButton(
-                label: 'Export',
-                icon: Icons.download_outlined,
-                onTap: () => _export(visible, 'stall-holders'),
+              ExportButton(
+                onExportPdf: () => _exportAccounts(
+                  allVendors: values,
+                  filteredVendors: visible,
+                  isCustomers: false,
+                  format: ExportFormat.pdf,
+                ),
+                onExportExcel: () => _exportAccounts(
+                  allVendors: values,
+                  filteredVendors: visible,
+                  isCustomers: false,
+                  format: ExportFormat.excel,
+                ),
               ),
             ],
           ),
@@ -322,10 +332,19 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 status = v;
                 _resetTable();
               }),
-              FilterButton(
-                label: 'Export',
-                icon: Icons.download_outlined,
-                onTap: () => _export(visible, 'customers'),
+              ExportButton(
+                onExportPdf: () => _exportAccounts(
+                  allCustomers: values,
+                  filteredCustomers: visible,
+                  isCustomers: true,
+                  format: ExportFormat.pdf,
+                ),
+                onExportExcel: () => _exportAccounts(
+                  allCustomers: values,
+                  filteredCustomers: visible,
+                  isCustomers: true,
+                  format: ExportFormat.excel,
+                ),
               ),
             ],
           ),
@@ -364,17 +383,40 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         onSelected: onChanged,
       );
 
-  void _export(List<dynamic> values, String name) {
-    final csv = buildCsv([
-      ['ID', 'Name', 'Email', 'Status'],
-      ...values.map(
-        (item) => [item.id, item.name, item.email, enumLabel(item.status)],
-      ),
-    ]);
-    downloadCsv(csv, 'palengkego-$name.csv');
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('CSV export prepared.')));
+  Future<void> _exportAccounts({
+    List<Vendor>? allVendors,
+    List<Vendor>? filteredVendors,
+    List<Customer>? allCustomers,
+    List<Customer>? filteredCustomers,
+    required bool isCustomers,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(isCustomers ? 'Customers' : 'Stall Holders');
+    filterLabels.add(status);
+    if (!isCustomers) filterLabels.add(stallCategory);
+
+    final doc = isCustomers
+        ? AccountsExportData.buildCustomers(
+            allCustomers: allCustomers ?? [],
+            filteredCustomers: filteredCustomers ?? [],
+            activeFilters: filterLabels.join(' | '),
+          )
+        : AccountsExportData.buildStallHolders(
+            allVendors: allVendors ?? [],
+            filteredVendors: filteredVendors ?? [],
+            activeFilters: filterLabels.join(' | '),
+          );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
+    );
   }
 }
 
@@ -466,9 +508,10 @@ class _VendorTable extends StatelessWidget {
                 ),
               ),
               DataCell(
-                IconButton(
+                TableActionIconButton(
+                  icon: Icons.open_in_new_rounded,
+                  tooltip: 'Open account details',
                   onPressed: () => onOpen(vendor),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
                 ),
               ),
             ],
@@ -567,10 +610,10 @@ class _CustomerTable extends StatelessWidget {
                 ),
               ),
               DataCell(
-                IconButton(
-                  onPressed: () => onOpen(customer),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                TableActionIconButton(
+                  icon: Icons.open_in_new_rounded,
                   tooltip: 'Open account details',
+                  onPressed: () => onOpen(customer),
                 ),
               ),
             ],

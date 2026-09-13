@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -79,10 +80,18 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
           padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
           child: DataPanel(
             title: 'Activity History',
-            headerAction: FilterButton(
-                label: 'Export CSV',
-                icon: Icons.download_outlined,
-                onTap: () => _export(values)),
+            headerAction: ExportButton(
+              onExportPdf: () => _exportAuditLog(
+                allLogs: auditLogs,
+                filteredLogs: values,
+                format: ExportFormat.pdf,
+              ),
+              onExportExcel: () => _exportAuditLog(
+                allLogs: auditLogs,
+                filteredLogs: values,
+                format: ExportFormat.excel,
+              ),
+            ),
             child: Column(
               children: [
                 Toolbar(
@@ -178,25 +187,30 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
     );
   }
 
-  void _export(List<AuditLog> values) {
-    final csv = buildCsv([
-      [
-        'Audit ID',
-        'Administrator',
-        'Action',
-        'Entity Type',
-        'Entity ID',
-        'Target User',
-        'Previous',
-        'New Value',
-        'Reason',
-        'Timestamp'
-      ],
-      ...values.map((item) => item.toRow()),
-    ]);
-    downloadCsv(csv, 'palengkego-admin-audit-log.csv');
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Audit log exported.')));
+  Future<void> _exportAuditLog({
+    required List<AuditLog> allLogs,
+    required List<AuditLog> filteredLogs,
+    required ExportFormat format,
+  }) async {
+    final filterLabels = <String>[];
+    if (search.text.trim().isNotEmpty) {
+      filterLabels.add('Search: "${search.text.trim()}"');
+    }
+    filterLabels.add(action == null ? 'All Actions' : enumLabel(action!));
+    filterLabels.add(entity);
+
+    final doc = AuditExportData.build(
+      allLogs: allLogs,
+      filteredLogs: filteredLogs,
+      activeFilters: filterLabels.join(' | '),
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
+    );
   }
 
   Future<void> _showDetails(AuditLog item) => showDialog<void>(
