@@ -120,15 +120,20 @@ List<Vendor> seedVendors() {
   return List.generate(_names.length, (index) {
     final statuses = [
       AccountStatus.active,
-      AccountStatus.offline,
-      AccountStatus.blocked,
       AccountStatus.active,
+      AccountStatus.offline,
+      AccountStatus.suspended,
+      AccountStatus.blocked,
     ];
     final types = [
-      'Fish',
-      'Fruits',
+      'Fresh Fish',
+      'Dried Fish',
       'Meat',
+      'Chicken',
+      'Fruits',
       'Vegetables',
+      'Maritatas',
+      'Sari-Sari',
     ];
     return Vendor(
       id: 'VND-${8492 + index}',
@@ -158,17 +163,25 @@ List<Customer> seedCustomers() {
           '${_customers[index].toLowerCase().replaceAll(RegExp(r'[^a-z]+'), '.')}@example.com',
       registeredAt: base.add(Duration(days: index * 14)),
       transactions: [142, 58, 0, 214, 12, 36, 84][index % 7],
-      status: index == 2 ? AccountStatus.blocked : AccountStatus.active,
+      status: index == 2
+          ? AccountStatus.blocked
+          : index == 3
+              ? AccountStatus.suspended
+              : AccountStatus.active,
     ),
   );
 }
 
 List<VendorApplication> seedApplications() {
   final categories = [
-    'FRUITS',
+    'FRESH FISH',
+    'DRIED FISH',
     'MEAT',
+    'CHICKEN',
+    'FRUITS',
     'VEGETABLES',
-    'FISH',
+    'MARITATAS',
+    'SARI-SARI',
   ];
   final statuses = [
     ApplicationStatus.verified,
@@ -231,10 +244,14 @@ List<KycDocument> _seedKycDocuments(DateTime uploadedAt) => [
 
 List<RenewalRequest> seedRenewals() {
   final categories = [
-    'FRUITS',
+    'FRESH FISH',
+    'DRIED FISH',
     'MEAT',
+    'CHICKEN',
+    'FRUITS',
     'VEGETABLES',
-    'FISH',
+    'MARITATAS',
+    'SARI-SARI',
   ];
   final statuses = [
     RenewalStatus.approved,
@@ -280,7 +297,16 @@ List<Report> seedReports() {
     'Incorrect Pricing',
     'Late Delivery',
   ];
-  final categories = ['FRUITS', 'MEAT', 'VEGETABLES', 'FISH'];
+  final categories = [
+    'FRESH FISH',
+    'DRIED FISH',
+    'MEAT',
+    'CHICKEN',
+    'FRUITS',
+    'VEGETABLES',
+    'MARITATAS',
+    'SARI-SARI',
+  ];
   final statuses = [
     ReportStatus.pending,
     ReportStatus.underReview,
@@ -428,16 +454,24 @@ List<Order> seedOrders() {
     'Luzon Fresh Produce'
   ];
   final stalls = [
-    'Fish Section',
-    'Fruit Section',
+    'Fresh Fish Section',
+    'Dried Fish Section',
     'Meat Section',
-    'Vegetables Section'
+    'Chicken Section',
+    'Fruit Section',
+    'Vegetables Section',
+    'Maritatas Section',
+    'Sari-Sari Section',
   ];
   final products = [
-    ('Bangus', 'FISH', 220.0),
-    ('Mangoes', 'FRUITS', 180.0),
+    ('Bangus', 'FRESH FISH', 220.0),
+    ('Daing na Bangus', 'DRIED FISH', 160.0),
     ('Pork Belly', 'MEAT', 360.0),
+    ('Whole Dressed Chicken', 'CHICKEN', 210.0),
+    ('Mangoes', 'FRUITS', 180.0),
     ('Fresh Vegetables', 'VEGETABLES', 150.0),
+    ('Cassava Cake & Delicacies', 'MARITATAS', 120.0),
+    ('Canned Goods & Essentials', 'SARI-SARI', 85.0),
   ];
   final statuses = [
     OrderStatus.completed,
@@ -508,3 +542,239 @@ const avatarColors = [
   Color(0xFFFFE0B2),
   Color(0xFFE1BEE7),
 ];
+
+List<Suspension> seedSuspensions() {
+  final now = DateTime.now();
+  return [
+    Suspension(
+      id: 'SUS-9001',
+      accountId: 'VND-8495',
+      accountName: 'Sophie Sb’s store',
+      accountType: 'Vendor',
+      reason: 'Pricing inconsistency under investigation',
+      startDate: now.subtract(const Duration(days: 2)),
+      endDate: now.add(const Duration(days: 5)),
+      administratorId: 'ADM-001',
+      createdAt: now.subtract(const Duration(days: 2)),
+      note: 'Stall temporarily held pending inspection',
+      notifyUser: true,
+    ),
+    Suspension(
+      id: 'SUS-9002',
+      accountId: 'CUS-1203',
+      accountName: 'Marcus Koppel',
+      accountType: 'Customer',
+      reason: 'Repeated cancellation of accepted orders',
+      startDate: now.subtract(const Duration(days: 1)),
+      endDate: now.add(const Duration(days: 6)),
+      administratorId: 'ADM-001',
+      createdAt: now.subtract(const Duration(days: 1)),
+      note: 'Account temporarily suspended for review',
+      notifyUser: true,
+    ),
+  ];
+}
+
+List<AuditLog> seedAuditLogs() {
+  final now = DateTime.now();
+  const adminName = 'Kirren Michael Fraginal';
+  return [
+    AuditLog(
+      id: 'AUD-8801',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.approveKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92834',
+      targetUserName: 'Elena Ramos',
+      previousValue: 'Reviewing',
+      newValue: 'Verified',
+      reason: 'All submitted permits verified with City Hall records',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(hours: 2)),
+    ),
+    AuditLog(
+      id: 'AUD-8802',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.approveKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92835',
+      targetUserName: 'Mateo Santos',
+      previousValue: 'Reviewing',
+      newValue: 'Verified',
+      reason: 'Sanitary and fire clearances verified',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(hours: 5)),
+    ),
+    AuditLog(
+      id: 'AUD-8803',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.rejectKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92836',
+      targetUserName: 'Corazon Aquino',
+      previousValue: 'Reviewing',
+      newValue: 'Rejected',
+      reason: 'Expired mayor\'s permit document submitted',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(hours: 8)),
+    ),
+    AuditLog(
+      id: 'AUD-8804',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.approveKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92837',
+      targetUserName: 'Danilo Cruz',
+      previousValue: 'Reviewing',
+      newValue: 'Verified',
+      reason: 'Valid DTI registration and Barangay clearance',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(days: 1, hours: 3)),
+    ),
+    AuditLog(
+      id: 'AUD-8805',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.rejectKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92838',
+      targetUserName: 'Rowena Bautista',
+      previousValue: 'Reviewing',
+      newValue: 'InvalidDocs',
+      reason: 'Government ID photo is blurry and illegible',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(days: 1, hours: 7)),
+    ),
+    AuditLog(
+      id: 'AUD-8806',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.blockAccount,
+      targetEntityType: 'Vendor',
+      targetEntityId: 'VND-8494',
+      targetUserName: 'William Del Rosario Meat Shop',
+      previousValue: 'Active',
+      newValue: 'Blocked',
+      reason: 'Repeated underweight produce violations reported',
+      metadata: const {'relatedReportId': '#RPT-0001'},
+      timestamp: now.subtract(const Duration(days: 2, hours: 1)),
+    ),
+    AuditLog(
+      id: 'AUD-8807',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.suspendAccount,
+      targetEntityType: 'Vendor',
+      targetEntityId: 'VND-8495',
+      targetUserName: 'Sophie Sb’s store',
+      previousValue: 'Active',
+      newValue: 'Suspended',
+      reason: 'Pricing inconsistency under investigation',
+      metadata: const {'durationDays': '7'},
+      timestamp: now.subtract(const Duration(days: 2, hours: 4)),
+    ),
+    AuditLog(
+      id: 'AUD-8808',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.blockAccount,
+      targetEntityType: 'Customer',
+      targetEntityId: 'CUS-1202',
+      targetUserName: 'Dr. Sarah Chen',
+      previousValue: 'Active',
+      newValue: 'Blocked',
+      reason: 'Abusive language directed at stall holders',
+      metadata: const {'relatedReportId': '#RPT-0004'},
+      timestamp: now.subtract(const Duration(days: 3, hours: 2)),
+    ),
+    AuditLog(
+      id: 'AUD-8809',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.suspendAccount,
+      targetEntityType: 'Customer',
+      targetEntityId: 'CUS-1203',
+      targetUserName: 'Marcus Koppel',
+      previousValue: 'Active',
+      newValue: 'Suspended',
+      reason: 'Repeated cancellation of accepted orders',
+      metadata: const {'durationDays': '7'},
+      timestamp: now.subtract(const Duration(days: 3, hours: 6)),
+    ),
+    AuditLog(
+      id: 'AUD-8810',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.sendAnnouncement,
+      targetEntityType: 'Announcement',
+      targetEntityId: 'ANN-001',
+      targetUserName: 'All Users',
+      previousValue: 'Draft',
+      newValue: 'Sent',
+      reason: 'Market operational hours update broadcast',
+      metadata: const {'audience': 'All', 'channel': 'Push + SMS'},
+      timestamp: now.subtract(const Duration(days: 4, hours: 1)),
+    ),
+    AuditLog(
+      id: 'AUD-8811',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.resolveReport,
+      targetEntityType: 'Report',
+      targetEntityId: '#RPT-0003',
+      targetUserName: 'Santos Quality Meats',
+      previousValue: 'UnderReview',
+      newValue: 'Resolved',
+      reason: 'Quality issue reviewed with stall owner; replacement issued',
+      metadata: const {'decision': 'Resolved with stall owner'},
+      timestamp: now.subtract(const Duration(days: 4, hours: 5)),
+    ),
+    AuditLog(
+      id: 'AUD-8812',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.changeSettings,
+      targetEntityType: 'SystemSettings',
+      targetEntityId: 'SET-001',
+      targetUserName: 'System',
+      previousValue: 'Default',
+      newValue: 'Updated',
+      reason: 'Delivery commission fee adjusted for rainy season',
+      metadata: const {'setting': 'delivery_fee_policy'},
+      timestamp: now.subtract(const Duration(days: 5, hours: 2)),
+    ),
+    AuditLog(
+      id: 'AUD-8813',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.login,
+      targetEntityType: 'AdminSession',
+      targetEntityId: 'SES-1001',
+      targetUserName: adminName,
+      previousValue: 'Signed out',
+      newValue: 'Signed in',
+      reason: 'Administrative web console login',
+      metadata: const {'ip': '192.168.1.100'},
+      timestamp: now.subtract(const Duration(days: 5, hours: 8)),
+    ),
+    AuditLog(
+      id: 'AUD-8814',
+      administratorId: 'ADM-001',
+      administratorName: adminName,
+      action: AuditAction.approveKyc,
+      targetEntityType: 'VendorApplication',
+      targetEntityId: '#APP-92839',
+      targetUserName: 'Benjamin Reyes',
+      previousValue: 'Reviewing',
+      newValue: 'Verified',
+      reason: 'Stall permit and lease contract fully verified',
+      metadata: const {'source': 'verification_dialog'},
+      timestamp: now.subtract(const Duration(days: 6, hours: 4)),
+    ),
+  ];
+}
+

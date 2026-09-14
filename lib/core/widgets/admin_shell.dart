@@ -50,80 +50,95 @@ class _TopNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final compact = MediaQuery.sizeOf(context).width < 1050;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final compact = screenWidth < 1050;
+    final isPhone = screenWidth < 600;
+    final horizontalPad = Responsive.horizontalPadding(context);
+
     return Container(
       height: 76,
-      padding: const EdgeInsets.symmetric(horizontal: 36),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
         border: Border(
           bottom: BorderSide(color: semanticColors(context).borderOnHero),
         ),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: AppLogo(dark: true, showAdminBadge: true),
-          ),
-          if (!compact)
-            Center(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final item in AdminShell.navItems)
-                      _NavItem(
-                        label: item.$1,
-                        path: item.$2,
-                        icon: item.$3,
-                        active: current == item.$2,
-                      ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Builder(
-                    builder: (context) => IconButton(
-                      tooltip: 'Open navigation',
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                      icon: const Icon(Icons.menu_rounded, color: Colors.white),
+      child: compact
+          ? Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: AppLogo(
+                      dark: true,
+                      compact: true,
+                      showTagline: false,
+                      showAdminBadge: !isPhone,
                     ),
                   ),
-                  const _ThemeToggleButton(),
-                  const SizedBox(width: 6),
-                  const NotificationBell(),
-                  const SizedBox(width: 10),
-                  AdminProfileMenu(compact: true),
-                ],
-              ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Builder(
+                      builder: (context) => IconButton(
+                        tooltip: 'Open navigation',
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        icon:
+                            const Icon(Icons.menu_rounded, color: Colors.white),
+                      ),
+                    ),
+                    const _ThemeToggleButton(),
+                    const SizedBox(width: 4),
+                    const NotificationBell(),
+                    const SizedBox(width: 6),
+                    const AdminProfileMenu(compact: true),
+                  ],
+                ),
+              ],
+            )
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppLogo(dark: true, showAdminBadge: true),
+                ),
+                Center(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final item in AdminShell.navItems)
+                          _NavItem(
+                            label: item.$1,
+                            path: item.$2,
+                            icon: item.$3,
+                            active: current == item.$2,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const _ThemeToggleButton(),
+                      const SizedBox(width: 6),
+                      const NotificationBell(),
+                      const SizedBox(width: 10),
+                      const AdminProfileMenu(compact: false),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          if (!compact)
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const _ThemeToggleButton(),
-                  const SizedBox(width: 6),
-                  const NotificationBell(),
-                  const SizedBox(width: 10),
-                  const AdminProfileMenu(compact: false),
-                ],
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

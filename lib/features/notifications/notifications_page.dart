@@ -23,11 +23,17 @@ class NotificationsPage extends ConsumerWidget {
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 26, 32, 30),
+            padding: EdgeInsets.fromLTRB(
+              Responsive.horizontalPadding(context),
+              20,
+              Responsive.horizontalPadding(context),
+              28,
+            ),
             child: DataPanel(
               title: 'All Notifications',
-              headerAction: Row(
-                mainAxisSize: MainAxisSize.min,
+              headerAction: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: notifications.any((item) => !item.isRead)
@@ -55,7 +61,6 @@ class NotificationsPage extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: notifications.any((item) => item.isRead)
                         ? controller.clearRead

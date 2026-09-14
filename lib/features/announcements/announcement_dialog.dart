@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets/admin_widgets.dart';
+import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/app_models.dart';
 
@@ -40,10 +41,11 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
         widget.initialTitle ??
         'Public Market Holiday Notice',
   );
-  late final body = TextEditingController(
-    text: widget.announcementToEdit?.summary ??
-        widget.initialBody ??
-        'Good day! Please be informed that the PalengkeGo services will be temporarily unavailable on Friday due to the scheduled holiday maintenance. Stall holders are advised to settle transactions early. Thank you!',
+  late final body = FormattedTextEditingController(
+    text: (widget.announcementToEdit?.summary ??
+            widget.initialBody ??
+            'Good day! Please be informed that the PalengkeGo services will be temporarily unavailable on Friday due to the scheduled holiday maintenance. Stall holders are advised to settle transactions early. Thank you!')
+        .replaceAll('*', ''),
   );
   static String normalizeAudience(String? raw) {
     if (raw == null) return 'All Users';
@@ -80,6 +82,146 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     title.dispose();
     body.dispose();
     super.dispose();
+  }
+
+  /// Wraps selection with openTag (e.g. `<b>`) and closeTag (e.g. `</b>`).
+  /// Unwraps if already present.
+  void _wrapTag(String openTag, String closeTag) {
+    final text = body.text;
+    final sel = body.selection;
+    final start = sel.start;
+    final end = sel.end;
+
+    if (start < 0) return;
+
+    if (start == end) {
+      final insert = '$openTag$closeTag';
+      body.text = text.substring(0, start) + insert + text.substring(start);
+      body.selection = TextSelection.collapsed(offset: start + openTag.length);
+      return;
+    }
+
+    final selected = text.substring(start, end);
+
+    // 1. Direct wrapping check
+    if (selected.toLowerCase().startsWith(openTag.toLowerCase()) &&
+        selected.toLowerCase().endsWith(closeTag.toLowerCase()) &&
+        selected.length >= openTag.length + closeTag.length) {
+      final unwrapped = selected.substring(openTag.length, selected.length - closeTag.length);
+      body.text = text.substring(0, start) + unwrapped + text.substring(end);
+      body.selection = TextSelection(baseOffset: start, extentOffset: start + unwrapped.length);
+      return;
+    }
+
+    // 2. Surrounding check
+    if (start >= openTag.length && (text.length - end) >= closeTag.length) {
+      final before = text.substring(start - openTag.length, start);
+      final after = text.substring(end, end + closeTag.length);
+      if (before.toLowerCase() == openTag.toLowerCase() &&
+          after.toLowerCase() == closeTag.toLowerCase()) {
+        final newStart = start - openTag.length;
+        final newEnd = end + closeTag.length;
+        body.text = text.substring(0, newStart) + selected + text.substring(newEnd);
+        body.selection = TextSelection(baseOffset: newStart, extentOffset: newStart + selected.length);
+        return;
+      }
+    }
+
+    // 3. Wrap selection
+    final wrapped = '$openTag$selected$closeTag';
+    body.text = text.substring(0, start) + wrapped + text.substring(end);
+    body.selection = TextSelection(
+      baseOffset: start + openTag.length,
+      extentOffset: start + openTag.length + selected.length,
+    );
+  }
+
+  void _toggleBold() => _wrapTag('<b>', '</b>');
+  void _toggleItalic() => _wrapTag('<i>', '</i>');
+
+  void _toggleBullet() {
+    final text = body.text;
+    final sel = body.selection;
+    if (sel.start < 0) return;
+
+    final lineStart = text.lastIndexOf('\n', sel.start - 1) + 1;
+    var lineEnd = text.indexOf('\n', sel.start);
+    if (lineEnd < 0) lineEnd = text.length;
+
+    final line = text.substring(lineStart, lineEnd);
+
+    if (line.startsWith('• ')) {
+      body.text = text.substring(0, lineStart) + line.substring(2) + text.substring(lineEnd);
+      body.selection = TextSelection.collapsed(offset: (sel.start - 2).clamp(lineStart, body.text.length));
+    } else {
+      body.text = '${text.substring(0, lineStart)}• $line${text.substring(lineEnd)}';
+      body.selection = TextSelection.collapsed(offset: sel.start + 2);
+    }
+  }
+
+  Future<void> _insertLink() async {
+    final sel = body.selection;
+    final selectedText = sel.start >= 0 && sel.start != sel.end
+        ? body.text.substring(sel.start, sel.end)
+        : '';
+
+    final labelController = TextEditingController(text: selectedText);
+    final urlController = TextEditingController(text: 'https://');
+
+    final result = await showDialog<(String, String)>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Insert Link', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: labelController,
+              decoration: const InputDecoration(
+                labelText: 'Link Text / Label',
+                hintText: 'e.g. PalengkeGo Portal',
+              ),
+              autofocus: selectedText.isEmpty,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'URL',
+                hintText: 'https://palengkego.ph',
+              ),
+              autofocus: selectedText.isNotEmpty,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              ctx,
+              (labelController.text.trim(), urlController.text.trim()),
+            ),
+            child: const Text('Insert Link'),
+          ),
+        ],
+      ),
+    );
+
+    labelController.dispose();
+    urlController.dispose();
+
+    if (result == null) return;
+    final (label, url) = result;
+    if (url.isEmpty || url == 'https://') return;
+
+    final displayLabel = label.isEmpty ? url : label;
+    final htmlLink = '<a href="$url">$displayLabel</a>';
+    final text = body.text;
+    final start = sel.start >= 0 ? sel.start : text.length;
+    final end = sel.start >= 0 ? sel.end : text.length;
+
+    body.text = text.substring(0, start) + htmlLink + text.substring(end);
+    body.selection = TextSelection.collapsed(offset: start + htmlLink.length);
   }
 
   String _formatBytes(int bytes) {
@@ -378,46 +520,53 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(28, 22, 28, 20),
+          padding: EdgeInsets.fromLTRB(narrow ? 16 : 28, 22, narrow ? 16 : 28, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Expanded(
-                    child: Text(
-                      isEditMode
-                          ? 'Edit Announcement'
-                          : 'Compose New Announcement',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                  Text(
+                    isEditMode
+                        ? 'Edit Announcement'
+                        : 'Compose New Announcement',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          context.go('/announcements');
+                        },
+                        icon: const Icon(Icons.history_rounded, size: 16),
+                        label: const Text(
+                          'View History',
+                          style: TextStyle(fontSize: 11),
+                        ),
                       ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      context.go('/announcements');
-                    },
-                    icon: const Icon(Icons.history_rounded, size: 16),
-                    label: const Text(
-                      'View History',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  StatusBadge(
-                    label: isEditMode
-                        ? (widget.announcementToEdit!.isDraft
-                            ? 'EDITING DRAFT'
-                            : 'EDITING POST')
-                        : 'DRAFT MODE',
-                    kind: isEditMode
-                        ? (widget.announcementToEdit!.isDraft
-                            ? BadgeKind.neutral
-                            : BadgeKind.warning)
-                        : BadgeKind.success,
+                      const SizedBox(width: 8),
+                      StatusBadge(
+                        label: isEditMode
+                            ? (widget.announcementToEdit!.isDraft
+                                ? 'EDITING DRAFT'
+                                : 'EDITING POST')
+                            : 'DRAFT MODE',
+                        kind: isEditMode
+                            ? (widget.announcementToEdit!.isDraft
+                                ? BadgeKind.neutral
+                                : BadgeKind.warning)
+                            : BadgeKind.success,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -657,28 +806,32 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                       child: Row(
                         children: [
                           IconButton(
-                            onPressed: () {},
+                            onPressed: _toggleBold,
+                            tooltip: 'Bold',
                             icon: const Icon(
                               Icons.format_bold_rounded,
                               size: 17,
                             ),
                           ),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: _toggleItalic,
+                            tooltip: 'Italic',
                             icon: const Icon(
                               Icons.format_italic_rounded,
                               size: 17,
                             ),
                           ),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: _toggleBullet,
+                            tooltip: 'Bullet list',
                             icon: const Icon(
                               Icons.format_list_bulleted_rounded,
                               size: 17,
                             ),
                           ),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: _insertLink,
+                            tooltip: 'Insert link',
                             icon: const Icon(Icons.link_rounded, size: 17),
                           ),
                         ],
@@ -699,54 +852,88 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: Checkbox(
-                      value: notify,
-                      onChanged: (value) =>
-                          setState(() => notify = value ?? false),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 560;
+                  final notifyRow = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: Checkbox(
+                          value: notify,
+                          onChanged: (value) =>
+                              setState(() => notify = value ?? false),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Flexible(
+                        child: Text(
+                          'Send push notification to mobile app',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final buttons = [
+                    OutlinedButton(
+                      onPressed: loading ? null : () => save(true),
+                      child: Text(
+                        isEditMode ? 'Save as Draft' : 'Drafts',
+                        style: const TextStyle(fontSize: 11),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 5),
-                  const Text(
-                    'Send push notification to mobile app',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  const Spacer(),
-                  OutlinedButton(
-                    onPressed: loading ? null : () => save(true),
-                    child: Text(
-                      isEditMode ? 'Save as Draft' : 'Drafts',
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: loading ? null : () => save(false),
-                    icon: loading
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: loading ? null : () => save(false),
+                      icon: loading
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              isEditMode
+                                  ? Icons.check_rounded
+                                  : Icons.send_rounded,
+                              size: 14,
                             ),
-                          )
-                        : Icon(
-                            isEditMode
-                                ? Icons.check_rounded
-                                : Icons.send_rounded,
-                            size: 14,
-                          ),
-                    label: Text(
-                      isEditMode ? 'Save Changes' : 'Send Announcement',
-                      style: const TextStyle(fontSize: 11),
+                      label: Text(
+                        isEditMode ? 'Save Changes' : 'Send Announcement',
+                        style: const TextStyle(fontSize: 11),
+                      ),
                     ),
-                  ),
-                ],
+                  ];
+
+                  if (isCompact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        notifyRow,
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.end,
+                          children: buttons,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      notifyRow,
+                      const Spacer(),
+                      ...buttons,
+                    ],
+                  );
+                },
               ),
             ],
           ),

@@ -139,7 +139,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            26,
+            Responsive.horizontalPadding(context),
+            36,
+          ),
           child: customers
               ? _customerPanel(data.customers)
               : _vendorPanel(data.vendors),
@@ -206,10 +211,14 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Widget _vendorPanel(List<Vendor> values) {
     const categories = [
       'All Categories',
+      'Fresh Fish',
+      'Dried Fish',
+      'Meat',
+      'Chicken',
       'Fruits',
       'Vegetables',
-      'Meat',
-      'Fish',
+      'Maritatas',
+      'Sari-Sari',
     ];
     final visible = values
         .where(
@@ -2070,85 +2079,104 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     final canUnblock = widget.onUnblock != null;
     final canLift = widget.onLift != null;
     final canSuspend = widget.onSuspend != null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
-      child: Row(
-        children: [
-          Expanded(
-            child: canUnblock
+
+    final actionButton = canUnblock
+        ? OutlinedButton.icon(
+            onPressed: busy ? null : _unblock,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: semanticColors(context).success,
+            ),
+            icon: unblocking
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.lock_open_rounded, size: 17),
+            label: Text(
+              unblocking ? 'Unblocking...' : 'Unblock Account',
+            ),
+          )
+        : canLift
+            ? OutlinedButton.icon(
+                onPressed: busy ? null : _liftSuspension,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: semanticColors(context).warning,
+                ),
+                icon: lifting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.lock_open_rounded, size: 17),
+                label: Text(
+                  lifting ? 'Lifting...' : 'Lift Suspension',
+                ),
+              )
+            : canSuspend
                 ? OutlinedButton.icon(
-                    onPressed: busy ? null : _unblock,
+                    onPressed: busy ? null : _suspend,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: semanticColors(context).success,
+                      foregroundColor: semanticColors(context).warning,
                     ),
-                    icon: unblocking
+                    icon: suspending
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
                           )
-                        : const Icon(Icons.lock_open_rounded, size: 17),
+                        : const Icon(
+                            Icons.pause_circle_outline,
+                            size: 17,
+                          ),
                     label: Text(
-                      unblocking ? 'Unblocking...' : 'Unblock Account',
+                      suspending ? 'Suspending...' : 'Suspend Account',
                     ),
                   )
-                : canLift
-                    ? OutlinedButton.icon(
-                        onPressed: busy ? null : _liftSuspension,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: semanticColors(context).warning,
-                        ),
-                        icon: lifting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.lock_open_rounded, size: 17),
-                        label: Text(
-                          lifting ? 'Lifting...' : 'Lift Suspension',
-                        ),
-                      )
-                    : canSuspend
-                        ? OutlinedButton.icon(
-                            onPressed: busy ? null : _suspend,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: semanticColors(context).warning,
-                            ),
-                            icon: suspending
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.pause_circle_outline,
-                                    size: 17,
-                                  ),
-                            label: Text(
-                              suspending ? 'Suspending...' : 'Suspend Account',
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton(
-              onPressed: dirty && !busy ? _save : null,
-              child: saving
-                  ? const SizedBox(
-                      width: 17,
-                      height: 17,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save Changes'),
-            ),
-          ),
-        ],
-      ),
+                : null;
+
+    final saveButton = FilledButton(
+      onPressed: dirty && !busy ? _save : null,
+      child: saving
+          ? const SizedBox(
+              width: 17,
+              height: 17,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Text('Save Changes'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 420;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
+          child: isNarrow
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (actionButton != null) ...[
+                      actionButton,
+                      const SizedBox(height: 10),
+                    ],
+                    saveButton,
+                  ],
+                )
+              : Row(
+                  children: [
+                    if (actionButton != null) ...[
+                      Expanded(child: actionButton),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(child: saveButton),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

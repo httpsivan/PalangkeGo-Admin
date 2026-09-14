@@ -6,6 +6,7 @@ import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
+import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/app_models.dart';
 import 'announcement_dialog.dart';
@@ -135,7 +136,12 @@ class _AnnouncementHistoryPageState
           ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            26,
+            Responsive.horizontalPadding(context),
+            36,
+          ),
           child: DataPanel(
             title: 'Broadcast Log',
             headerAction: Row(
@@ -266,15 +272,15 @@ class _AnnouncementHistoryPageState
                                       ),
                                     ),
                                     const SizedBox(height: 3),
-                                    Text(
-                                      item.summary,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: colors.mutedText,
-                                      ),
-                                    ),
+                                     FormattedText(
+                                       item.summary,
+                                       maxLines: 1,
+                                       overflow: TextOverflow.ellipsis,
+                                       style: TextStyle(
+                                         fontSize: 11,
+                                         color: colors.mutedText,
+                                       ),
+                                     ),
                                   ],
                                 ),
                               ),
@@ -678,7 +684,7 @@ class _AnnouncementDetailDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: colors.subtleBorder),
                 ),
-                child: SelectableText(
+                child: FormattedSelectableText(
                   announcement.summary,
                   style: const TextStyle(
                     fontSize: 13,

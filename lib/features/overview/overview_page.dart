@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
+import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
@@ -312,58 +313,105 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= 920;
+        final horizontalPad = Responsive.horizontalPadding(context);
+        final isPhone = constraints.maxWidth < 600;
 
         return ListView(
           padding: EdgeInsets.zero,
           children: [
             const _OverviewHero(),
             Padding(
-              padding: const EdgeInsets.fromLTRB(36, 20, 36, 12),
-              child: Row(
-                children: [
-                  Text(
-                    'DOCKABLE & RESIZABLE DASHBOARD (OPTION B)',
-                    style: GoogleFonts.inter(
-                      color: colors.secondaryText,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
+              padding:
+                  EdgeInsets.fromLTRB(horizontalPad, 18, horizontalPad, 12),
+              child: isPhone
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'DOCKABLE & RESIZABLE DASHBOARD',
+                          style: GoogleFonts.inter(
+                            color: colors.secondaryText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: _resetLayout,
+                          icon: Icon(
+                            Icons.rotate_left_rounded,
+                            size: 15,
+                            color: colors.secondaryText,
+                          ),
+                          label: Text(
+                            'Reset Layout',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colors.secondaryText,
+                            backgroundColor: colors.hoverSurface,
+                            side: BorderSide(color: colors.subtleBorder),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Text(
+                          'DOCKABLE & RESIZABLE DASHBOARD',
+                          style: GoogleFonts.inter(
+                            color: colors.secondaryText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const Spacer(),
+                        OutlinedButton.icon(
+                          onPressed: _resetLayout,
+                          icon: Icon(
+                            Icons.rotate_left_rounded,
+                            size: 15,
+                            color: colors.secondaryText,
+                          ),
+                          label: Text(
+                            'Reset Layout',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: colors.secondaryText,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: colors.secondaryText,
+                            backgroundColor: colors.hoverSurface,
+                            side: BorderSide(color: colors.subtleBorder),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: _resetLayout,
-                    icon: Icon(
-                      Icons.rotate_left_rounded,
-                      size: 15,
-                      color: colors.secondaryText,
-                    ),
-                    label: Text(
-                      'Reset Layout',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: colors.secondaryText,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.secondaryText,
-                      backgroundColor: colors.hoverSurface,
-                      side: BorderSide(color: colors.subtleBorder),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36),
+              padding: EdgeInsets.symmetric(horizontal: horizontalPad),
               child: Column(
                 children: buildDashboardRows(desktop),
               ),
@@ -636,12 +684,14 @@ class _OverviewHero extends ConsumerWidget {
         label: 'Total Orders',
         icon: Icons.shopping_bag_outlined,
         accent: const Color(0xFFEF4444),
+        onTap: () => context.go('/sales-reports'),
       ),
       MetricCardData(
         value: _shortPeso(sales.netRevenue),
         label: 'Net Revenue',
         icon: Icons.payments_outlined,
         accent: const Color(0xFF10B981),
+        onTap: () => context.go('/sales-reports'),
       ),
       MetricCardData(
         value: '$activeCustomers',
@@ -660,11 +710,18 @@ class _OverviewHero extends ConsumerWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= 1080;
+        final isPhone = constraints.maxWidth < 600;
+        final horizontalPad = Responsive.horizontalPadding(context);
 
         final dateStr = DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 24),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPad,
+            isPhone ? 16 : 26,
+            horizontalPad,
+            isPhone ? 18 : 24,
+          ),
           decoration: BoxDecoration(
             color: colors.heroBackground,
             border: Border(
@@ -678,29 +735,31 @@ class _OverviewHero extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        greeting.toUpperCase(),
-                        style: TextStyle(
-                          color: colors.heroMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          greeting.toUpperCase(),
+                          style: TextStyle(
+                            color: colors.heroMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        profile.name,
-                        style: GoogleFonts.plusJakartaSans(
-                          color: colors.heroForeground,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
+                        const SizedBox(height: 4),
+                        Text(
+                          profile.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: colors.heroForeground,
+                            fontSize: isPhone ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   if (desktop)
                     Container(
@@ -879,7 +938,7 @@ class _Announcement extends StatelessWidget {
                           const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    FormattedText(
                       announcement.summary,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -971,7 +1030,7 @@ class _TopSellers extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 46, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         children: List.generate(
           count,

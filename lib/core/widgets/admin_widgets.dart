@@ -13,6 +13,43 @@ export '../theme/category_colors.dart';
 AppSemanticColors semanticColors(BuildContext context) =>
     Theme.of(context).extension<AppSemanticColors>()!;
 
+/// Responsive breakpoints and layout helpers.
+/// - Phone: width < 600
+/// - Tablet: 600 <= width < 1024
+/// - Laptop: 1024 <= width < 1440
+/// - Computer: width >= 1440
+class Responsive {
+  static bool isPhone(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < 600;
+
+  static bool isTablet(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    return w >= 600 && w < 1024;
+  }
+
+  static bool isLaptop(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    return w >= 1024 && w < 1440;
+  }
+
+  static bool isComputer(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= 1440;
+
+  static EdgeInsets pagePadding(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    if (w < 600) return const EdgeInsets.fromLTRB(16, 16, 16, 24);
+    if (w < 1024) return const EdgeInsets.fromLTRB(24, 20, 24, 28);
+    return const EdgeInsets.fromLTRB(36, 26, 36, 36);
+  }
+
+  static double horizontalPadding(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    if (w < 600) return 16.0;
+    if (w < 1024) return 24.0;
+    return 36.0;
+  }
+}
+
 class AppLogo extends StatelessWidget {
   const AppLogo({
     super.key,
@@ -197,9 +234,17 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
+    final isCompact = MediaQuery.sizeOf(context).width < 768;
+    final horizontalPad = Responsive.horizontalPadding(context);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(36, 24, 36, 20),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPad,
+        isCompact ? 18 : 24,
+        horizontalPad,
+        isCompact ? 16 : 20,
+      ),
       decoration: BoxDecoration(
         color: colors.heroBackground,
         border: Border(
@@ -209,42 +254,75 @@ class PageHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: colors.heroForeground,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(
-                        color: colors.heroMuted,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
+          if (isCompact) ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    color: colors.heroForeground,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 16),
-                trailing!,
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: colors.heroMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: trailing!,
+                  ),
+                ],
               ],
-            ],
-          ),
-          if (tabs != null) ...[const SizedBox(height: 22), tabs!],
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.plusJakartaSans(
+                          color: colors.heroForeground,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          color: colors.heroMuted,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 16),
+                  trailing!,
+                ],
+              ],
+            ),
+          ],
+          if (tabs != null) ...[const SizedBox(height: 20), tabs!],
           if (metrics.isNotEmpty) ...[
             const SizedBox(height: 20),
             PageHeaderMetricRibbon(metrics: metrics),
@@ -277,19 +355,28 @@ class PageHeaderMetricRibbon extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 750;
-          if (!isWide) {
+          final canFitSingleRow =
+              constraints.maxWidth >= (metrics.length * 170).clamp(750, 1100);
+
+          if (!canFitSingleRow) {
+            final int crossAxisCount;
+            if (constraints.maxWidth >= 720) {
+              crossAxisCount = metrics.length > 4 ? 3 : 2;
+            } else if (constraints.maxWidth >= 440) {
+              crossAxisCount = 2;
+            } else {
+              crossAxisCount = 1;
+            }
+
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               itemCount: metrics.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: constraints.maxWidth >= 450
-                    ? (metrics.length > 4 ? 3 : 2)
-                    : 1,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
                 mainAxisExtent: 68,
               ),
               itemBuilder: (context, i) =>
@@ -330,7 +417,7 @@ class PageHeaderMetricTile extends StatelessWidget {
       onTap: data.onTap,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             Icon(
@@ -338,7 +425,7 @@ class PageHeaderMetricTile extends StatelessWidget {
               size: 18,
               color: data.accent,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,21 +437,25 @@ class PageHeaderMetricTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
                       color: colors.secondaryText,
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.7,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  AnimatedCounter(
-                    value: data.value,
-                    style: data.valueStyle ??
-                        GoogleFonts.plusJakartaSans(
-                          color: colors.primaryText,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedCounter(
+                      value: data.value,
+                      style: data.valueStyle ??
+                          GoogleFonts.plusJakartaSans(
+                            color: colors.primaryText,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.4,
+                          ),
+                    ),
                   ),
                 ],
               ),
@@ -905,6 +996,9 @@ class ExportButton extends StatelessWidget {
     this.onExportPdf,
     this.onExportExcel,
     this.tooltip = 'Export data',
+    this.backgroundColor,
+    this.foregroundColor,
+    this.borderColor,
   });
 
   final String label;
@@ -913,6 +1007,9 @@ class ExportButton extends StatelessWidget {
   final VoidCallback? onExportPdf;
   final VoidCallback? onExportExcel;
   final String tooltip;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1008,28 +1105,30 @@ class ExportButton extends StatelessWidget {
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: colors.hoverSurface,
+              color: backgroundColor ?? colors.hoverSurface,
               borderRadius: BorderRadius.circular(9),
-              border: Border.all(color: colors.subtleBorder),
+              border: Border.all(color: borderColor ?? colors.subtleBorder),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 15, color: colors.secondaryText),
+                Icon(icon, size: 15, color: foregroundColor ?? colors.secondaryText),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: colors.secondaryText,
+                    color: foregroundColor ?? colors.secondaryText,
                   ),
                 ),
                 const SizedBox(width: 4),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
                   size: 14,
-                  color: colors.mutedText,
+                  color: foregroundColor != null
+                      ? foregroundColor!.withValues(alpha: 0.8)
+                      : colors.mutedText,
                 ),
               ],
             ),
@@ -1200,10 +1299,12 @@ class DataPanel extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow =
+                    constraints.maxWidth < 520 && headerAction != null;
+                if (isNarrow) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -1228,11 +1329,49 @@ class DataPanel extends StatelessWidget {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: headerAction!,
+                      ),
                     ],
-                  ),
-                ),
-                if (headerAction != null) headerAction!,
-              ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: titleStyle ??
+                                TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              subtitle!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: .58),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (headerAction != null) headerAction!,
+                  ],
+                );
+              },
             ),
           ),
           child,

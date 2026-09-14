@@ -203,7 +203,12 @@ class _VendorApplicationsPageState
           ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            26,
+            Responsive.horizontalPadding(context),
+            36,
+          ),
           child: DataPanel(
             title: 'Recent Applications',
             child: Column(

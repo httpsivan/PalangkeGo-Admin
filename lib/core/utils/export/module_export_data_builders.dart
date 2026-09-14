@@ -503,7 +503,7 @@ class ComplaintExportData {
         r.accountIssue,
         r.submittedBy,
         r.reason,
-        r.category ?? 'FRUITS',
+        r.category ?? 'FRESH FISH',
         DateFormat('yyyy-MM-dd').format(r.date),
         enumLabel(r.status),
         enumLabel(r.priority),
@@ -736,6 +736,100 @@ class AuditExportData {
         activeFilters: activeFilters,
       ),
       summary: summary,
+      table: ReportTable(columns: columns, rows: rows),
+    );
+  }
+}
+
+class SalesExportData {
+  SalesExportData._();
+
+  static ExportDocument build({
+    required List<Order> allOrders,
+    required List<Order> filteredOrders,
+    required String activeFilters,
+    required SalesSummary summary,
+    DateTime? exportDate,
+  }) {
+    final now = exportDate ?? DateTime.now();
+
+    final reportSummary = ReportSummary(
+      title: 'REPORT SUMMARY',
+      items: [
+        ReportSummaryItem(
+          label: 'Gross Sales',
+          value: '₱${NumberFormat('#,##0.00').format(summary.grossSales)}',
+          accent: const Color(0xFF10B981),
+        ),
+        ReportSummaryItem(
+          label: 'Net Revenue',
+          value: '₱${NumberFormat('#,##0.00').format(summary.netRevenue)}',
+          accent: const Color(0xFF059669),
+        ),
+        ReportSummaryItem(
+          label: 'Total Orders',
+          value: '${summary.totalOrders}',
+          accent: const Color(0xFF3B82F6),
+        ),
+        ReportSummaryItem(
+          label: 'Completed Orders',
+          value: '${summary.completedOrders}',
+          accent: const Color(0xFF10B981),
+        ),
+        ReportSummaryItem(
+          label: 'Refunds',
+          value: '₱${NumberFormat('#,##0.00').format(summary.refunds)}',
+          accent: const Color(0xFFEF4444),
+        ),
+      ],
+    );
+
+    final columns = const [
+      ReportColumn(label: 'Order ID', flex: 1.1),
+      ReportColumn(label: 'Date & Time', flex: 1.3),
+      ReportColumn(label: 'Customer', flex: 1.4),
+      ReportColumn(label: 'Stall Holder', flex: 1.5),
+      ReportColumn(label: 'Total', flex: 1.1),
+      ReportColumn(label: 'Payment', flex: 1.0),
+      ReportColumn(label: 'Payment Status', flex: 1.1),
+      ReportColumn(label: 'Order Status', flex: 1.1),
+    ];
+
+    final rows = filteredOrders.map((o) {
+      Color? statusColor;
+      if (o.status == OrderStatus.completed) {
+        statusColor = const Color(0xFF10B981);
+      } else if (o.status == OrderStatus.cancelled ||
+          o.status == OrderStatus.refunded) {
+        statusColor = const Color(0xFFEF4444);
+      } else {
+        statusColor = const Color(0xFFF59E0B);
+      }
+
+      return ReportRow(
+        statusColor: statusColor,
+        cells: [
+          o.id,
+          DateFormat('yyyy-MM-dd HH:mm').format(o.placedAt),
+          o.customerName,
+          o.vendorName,
+          '₱${NumberFormat('#,##0.00').format(o.total)}',
+          enumLabel(o.paymentMethod),
+          enumLabel(o.paymentStatus),
+          enumLabel(o.status),
+        ],
+      );
+    }).toList();
+
+    return ExportDocument(
+      filenamePrefix: ExportFilenameService.salesPrefix,
+      reportName: 'Sales Report',
+      header: ReportHeader(
+        reportTitle: 'Sales Report',
+        exportDate: now,
+        activeFilters: activeFilters,
+      ),
+      summary: reportSummary,
       table: ReportTable(columns: columns, rows: rows),
     );
   }

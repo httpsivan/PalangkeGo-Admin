@@ -125,7 +125,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 970, maxHeight: 720),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
+          padding: EdgeInsets.all(narrow ? 16 : 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -197,49 +197,52 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   ],
                 ),
               const SizedBox(height: 22),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: processing ? null : _moreDocs,
-                    icon: const Icon(Icons.document_scanner_outlined, size: 15),
-                    label: const Text('Request Additional Documents'),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: semanticColors(context).subtleBorder),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: processing ? null : _moreDocs,
+                      icon: const Icon(Icons.document_scanner_outlined, size: 15),
+                      label: const Text('Request Additional Documents'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: semanticColors(context).subtleBorder),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  OutlinedButton.icon(
-                    onPressed: processing ? null : reject,
-                    icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
-                    label: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-                      backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.06),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    OutlinedButton.icon(
+                      onPressed: processing ? null : reject,
+                      icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+                      label: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+                        backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton.icon(
-                    onPressed: processing ? null : approve,
-                    icon: processing
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.check_rounded, size: 16),
-                    label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.w700)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                    FilledButton.icon(
+                      onPressed: processing ? null : approve,
+                      icon: processing
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.check_rounded, size: 16),
+                      label: const Text('Approve', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -294,10 +297,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         ),
         const SizedBox(height: 14),
         GridView.count(
-          crossAxisCount: MediaQuery.sizeOf(context).width < 600 ? 2 : 3,
+          crossAxisCount: MediaQuery.sizeOf(context).width < 500
+              ? 1
+              : MediaQuery.sizeOf(context).width < 700
+                  ? 2
+                  : 3,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 1.2,
+          childAspectRatio: MediaQuery.sizeOf(context).width < 500 ? 1.6 : 1.15,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: tiles,

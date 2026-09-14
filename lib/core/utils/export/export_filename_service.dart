@@ -22,4 +22,5 @@ class ExportFilenameService {
   static const String complaintsPrefix = 'palengkego_complaints_report';
   static const String announcementsPrefix = 'palengkego_announcements_report';
   static const String auditLogPrefix = 'palengkego_admin_audit_log';
+  static const String salesPrefix = 'palengkego_sales_report';
 }

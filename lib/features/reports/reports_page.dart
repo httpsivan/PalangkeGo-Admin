@@ -114,7 +114,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final selectedCategory = stallCategory;
     final categories = <String>{
       'All Categories',
-      ...reports.map((item) => item.category ?? 'FRUITS'),
+      ...reports.map((item) => item.category ?? 'FRESH FISH'),
     }.toList()
       ..sort();
     categories
@@ -135,7 +135,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       .contains(search.text.trim().toLowerCase())) &&
               (status == 'All Statuses' || enumLabel(item.status) == status) &&
               (selectedCategory == 'All Categories' ||
-                  (item.category ?? 'FRUITS') == selectedCategory),
+                  (item.category ?? 'FRESH FISH') == selectedCategory),
         )
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
@@ -232,7 +232,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            26,
+            Responsive.horizontalPadding(context),
+            36,
+          ),
           child: DataPanel(
             title: history ? 'Resolved Report History' : 'Review Reports',
             headerAction: _ReportViewToggle(
@@ -497,7 +502,7 @@ class _ReportTable extends StatelessWidget {
                       DataCell(Text(item.reason)),
                       DataCell(
                         CategoryBadge(
-                          category: item.category ?? 'FRUITS',
+                          category: item.category ?? 'FRESH FISH',
                         ),
                       ),
                       DataCell(
@@ -1058,7 +1063,10 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
     final screenHeight = MediaQuery.sizeOf(context).height;
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: MediaQuery.sizeOf(context).width < 500 ? 12 : 24,
+        vertical: 20,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
@@ -1331,25 +1339,39 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 Expanded(child: blockBtn),
               ],
             );
+          } else if (constraints.maxWidth > 450) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: warningBtn),
+                    const SizedBox(width: 10),
+                    Expanded(child: dismissBtn),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: resolveBtn),
+                    const SizedBox(width: 10),
+                    Expanded(child: blockBtn),
+                  ],
+                ),
+              ],
+            );
           }
           return Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(child: warningBtn),
-                  const SizedBox(width: 10),
-                  Expanded(child: dismissBtn),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: resolveBtn),
-                  const SizedBox(width: 10),
-                  Expanded(child: blockBtn),
-                ],
-              ),
+              warningBtn,
+              const SizedBox(height: 8),
+              dismissBtn,
+              const SizedBox(height: 8),
+              resolveBtn,
+              const SizedBox(height: 8),
+              blockBtn,
             ],
           );
         },

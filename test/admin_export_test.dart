@@ -131,7 +131,7 @@ void main() {
   });
 
   group('ExcelReportService', () {
-    test('generates valid OpenXML .xlsx ZIP workbook with autoFilter and frozen pane', () {
+    test('generates valid OpenXML .xlsx ZIP workbook with frozen pane and no autoFilter', () {
       final fixedDate = DateTime(2026, 9, 13, 14, 0);
       final doc = ExportDocument(
         filenamePrefix: 'test_excel',
@@ -181,8 +181,8 @@ void main() {
       expect(content.contains('Active Stall Holders'), isTrue);
       expect(content.contains('Elena Vega'), isTrue);
       expect(content.contains('Ramon Diaz'), isTrue);
-      // autoFilter tag
-      expect(content.contains('autoFilter'), isTrue);
+      // autoFilter tag should not be present (sort/filter removed per requirement)
+      expect(content.contains('autoFilter'), isFalse);
       // frozen pane
       expect(content.contains('state="frozen"'), isTrue);
     });
@@ -336,6 +336,31 @@ void main() {
       expect(doc.summary.items.any((item) => item.label == 'Recorded Actions'), isTrue);
       expect(doc.summary.items.any((item) => item.label == 'KYC Actions'), isTrue);
       expect(doc.summary.items.any((item) => item.label == 'Account Controls'), isTrue);
+    });
+
+    test('SalesExportData extracts sales details, revenue metrics, and order rows', () {
+      final sampleOrders = seedOrders();
+      final summary = SalesSummary.fromOrders(sampleOrders);
+      final doc = SalesExportData.build(
+        allOrders: sampleOrders,
+        filteredOrders: sampleOrders,
+        summary: summary,
+        activeFilters: 'Period: This Month • All Categories',
+      );
+
+      expect(doc.reportName, 'Sales Report');
+      expect(doc.filenamePrefix, 'palengkego_sales_report');
+      expect(doc.table.rows.length, sampleOrders.length);
+      expect(doc.summary.items.any((item) => item.label == 'Gross Sales'), isTrue);
+      expect(doc.summary.items.any((item) => item.label == 'Net Revenue'), isTrue);
+      expect(doc.summary.items.any((item) => item.label == 'Total Orders'), isTrue);
+      expect(doc.summary.items.any((item) => item.label == 'Completed Orders'), isTrue);
+      expect(doc.summary.items.any((item) => item.label == 'Refunds'), isTrue);
+
+      final pdfBytes = PdfReportService.generatePdf(doc);
+      expect(pdfBytes, isNotEmpty);
+      final excelBytes = ExcelReportService.generateExcel(doc);
+      expect(excelBytes, isNotEmpty);
     });
   });
 

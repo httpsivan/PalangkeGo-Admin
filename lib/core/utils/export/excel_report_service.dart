@@ -217,8 +217,6 @@ class ExcelReportService {
       );
     }
     buffer.writeln('</row>');
-
-    final tableStartRow = currentRow;
     currentRow++;
 
     // Data Rows
@@ -253,16 +251,7 @@ class ExcelReportService {
       currentRow++;
     }
 
-    final tableEndRow = (currentRow - 1).clamp(tableStartRow, 999999);
-
     buffer.writeln('</sheetData>');
-
-    // AutoFilter on the table headers
-    final lastColLetter = _columnName(doc.table.columns.length - 1);
-    buffer.writeln(
-      '<autoFilter ref="A$tableStartRow:$lastColLetter$tableEndRow"/>',
-    );
-
     buffer.writeln('</worksheet>');
     return buffer.toString();
   }

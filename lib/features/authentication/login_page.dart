@@ -134,9 +134,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Widget _market(BuildContext context, bool compact) {
+    final width = MediaQuery.sizeOf(context).width;
+    final headlineSize = compact
+        ? (width < 400 ? 28.0 : 32.0)
+        : (width < 1200 ? 42.0 : 50.0);
+    final badgeSize = compact ? 11.5 : 14.0;
+
     return Container(
-      height: compact ? 260 : double.infinity,
-      constraints: const BoxConstraints(minHeight: 260),
+      height: compact ? 270 : double.infinity,
+      constraints: BoxConstraints(minHeight: compact ? 270 : 360),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: semanticColors(context).heroBackground,
@@ -182,40 +188,40 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 12 : 15,
+                      vertical: compact ? 6 : 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.28),
+                      color: Colors.black.withValues(alpha: 0.32),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.25),
+                        color: Colors.white.withValues(alpha: 0.28),
                       ),
                     ),
                     child: Text(
                       'NAGA CITY PEOPLE’S MALL',
                       style: GoogleFonts.inter(
                         color: Colors.white.withValues(alpha: 0.95),
-                        fontSize: compact ? 9.5 : 11,
+                        fontSize: badgeSize,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),
-                  SizedBox(height: compact ? 10 : 16),
+                  SizedBox(height: compact ? 12 : 18),
                   Text(
                     'Skip the Roam,\nOrder from Home.',
                     style: GoogleFonts.radley(
                       color: Colors.white,
-                      fontSize: compact ? 26 : 36,
-                      height: 1.22,
-                      fontWeight: FontWeight.w600,
+                      fontSize: headlineSize,
+                      height: 1.18,
+                      fontWeight: FontWeight.w700,
                       shadows: [
                         Shadow(
-                          color: Colors.black.withValues(alpha: 0.55),
+                          color: Colors.black.withValues(alpha: 0.65),
                           offset: const Offset(0, 2),
-                          blurRadius: 8,
+                          blurRadius: 10,
                         ),
                       ],
                     ),
@@ -593,12 +599,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ],
     );
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final cardPadding = screenWidth < 600
+        ? const EdgeInsets.symmetric(horizontal: 18, vertical: 22)
+        : (isDesktop
+            ? const EdgeInsets.symmetric(horizontal: 36, vertical: 36)
+            : const EdgeInsets.symmetric(horizontal: 24, vertical: 28));
+
     final card = Container(
       constraints: const BoxConstraints(maxWidth: 440),
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 36 : 24,
-        vertical: isDesktop ? 36 : 28,
-      ),
+      padding: cardPadding,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1010,10 +1020,14 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
     final bg = dark ? colors.heroBackground : Colors.white;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPad = screenWidth < 768 ? 16.0 : 36.0;
+    final isPhone = screenWidth < 600;
+
     return Container(
       height: 72,
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 36),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
       decoration: BoxDecoration(
         color: bg,
         border: Border(
@@ -1024,81 +1038,128 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppLogo(dark: dark, showAdminBadge: true),
+          AppLogo(
+            dark: dark,
+            compact: screenWidth < 768,
+            showTagline: screenWidth >= 900,
+            showAdminBadge: screenWidth >= 440,
+          ),
           const Spacer(),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _navItem(
-                  context: context,
-                  label: 'Home',
-                  colors: colors,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('You are on the PalengkeGo Admin Portal.'),
-                        duration: Duration(seconds: 2),
+          if (!isPhone)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _navItem(
+                    context: context,
+                    label: 'Home',
+                    colors: colors,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('You are on the PalengkeGo Admin Portal.'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  _navItem(
+                    context: context,
+                    label: 'About',
+                    colors: colors,
+                    onTap: () => _showInfoDialog(
+                      context,
+                      'About PalengkeGo',
+                      'PalengkeGo is the official digital market management platform for Naga City People’s Mall, developed in partnership with the Market Enterprise and Promotions Office (MEPO).\n\nIt streamlines stall holder operations, digital payments, market space management, and customer deliveries to bring the vibrant culture of the public market into the modern digital age.',
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  _navItem(
+                    context: context,
+                    label: 'Contact',
+                    colors: colors,
+                    onTap: () => _showInfoDialog(
+                      context,
+                      'Contact MEPO Office',
+                      'Market Enterprise and Promotions Office (MEPO)\nCity Government of Naga\n\n📍 Location: 2nd Floor, Naga City People’s Mall, Gen. Luna St., Naga City, Camarines Sur\n📞 Phone: (054) 881-2500 / local 1204\n📧 Email: mepo@nagacity.gov.ph\n🌐 Website: naga.gov.ph',
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  FilledButton.icon(
+                    onPressed: () => _showInstallDialog(context),
+                    icon: const Icon(
+                      Icons.download_rounded,
+                      size: 17,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      'Install App',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 4),
-                _navItem(
-                  context: context,
-                  label: 'About',
-                  colors: colors,
-                  onTap: () => _showInfoDialog(
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F4A3C),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            IconButton(
+              tooltip: 'Install PalengkeGo',
+              onPressed: () => _showInstallDialog(context),
+              icon: const Icon(Icons.download_rounded),
+              color: const Color(0xFF0F4A3C),
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: 'Portal Menu',
+              onSelected: (value) {
+                if (value == 'home') {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('You are on the PalengkeGo Admin Portal.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } else if (value == 'about') {
+                  _showInfoDialog(
                     context,
                     'About PalengkeGo',
                     'PalengkeGo is the official digital market management platform for Naga City People’s Mall, developed in partnership with the Market Enterprise and Promotions Office (MEPO).\n\nIt streamlines stall holder operations, digital payments, market space management, and customer deliveries to bring the vibrant culture of the public market into the modern digital age.',
-                  ),
-                ),
-                const SizedBox(width: 4),
-                _navItem(
-                  context: context,
-                  label: 'Contact',
-                  colors: colors,
-                  onTap: () => _showInfoDialog(
+                  );
+                } else if (value == 'contact') {
+                  _showInfoDialog(
                     context,
                     'Contact MEPO Office',
                     'Market Enterprise and Promotions Office (MEPO)\nCity Government of Naga\n\n📍 Location: 2nd Floor, Naga City People’s Mall, Gen. Luna St., Naga City, Camarines Sur\n📞 Phone: (054) 881-2500 / local 1204\n📧 Email: mepo@nagacity.gov.ph\n🌐 Website: naga.gov.ph',
-                  ),
-                ),
-                const SizedBox(width: 14),
-                FilledButton.icon(
-                  onPressed: () => _showInstallDialog(context),
-                  icon: const Icon(
-                    Icons.download_rounded,
-                    size: 17,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    'Install App',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F4A3C),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                  ),
-                ),
+                  );
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'home', child: Text('Home')),
+                PopupMenuItem(value: 'about', child: Text('About')),
+                PopupMenuItem(value: 'contact', child: Text('Contact')),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1147,9 +1208,12 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final horizontalPad = screenWidth < 768 ? 16.0 : 36.0;
+
     return Container(
       height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 36),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(

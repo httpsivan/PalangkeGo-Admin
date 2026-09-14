@@ -24,7 +24,25 @@ class CategoryColorStyle {
 /// Ensures Meat, Fish, Fruits, and Vegetables are instantly recognizable
 /// with identical colors across tables, badges, filters, charts, and modals.
 abstract final class CategoryColors {
-  /// 1. MEAT: Background #FEE2E2, Text #B91C1C, Border #FECACA, Accent #B91C1C
+  /// 1. FRESH FISH: Background #CFFAFE, Text #0E7490, Border #A5F3FC, Accent #0E7490
+  static const freshFish = CategoryColorStyle(
+    name: 'Fresh Fish',
+    background: Color(0xFFCFFAFE),
+    text: Color(0xFF0E7490),
+    border: Color(0xFFA5F3FC),
+    accent: Color(0xFF0E7490),
+  );
+
+  /// 2. DRIED FISH: Background #E0E7FF, Text #4338CA, Border #C7D2FE, Accent #4338CA
+  static const driedFish = CategoryColorStyle(
+    name: 'Dried Fish',
+    background: Color(0xFFE0E7FF),
+    text: Color(0xFF4338CA),
+    border: Color(0xFFC7D2FE),
+    accent: Color(0xFF4338CA),
+  );
+
+  /// 3. MEAT: Background #FEE2E2, Text #B91C1C, Border #FECACA, Accent #B91C1C
   static const meat = CategoryColorStyle(
     name: 'Meat',
     background: Color(0xFFFEE2E2),
@@ -33,16 +51,16 @@ abstract final class CategoryColors {
     accent: Color(0xFFB91C1C),
   );
 
-  /// 2. FISH: Background #CFFAFE, Text #0E7490, Border #A5F3FC, Accent #0E7490
-  static const fish = CategoryColorStyle(
-    name: 'Fish',
-    background: Color(0xFFCFFAFE),
-    text: Color(0xFF0E7490),
-    border: Color(0xFFA5F3FC),
-    accent: Color(0xFF0E7490),
+  /// 4. CHICKEN: Background #FFEDD5, Text #C2410C, Border #FED7AA, Accent #C2410C
+  static const chicken = CategoryColorStyle(
+    name: 'Chicken',
+    background: Color(0xFFFFEDD5),
+    text: Color(0xFFC2410C),
+    border: Color(0xFFFED7AA),
+    accent: Color(0xFFC2410C),
   );
 
-  /// 3. FRUITS: Background #FEF3C7, Text #B45309, Border #FDE68A, Accent #B45309
+  /// 5. FRUITS: Background #FEF3C7, Text #B45309, Border #FDE68A, Accent #B45309
   static const fruits = CategoryColorStyle(
     name: 'Fruits',
     background: Color(0xFFFEF3C7),
@@ -51,7 +69,7 @@ abstract final class CategoryColors {
     accent: Color(0xFFB45309),
   );
 
-  /// 4. VEGETABLES: Background #DCFCE7, Text #15803D, Border #BBF7D0, Accent #15803D
+  /// 6. VEGETABLES: Background #DCFCE7, Text #15803D, Border #BBF7D0, Accent #15803D
   static const vegetables = CategoryColorStyle(
     name: 'Vegetables',
     background: Color(0xFFDCFCE7),
@@ -59,6 +77,27 @@ abstract final class CategoryColors {
     border: Color(0xFFBBF7D0),
     accent: Color(0xFF15803D),
   );
+
+  /// 7. MARITATAS: Background #F3E8FF, Text #7E22CE, Border #E9D5FF, Accent #7E22CE
+  static const maritatas = CategoryColorStyle(
+    name: 'Maritatas',
+    background: Color(0xFFF3E8FF),
+    text: Color(0xFF7E22CE),
+    border: Color(0xFFE9D5FF),
+    accent: Color(0xFF7E22CE),
+  );
+
+  /// 8. SARI-SARI: Background #FCE7F3, Text #BE185D, Border #FBCFE8, Accent #BE185D
+  static const sariSari = CategoryColorStyle(
+    name: 'Sari-Sari',
+    background: Color(0xFFFCE7F3),
+    text: Color(0xFFBE185D),
+    border: Color(0xFFFBCFE8),
+    accent: Color(0xFFBE185D),
+  );
+
+  /// Backward compatibility alias
+  static const fish = freshFish;
 
   /// Fallback for unclassified categories
   static const fallback = CategoryColorStyle(
@@ -70,25 +109,45 @@ abstract final class CategoryColors {
   );
 
   /// All recognized categories in standard display order
-  static const all = [meat, fish, fruits, vegetables];
+  static const all = [
+    freshFish,
+    driedFish,
+    meat,
+    chicken,
+    fruits,
+    vegetables,
+    maritatas,
+    sariSari,
+  ];
 
   /// Resolves the color style for a given category name (case-insensitive).
   static CategoryColorStyle get(String? category) {
     if (category == null || category.trim().isEmpty) return fallback;
     final normalized = category.trim().toLowerCase();
 
-    if (normalized.contains('meat') ||
-        normalized.contains('pork') ||
-        normalized.contains('beef') ||
-        normalized.contains('poultry') ||
-        normalized.contains('chicken')) {
-      return meat;
+    if (normalized.contains('dried') ||
+        normalized.contains('daing') ||
+        normalized.contains('tuyo') ||
+        normalized.contains('tinapa')) {
+      return driedFish;
     }
-    if (normalized.contains('fish') ||
+    if (normalized.contains('chicken') ||
+        normalized.contains('poultry') ||
+        normalized.contains('manok')) {
+      return chicken;
+    }
+    if (normalized.contains('fresh fish') ||
+        normalized.contains('fish') ||
         normalized.contains('seafood') ||
         normalized.contains('bangus') ||
         normalized.contains('tilapia')) {
-      return fish;
+      return freshFish;
+    }
+    if (normalized.contains('meat') ||
+        normalized.contains('pork') ||
+        normalized.contains('beef') ||
+        normalized.contains('butchery')) {
+      return meat;
     }
     if (normalized.contains('fruit')) {
       return fruits;
@@ -97,6 +156,15 @@ abstract final class CategoryColors {
         normalized.contains('produce') ||
         normalized.contains('green')) {
       return vegetables;
+    }
+    if (normalized.contains('maritata')) {
+      return maritatas;
+    }
+    if (normalized.contains('sari') ||
+        normalized.contains('grocery') ||
+        normalized.contains('dry goods') ||
+        normalized.contains('merchandise')) {
+      return sariSari;
     }
 
     return fallback;
@@ -108,17 +176,18 @@ abstract final class CategoryColors {
     final normalized = value.trim().toLowerCase();
     if (normalized == 'all categories' ||
         normalized == 'all' ||
-        normalized == 'stall category') {
+        normalized == 'stall category' ||
+        normalized == 'customer account') {
       return false;
     }
-    return normalized.contains('meat') ||
-        normalized.contains('pork') ||
-        normalized.contains('beef') ||
-        normalized.contains('poultry') ||
-        normalized.contains('fish') ||
-        normalized.contains('seafood') ||
+    return normalized.contains('fish') ||
+        normalized.contains('dried') ||
+        normalized.contains('meat') ||
+        normalized.contains('chicken') ||
         normalized.contains('fruit') ||
-        normalized.contains('veg');
+        normalized.contains('veg') ||
+        normalized.contains('maritata') ||
+        normalized.contains('sari');
   }
 }
 

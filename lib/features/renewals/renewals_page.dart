@@ -181,7 +181,12 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
           ],
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(36, 26, 36, 36),
+          padding: EdgeInsets.fromLTRB(
+            Responsive.horizontalPadding(context),
+            26,
+            Responsive.horizontalPadding(context),
+            36,
+          ),
           child: DataPanel(
             title: 'Renewal',
             child: Column(

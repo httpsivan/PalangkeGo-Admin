@@ -250,6 +250,8 @@ class AppDataController extends StateNotifier<AppDataState> {
                   reports: seedReports(),
                   announcements: seedAnnouncements(),
                   orders: seedOrders(),
+                  auditLogs: seedAuditLogs(),
+                  suspensions: seedSuspensions(),
                 ),
         ) {
     if (firebaseEnabled) {
@@ -298,8 +300,12 @@ class AppDataController extends StateNotifier<AppDataState> {
     final unblockedCustomerIds = unblockedCustomers.toSet();
     final storedAudits = _readAuditLogs();
     final storedSuspensions = _readSuspensions();
+    final effectiveAudits =
+        storedAudits.isNotEmpty ? storedAudits : seedAuditLogs();
+    final effectiveSuspensions =
+        storedSuspensions.isNotEmpty ? storedSuspensions : seedSuspensions();
     final blockedDetails = _readBlockedDetails();
-    final activeSuspensionIds = storedSuspensions
+    final activeSuspensionIds = effectiveSuspensions
         .where((item) => item.isActive)
         .map((item) => item.accountId)
         .toSet();
@@ -346,8 +352,8 @@ class AppDataController extends StateNotifier<AppDataState> {
       applications: state.applications.map(_restoreApplication).toList(),
       renewals: state.renewals.map(_restoreRenewal).toList(),
       reports: state.reports.map(_restoreReport).toList(),
-      auditLogs: storedAudits,
-      suspensions: storedSuspensions,
+      auditLogs: effectiveAudits,
+      suspensions: effectiveSuspensions,
     );
     await _expireSuspensions();
   }

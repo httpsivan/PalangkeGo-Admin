@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../core/theme/theme_extensions.dart';
-import '../../core/utils/formatters.dart';
-import '../../core/utils/report_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/mock_data.dart';
@@ -41,14 +41,13 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   PaymentMethod? paymentMethod;
   String sort = 'Newest first';
   int page = 0;
-  bool exporting = false;
   bool showSalesMetric = true; // true = Sales, false = Orders
   bool topSellersPeriod = true; // true = Period, false = All-Time
 
   @override
   void initState() {
     super.initState();
-    _applyPreset(DatePreset.thisMonth, updateState: false);
+    _applyPreset(DatePreset.all, updateState: false);
   }
 
   @override
@@ -221,7 +220,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               title: 'Sales Reports',
               subtitle:
                   'Review marketplace sales, orders, payments, refunds, and net revenue.',
-              trailing: _buildHeaderControls(colors, filteredOrders, summary),
+              trailing: _buildHeaderControls(colors, orders, filteredOrders, summary),
               metrics: [
                 MetricCardData(
                   value: _fmtMoney(summary.grossSales),
@@ -257,7 +256,12 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             ),
 
             Padding(
-              padding: const EdgeInsets.fromLTRB(30, 24, 30, 32),
+              padding: EdgeInsets.fromLTRB(
+                Responsive.horizontalPadding(context),
+                24,
+                Responsive.horizontalPadding(context),
+                32,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -317,8 +321,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   // 3. RECENT TRANSACTIONS TABLE
                   _buildTransactionsSection(
                     colors: colors,
+                    allOrders: orders,
                     filteredOrders: filteredOrders,
                     visibleOrders: visible,
+                    summary: summary,
                     categories: categories,
                     vendors: vendors,
                     safePage: safePage,
@@ -337,7 +343,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // HEADER CONTROLS: DATE RANGE PRESETS & EXPORT
   // ---------------------------------------------------------------------------
   Widget _buildHeaderControls(
-      AppSemanticColors colors, List<Order> values, SalesSummary summary) {
+      AppSemanticColors colors,
+      List<Order> allOrders,
+      List<Order> values,
+      SalesSummary summary) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -351,95 +360,44 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: colors.borderOnHero),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _presetPill('Today', DatePreset.today),
-              _presetPill('This Week', DatePreset.thisWeek),
-              _presetPill('This Month', DatePreset.thisMonth),
-              _presetPill(
-                selectedPreset == DatePreset.custom
-                    ? _dateRangeLabel()
-                    : 'Custom Date',
-                DatePreset.custom,
-                onTap: _pickCustomDateRange,
-                icon: Icons.calendar_today_outlined,
-              ),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _presetPill('All Time', DatePreset.all),
+                _presetPill('Today', DatePreset.today),
+                _presetPill('This Week', DatePreset.thisWeek),
+                _presetPill('This Month', DatePreset.thisMonth),
+                _presetPill(
+                  selectedPreset == DatePreset.custom
+                      ? _dateRangeLabel()
+                      : 'Custom Date',
+                  DatePreset.custom,
+                  onTap: _pickCustomDateRange,
+                  icon: Icons.calendar_today_outlined,
+                ),
+              ],
+            ),
           ),
         ),
 
         // Export Dropdown Menu
-        PopupMenuButton<String>(
-          tooltip: 'Export reports',
-          enabled: !exporting,
-          onSelected: (action) {
-            if (action == 'pdf') {
-              _exportPdf(values, summary);
-            } else if (action == 'excel') {
-              _exportExcel(values, summary);
-            }
-          },
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'pdf',
-              child: Row(
-                children: [
-                  Icon(Icons.picture_as_pdf_outlined,
-                      size: 16, color: Color(0xFFEF4444)),
-                  SizedBox(width: 10),
-                  Text('Export PDF', style: TextStyle(fontSize: 13)),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'excel',
-              child: Row(
-                children: [
-                  Icon(Icons.table_chart_outlined,
-                      size: 16, color: Color(0xFF10B981)),
-                  SizedBox(width: 10),
-                  Text('Export Excel', style: TextStyle(fontSize: 13)),
-                ],
-              ),
-            ),
-          ],
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.borderOnHero),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                exporting
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.download_rounded,
-                        size: 16, color: Colors.white),
-                const SizedBox(width: 6),
-                Text(
-                  'Export',
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 16, color: Colors.white70),
-              ],
-            ),
+        ExportButton(
+          backgroundColor: Colors.black.withValues(alpha: 0.22),
+          foregroundColor: Colors.white,
+          borderColor: colors.borderOnHero,
+          onExportPdf: () => _exportSales(
+            allOrders: allOrders,
+            filteredOrders: values,
+            summary: summary,
+            format: ExportFormat.pdf,
+          ),
+          onExportExcel: () => _exportSales(
+            allOrders: allOrders,
+            filteredOrders: values,
+            summary: summary,
+            format: ExportFormat.excel,
           ),
         ),
       ],
@@ -597,12 +555,20 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
       AppSemanticColors colors, List<Order> orders, double totalGross) {
     final predefined = [
       (
-        name: 'Fish',
-        style: CategoryColors.fish,
+        name: 'Fresh Fish',
+        style: CategoryColors.freshFish,
+      ),
+      (
+        name: 'Dried Fish',
+        style: CategoryColors.driedFish,
       ),
       (
         name: 'Meat',
         style: CategoryColors.meat,
+      ),
+      (
+        name: 'Chicken',
+        style: CategoryColors.chicken,
       ),
       (
         name: 'Fruits',
@@ -611,6 +577,14 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
       (
         name: 'Vegetables',
         style: CategoryColors.vegetables,
+      ),
+      (
+        name: 'Maritatas',
+        style: CategoryColors.maritatas,
+      ),
+      (
+        name: 'Sari-Sari',
+        style: CategoryColors.sariSari,
       ),
     ];
 
@@ -1007,8 +981,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   Widget _buildTransactionsSection({
     required AppSemanticColors colors,
+    required List<Order> allOrders,
     required List<Order> filteredOrders,
     required List<Order> visibleOrders,
+    required SalesSummary summary,
     required List<String> categories,
     required List<String> vendors,
     required int safePage,
@@ -1045,6 +1021,20 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               sort = value;
               page = 0;
             }),
+          ),
+          ExportButton(
+            onExportPdf: () => _exportSales(
+              allOrders: allOrders,
+              filteredOrders: filteredOrders,
+              summary: summary,
+              format: ExportFormat.pdf,
+            ),
+            onExportExcel: () => _exportSales(
+              allOrders: allOrders,
+              filteredOrders: filteredOrders,
+              summary: summary,
+              format: ExportFormat.excel,
+            ),
           ),
         ],
       ),
@@ -1364,7 +1354,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
         maximum.clear();
         sort = 'Newest first';
         page = 0;
-        _applyPreset(DatePreset.thisMonth);
+        _applyPreset(DatePreset.all);
       });
 
   // ---------------------------------------------------------------------------
@@ -1617,109 +1607,40 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   // EXPORT UTILITIES
   // ---------------------------------------------------------------------------
-  Future<void> _exportPdf(List<Order> values, SalesSummary summary) async {
-    setState(() => exporting = true);
-    try {
-      final lines = <String>[
-        'Generated: ${longDate.format(DateTime.now())}',
-        'Period: ${_dateRangeLabel()}',
-        'Total Orders: ${summary.totalOrders} | Completed: ${summary.completedOrders} | Pending: ${summary.pendingOrders}',
-        'Gross Sales: ${_fmtMoney(summary.grossSales)} | Refunds: ${_fmtMoney(summary.refunds)} | Net Revenue: ${_fmtMoney(summary.netRevenue)}',
-        '',
-        'Order ID | Date | Customer | Stall Holder | Total | Payment | Payment Status | Order Status',
-        ...values.map((item) =>
-            '${item.id} | ${DateFormat('yyyy-MM-dd HH:mm').format(item.placedAt)} | ${item.customerName} | ${item.vendorName} | ${_fmtMoney(item.total)} | ${enumLabel(item.paymentMethod)} | ${enumLabel(item.paymentStatus)} | ${enumLabel(item.status)}'),
-      ];
-      downloadBytes(
-        buildSimplePdf(title: 'PalengkeGo Sales Report', lines: lines),
-        'palengkego_sales_report.pdf',
-        'application/pdf',
-      );
-      await ref.read(appDataProvider.notifier).recordAudit(
-            action: AuditAction.exportPdf,
-            targetEntityType: 'Sales Report',
-            targetEntityId: 'sales-report',
-            targetUserName: 'System',
-            previousValue: '',
-            newValue: '${values.length} records',
-          );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF report downloaded successfully.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => exporting = false);
+  Future<void> _exportSales({
+    required List<Order> allOrders,
+    required List<Order> filteredOrders,
+    required SalesSummary summary,
+    required ExportFormat format,
+  }) async {
+    final filterParts = <String>[];
+    filterParts.add('Period: ${_dateRangeLabel()}');
+    if (category != 'All Categories') filterParts.add('Category: $category');
+    if (vendor != 'All Stall Holders') filterParts.add('Stall: $vendor');
+    if (orderStatus != null) {
+      filterParts.add('Order Status: ${enumLabel(orderStatus!)}');
     }
-  }
+    if (paymentStatus != null) {
+      filterParts.add('Payment Status: ${enumLabel(paymentStatus!)}');
+    }
+    if (search.text.trim().isNotEmpty) {
+      filterParts.add('Search: "${search.text.trim()}"');
+    }
+    final activeFilters = filterParts.join(' • ');
 
-  Future<void> _exportExcel(List<Order> values, SalesSummary summary) async {
-    setState(() => exporting = true);
-    try {
-      final summaryRows = <List<Object?>>[
-        ['PalengkeGo Sales Summary', ''],
-        ['Reporting Period', _dateRangeLabel()],
-        ['Generated By', ref.read(adminProfileProvider).name],
-        ['Generated At', longDate.format(DateTime.now())],
-        ['Total Orders', summary.totalOrders],
-        ['Completed Orders', summary.completedOrders],
-        ['Pending Orders', summary.pendingOrders],
-        ['Cancelled Orders', summary.cancelledOrders],
-        ['Refunded Orders', summary.refundedOrders],
-        ['Gross Sales', summary.grossSales],
-        ['Discounts', summary.discounts],
-        ['Refunds', summary.refunds],
-        ['Platform Fees', summary.platformFees],
-        ['Net Revenue', summary.netRevenue],
-      ];
-      final transactions = <List<Object?>>[
-        [
-          'Order ID',
-          'Transaction ID',
-          'Date / Time',
-          'Customer',
-          'Stall Holder',
-          'Stall',
-          'Items',
-          'Category',
-          'Quantity',
-          'Subtotal',
-          'Discounts',
-          'Delivery Fee',
-          'Platform Fee',
-          'Refund',
-          'Total',
-          'Payment Method',
-          'Payment Status',
-          'Order Status',
-        ],
-        ...values.map((item) => item.toRow()),
-      ];
-      downloadBytes(
-        buildSalesWorkbook(
-          summaryRows: summaryRows,
-          transactionRows: transactions,
-        ),
-        'palengkego_sales_report.xlsx',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      await ref.read(appDataProvider.notifier).recordAudit(
-            action: AuditAction.exportExcel,
-            targetEntityType: 'Sales Report',
-            targetEntityId: 'sales-report',
-            targetUserName: 'System',
-            previousValue: '',
-            newValue: '${values.length} records',
-          );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Excel workbook downloaded successfully.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => exporting = false);
-    }
+    final doc = SalesExportData.build(
+      allOrders: allOrders,
+      filteredOrders: filteredOrders,
+      summary: summary,
+      activeFilters: activeFilters,
+    );
+
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
+    );
   }
 }
 
@@ -2540,102 +2461,152 @@ class _CategoryIconPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    switch (category) {
-      case 'fish':
-        // Fish outline facing right
-        final body = Path()
-          ..moveTo(21.0, 12.0)
-          ..cubicTo(16.5, 6.0, 10.5, 6.5, 5.5, 11.0)
-          ..lineTo(2.5, 7.0)
-          ..quadraticBezierTo(4.0, 12.0, 2.5, 17.0)
-          ..lineTo(5.5, 13.0)
-          ..cubicTo(10.5, 17.5, 16.5, 18.0, 21.0, 12.0)
-          ..close();
-        canvas.drawPath(body, stroke);
-        // Eye
-        canvas.drawCircle(const Offset(17.5, 11.0), 1.1, fill);
-        // Gill curve
-        final gill = Path()
-          ..moveTo(14.5, 9.5)
-          ..quadraticBezierTo(13.2, 12.0, 14.5, 14.5);
-        canvas.drawPath(gill, stroke);
-        break;
+    final cat = category.toLowerCase().trim();
 
-      case 'meat':
-        // Prime steak cut / butcher meat contour
-        final meat = Path()
-          ..moveTo(11.5, 4.5)
-          ..cubicTo(17.5, 4.5, 21.0, 8.0, 21.0, 12.5)
-          ..cubicTo(21.0, 17.5, 16.5, 20.0, 12.0, 20.0)
-          ..cubicTo(7.0, 20.0, 3.5, 17.0, 3.5, 13.0)
-          ..cubicTo(3.5, 9.5, 6.5, 7.5, 9.0, 7.5)
-          ..cubicTo(9.5, 7.5, 10.0, 5.5, 11.5, 4.5)
-          ..close();
-        canvas.drawPath(meat, stroke);
-        // Bone center
-        canvas.drawCircle(const Offset(8.5, 12.5), 2.0, stroke);
-        canvas.drawCircle(const Offset(8.5, 12.5), 0.8, fill);
-        // Marbling line
-        final marble = Path()
-          ..moveTo(13.0, 8.5)
-          ..quadraticBezierTo(16.5, 11.5, 15.0, 15.5);
-        canvas.drawPath(marble, stroke..strokeWidth = 1.3);
-        break;
-
-      case 'fruits':
-      case 'fruit':
-        // Fresh natural apple / fruit with stem & leaf
-        final fruit = Path()
-          ..moveTo(12.0, 7.5)
-          ..cubicTo(9.0, 5.5, 4.0, 6.5, 4.0, 12.0)
-          ..cubicTo(4.0, 17.0, 8.0, 20.5, 12.0, 20.5)
-          ..cubicTo(16.0, 20.5, 20.0, 17.0, 20.0, 12.0)
-          ..cubicTo(20.0, 6.5, 15.0, 5.5, 12.0, 7.5)
-          ..close();
-        canvas.drawPath(fruit, stroke);
-        // Fruit stem
-        final stem = Path()
-          ..moveTo(12.0, 7.5)
-          ..quadraticBezierTo(12.5, 4.0, 14.5, 3.0);
-        canvas.drawPath(stem, stroke);
-        // Fresh leaf
-        final leaf = Path()
-          ..moveTo(12.5, 5.5)
-          ..quadraticBezierTo(9.0, 3.5, 8.0, 5.5)
-          ..quadraticBezierTo(10.0, 7.0, 12.5, 5.5);
-        canvas.drawPath(leaf, fill);
-        break;
-
-      case 'vegetables':
-      case 'vegetable':
-        // Fresh carrot body with leafy greens
-        final carrot = Path()
-          ..moveTo(8.5, 8.5)
-          ..quadraticBezierTo(12.0, 7.8, 15.5, 8.5)
-          ..quadraticBezierTo(14.0, 14.5, 12.5, 21.0)
-          ..quadraticBezierTo(12.0, 21.8, 11.5, 21.0)
-          ..quadraticBezierTo(10.0, 14.5, 8.5, 8.5)
-          ..close();
-        canvas.drawPath(carrot, stroke);
-        // Texture lines on carrot
-        final ridge1 = Path()
-          ..moveTo(9.8, 12.0)
-          ..lineTo(12.5, 12.0);
-        final ridge2 = Path()
-          ..moveTo(11.0, 16.0)
-          ..lineTo(13.5, 16.0);
-        canvas.drawPath(ridge1, stroke..strokeWidth = 1.3);
-        canvas.drawPath(ridge2, stroke..strokeWidth = 1.3);
-        // Leafy green fronds on top
-        final greens = Path()
-          ..moveTo(12.0, 8.0)
-          ..quadraticBezierTo(12.0, 4.5, 12.0, 3.0)
-          ..moveTo(11.0, 8.0)
-          ..quadraticBezierTo(9.0, 5.0, 7.5, 4.0)
-          ..moveTo(13.0, 8.0)
-          ..quadraticBezierTo(15.0, 5.0, 16.5, 4.0);
-        canvas.drawPath(greens, stroke..strokeWidth = 1.5);
-        break;
+    if (cat.contains('dried')) {
+      // Dried fish (daing outline with split center)
+      final body = Path()
+        ..moveTo(21.0, 12.0)
+        ..lineTo(16.0, 6.5)
+        ..lineTo(7.0, 8.0)
+        ..lineTo(2.5, 6.0)
+        ..lineTo(4.5, 12.0)
+        ..lineTo(2.5, 18.0)
+        ..lineTo(7.0, 16.0)
+        ..lineTo(16.0, 17.5)
+        ..close();
+      canvas.drawPath(body, stroke);
+      final centerLine = Path()
+        ..moveTo(5.0, 12.0)
+        ..lineTo(19.0, 12.0);
+      canvas.drawPath(centerLine, stroke..strokeWidth = 1.2);
+    } else if (cat.contains('chicken') || cat.contains('poultry')) {
+      // Chicken drumstick
+      final drumstick = Path()
+        ..moveTo(7.0, 17.0)
+        ..lineTo(5.0, 19.0)
+        ..quadraticBezierTo(3.5, 20.5, 5.0, 21.0)
+        ..quadraticBezierTo(6.0, 21.0, 7.0, 19.0)
+        ..lineTo(9.0, 17.0)
+        ..cubicTo(14.0, 17.5, 21.0, 15.0, 21.0, 9.0)
+        ..cubicTo(21.0, 4.0, 15.0, 3.5, 11.0, 7.0)
+        ..cubicTo(7.5, 10.5, 7.0, 14.0, 7.0, 17.0)
+        ..close();
+      canvas.drawPath(drumstick, stroke);
+      canvas.drawCircle(const Offset(4.5, 19.5), 1.5, stroke..strokeWidth = 1.2);
+    } else if (cat.contains('fish') || cat.contains('seafood')) {
+      // Fresh fish outline
+      final body = Path()
+        ..moveTo(21.0, 12.0)
+        ..cubicTo(16.5, 6.0, 10.5, 6.5, 5.5, 11.0)
+        ..lineTo(2.5, 7.0)
+        ..quadraticBezierTo(4.0, 12.0, 2.5, 17.0)
+        ..lineTo(5.5, 13.0)
+        ..cubicTo(10.5, 17.5, 16.5, 18.0, 21.0, 12.0)
+        ..close();
+      canvas.drawPath(body, stroke);
+      canvas.drawCircle(const Offset(17.5, 11.0), 1.1, fill);
+      final gill = Path()
+        ..moveTo(14.5, 9.5)
+        ..quadraticBezierTo(13.2, 12.0, 14.5, 14.5);
+      canvas.drawPath(gill, stroke);
+    } else if (cat.contains('meat') || cat.contains('pork') || cat.contains('beef')) {
+      // Prime steak cut / butcher meat contour
+      final meat = Path()
+        ..moveTo(11.5, 4.5)
+        ..cubicTo(17.5, 4.5, 21.0, 8.0, 21.0, 12.5)
+        ..cubicTo(21.0, 17.5, 16.5, 20.0, 12.0, 20.0)
+        ..cubicTo(7.0, 20.0, 3.5, 17.0, 3.5, 13.0)
+        ..cubicTo(3.5, 9.5, 6.5, 7.5, 9.0, 7.5)
+        ..cubicTo(9.5, 7.5, 10.0, 5.5, 11.5, 4.5)
+        ..close();
+      canvas.drawPath(meat, stroke);
+      canvas.drawCircle(const Offset(8.5, 12.5), 2.0, stroke);
+      canvas.drawCircle(const Offset(8.5, 12.5), 0.8, fill);
+      final marble = Path()
+        ..moveTo(13.0, 8.5)
+        ..quadraticBezierTo(16.5, 11.5, 15.0, 15.5);
+      canvas.drawPath(marble, stroke..strokeWidth = 1.3);
+    } else if (cat.contains('fruit')) {
+      // Fresh natural apple / fruit
+      final fruit = Path()
+        ..moveTo(12.0, 7.5)
+        ..cubicTo(9.0, 5.5, 4.0, 6.5, 4.0, 12.0)
+        ..cubicTo(4.0, 17.0, 8.0, 20.5, 12.0, 20.5)
+        ..cubicTo(16.0, 20.5, 20.0, 17.0, 20.0, 12.0)
+        ..cubicTo(20.0, 6.5, 15.0, 5.5, 12.0, 7.5)
+        ..close();
+      canvas.drawPath(fruit, stroke);
+      final stem = Path()
+        ..moveTo(12.0, 7.5)
+        ..quadraticBezierTo(12.5, 4.0, 14.5, 3.0);
+      canvas.drawPath(stem, stroke);
+      final leaf = Path()
+        ..moveTo(12.5, 5.5)
+        ..quadraticBezierTo(9.0, 3.5, 8.0, 5.5)
+        ..quadraticBezierTo(10.0, 7.0, 12.5, 5.5);
+      canvas.drawPath(leaf, fill);
+    } else if (cat.contains('veg') || cat.contains('produce')) {
+      // Carrot with greens
+      final carrot = Path()
+        ..moveTo(8.5, 8.5)
+        ..quadraticBezierTo(12.0, 7.8, 15.5, 8.5)
+        ..quadraticBezierTo(14.0, 14.5, 12.5, 21.0)
+        ..quadraticBezierTo(12.0, 21.8, 11.5, 21.0)
+        ..quadraticBezierTo(10.0, 14.5, 8.5, 8.5)
+        ..close();
+      canvas.drawPath(carrot, stroke);
+      final ridge1 = Path()
+        ..moveTo(9.8, 12.0)
+        ..lineTo(12.5, 12.0);
+      final ridge2 = Path()
+        ..moveTo(11.0, 16.0)
+        ..lineTo(13.5, 16.0);
+      canvas.drawPath(ridge1, stroke..strokeWidth = 1.3);
+      canvas.drawPath(ridge2, stroke..strokeWidth = 1.3);
+      final greens = Path()
+        ..moveTo(12.0, 8.0)
+        ..quadraticBezierTo(12.0, 4.5, 12.0, 3.0)
+        ..moveTo(11.0, 8.0)
+        ..quadraticBezierTo(9.0, 5.0, 7.5, 4.0)
+        ..moveTo(13.0, 8.0)
+        ..quadraticBezierTo(15.0, 5.0, 16.5, 4.0);
+      canvas.drawPath(greens, stroke..strokeWidth = 1.5);
+    } else if (cat.contains('maritata')) {
+      // Maritatas (Filipino market sweet delicacy / confection)
+      final pastry = Path()
+        ..moveTo(5.0, 14.0)
+        ..cubicTo(5.0, 8.0, 19.0, 8.0, 19.0, 14.0)
+        ..lineTo(19.0, 18.0)
+        ..cubicTo(19.0, 20.0, 5.0, 20.0, 5.0, 18.0)
+        ..close();
+      canvas.drawPath(pastry, stroke);
+      final topping = Path()
+        ..moveTo(8.0, 11.0)
+        ..quadraticBezierTo(12.0, 8.5, 16.0, 11.0);
+      canvas.drawPath(topping, stroke..strokeWidth = 1.3);
+      canvas.drawCircle(const Offset(12.0, 5.5), 1.8, fill);
+    } else if (cat.contains('sari')) {
+      // Sari-Sari storefront shop / basket
+      final basket = Path()
+        ..moveTo(4.0, 9.0)
+        ..lineTo(20.0, 9.0)
+        ..lineTo(18.0, 20.0)
+        ..lineTo(6.0, 20.0)
+        ..close();
+      canvas.drawPath(basket, stroke);
+      final handle = Path()
+        ..moveTo(7.0, 9.0)
+        ..cubicTo(7.0, 4.0, 17.0, 4.0, 17.0, 9.0);
+      canvas.drawPath(handle, stroke);
+      final weave = Path()
+        ..moveTo(12.0, 9.0)
+        ..lineTo(12.0, 20.0);
+      canvas.drawPath(weave, stroke..strokeWidth = 1.2);
+    } else {
+      // Default fallback item
+      canvas.drawCircle(const Offset(12.0, 12.0), 7.0, stroke);
+      canvas.drawCircle(const Offset(12.0, 12.0), 2.0, fill);
     }
 
     canvas.restore();
