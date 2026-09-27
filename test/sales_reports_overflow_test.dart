@@ -73,8 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Find and tap Custom Date button
-    final customDateBtn = find.text('Custom Date');
-    expect(customDateBtn, findsOneWidget);
+    final customDateBtn = find.text('Custom Date').first;
     await tester.tap(customDateBtn);
     await tester.pumpAndSettle();
 

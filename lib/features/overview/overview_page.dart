@@ -8,13 +8,15 @@ import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../core/widgets/formatted_text.dart';
+import '../../core/widgets/sales_line_chart.dart';
+import '../../core/widgets/sales_overview_card.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
 import '../announcements/announcement_dialog.dart';
 import '../vendor_applications/verification_dialog.dart';
 
-enum OverviewPanelId { kyc, topSellers, announcements }
+enum OverviewPanelId { kyc, salesChart, topSellers, announcements }
 
 class _PanelState {
   _PanelState({
@@ -60,6 +62,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
         _PanelState(
           id: OverviewPanelId.kyc,
           title: 'Needs Action: KYC Approvals',
+          isFullWidth: true,
+          isExpanded: false,
+        ),
+        _PanelState(
+          id: OverviewPanelId.salesChart,
+          title: 'SALES OVERVIEW',
           isFullWidth: true,
           isExpanded: false,
         ),
@@ -155,6 +163,54 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                     : data.applications)
                 .take(state.isExpanded ? 6 : 3)
                 .toList(),
+          );
+          break;
+
+        case OverviewPanelId.salesChart:
+          headerAction = Tooltip(
+            message: 'View full sales reports',
+            child: OutlinedButton(
+              onPressed: () => context.go('/sales-reports'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.secondaryText,
+                backgroundColor: colors.hoverSurface,
+                side: BorderSide(color: colors.subtleBorder),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: const Size(0, 32),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View All',
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: colors.secondaryText,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 13,
+                    color: colors.secondaryText,
+                  ),
+                ],
+              ),
+            ),
+          );
+          childWidget = SizedBox(
+            height: state.isExpanded ? 320 : 220,
+            child: SalesLineChart(
+              orders: data.orders,
+              startDate: null,
+              endDate: null,
+              isSales: true,
+              colors: colors,
+            ),
           );
           break;
 
@@ -264,6 +320,14 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
         index: index,
         headerAction: headerAction,
         childWidget: childWidget,
+        isRawCard: state.id == OverviewPanelId.salesChart,
+        rawCardBuilder: (headerControls) => SalesOverviewCard(
+          allOrders: data.orders,
+          filteredOrders: data.orders,
+          summary: SalesSummary.fromOrders(data.orders),
+          dateRangeLabel: 'All time',
+          trailingHeaderControls: headerControls,
+        ),
         onReorder: _reorder,
         onStateChanged: () => setState(() {}),
       );
@@ -435,6 +499,8 @@ class _ResizablePanel extends StatelessWidget {
     required this.childWidget,
     required this.onReorder,
     required this.onStateChanged,
+    this.isRawCard = false,
+    this.rawCardBuilder,
   });
 
   final _PanelState state;
@@ -443,12 +509,14 @@ class _ResizablePanel extends StatelessWidget {
   final Widget childWidget;
   final void Function(int from, int to) onReorder;
   final VoidCallback onStateChanged;
+  final bool isRawCard;
+  final Widget Function(Widget headerControls)? rawCardBuilder;
 
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
 
-    final headerControls = Row(
+    final headerButtons = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         headerAction,
@@ -486,67 +554,80 @@ class _ResizablePanel extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
-        Draggable<int>(
-          data: index,
-          feedback: Material(
-            color: Colors.transparent,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Opacity(
-                opacity: 0.9,
-                child: Transform.scale(
-                  scale: 1.02,
-                  child: DataPanel(
-                    title: state.title,
-                    titleStyle: GoogleFonts.inter(
-                      color: colors.primaryText,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+      ],
+    );
+
+    final dragHandle = Draggable<int>(
+      data: index,
+      feedback: Material(
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Opacity(
+            opacity: 0.9,
+            child: Transform.scale(
+              scale: 1.02,
+              child: isRawCard && rawCardBuilder != null
+                  ? rawCardBuilder!(headerButtons)
+                  : DataPanel(
+                      title: state.title,
+                      titleStyle: GoogleFonts.inter(
+                        color: colors.primaryText,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      headerAction: headerAction,
+                      child: childWidget,
                     ),
-                    headerAction: headerAction,
-                    child: childWidget,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          child: Tooltip(
-            message: 'Drag handle: Click and drag to reorder panel',
-            child: MouseRegion(
-              cursor: SystemMouseCursors.grab,
-              child: Container(
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: colors.hoverSurface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: colors.subtleBorder),
-                ),
-                child: Icon(
-                  Icons.drag_indicator_rounded,
-                  size: 18,
-                  color: colors.secondaryText,
-                ),
-              ),
             ),
           ),
         ),
+      ),
+      child: Tooltip(
+        message: 'Drag handle: Click and drag to reorder panel',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          child: Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: colors.hoverSurface,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: colors.subtleBorder),
+            ),
+            child: Icon(
+              Icons.drag_indicator_rounded,
+              size: 18,
+              color: colors.secondaryText,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final headerControls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        headerButtons,
+        const SizedBox(width: 6),
+        dragHandle,
       ],
     );
 
     final cardContent = AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOutCubic,
-      child: DataPanel(
-        title: state.title,
-        titleStyle: GoogleFonts.inter(
-          color: colors.primaryText,
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-        headerAction: headerControls,
-        child: childWidget,
-      ),
+      child: isRawCard && rawCardBuilder != null
+          ? rawCardBuilder!(headerControls)
+          : DataPanel(
+              title: state.title,
+              titleStyle: GoogleFonts.inter(
+                color: colors.primaryText,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              headerAction: headerControls,
+              child: childWidget,
+            ),
     );
 
     return DragTarget<int>(

@@ -99,6 +99,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 label: 'Active Stall Holders',
                 icon: Icons.storefront_rounded,
                 accent: const Color(0xFF10B981),
+                onTap: () {
+                  setState(() { customers = false; status = 'Active'; });
+                  _resetTable();
+                },
               ),
             if (customers)
               MetricCardData(
@@ -107,6 +111,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 label: 'Active Customers',
                 icon: Icons.people_outline_rounded,
                 accent: const Color(0xFF3B82F6),
+                onTap: () {
+                  setState(() { customers = true; status = 'Active'; });
+                  _resetTable();
+                },
               ),
             MetricCardData(
               value:
@@ -114,6 +122,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               label: 'Suspended Accounts',
               icon: Icons.pause_circle_outline_rounded,
               accent: const Color(0xFFF59E0B),
+              onTap: () {
+                setState(() => status = 'Suspended');
+                _resetTable();
+              },
             ),
             MetricCardData(
               value:
@@ -121,6 +133,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               label: 'Blocked Accounts',
               icon: Icons.block_rounded,
               accent: const Color(0xFFEF4444),
+              onTap: () {
+                setState(() => status = 'Blocked');
+                _resetTable();
+              },
             ),
           ],
           tabs: _Tabs(

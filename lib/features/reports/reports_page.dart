@@ -210,6 +210,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               label: 'Pending Reports',
               icon: Icons.folder_copy_outlined,
               accent: const Color(0xFFEF4444),
+              onTap: () {
+                setState(() { history = false; status = 'Pending'; });
+                _resetTable();
+              },
             ),
             MetricCardData(
               value:
@@ -217,6 +221,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               label: 'Under Review',
               icon: Icons.visibility_outlined,
               accent: const Color(0xFF3B82F6),
+              onTap: () {
+                setState(() { history = false; status = 'Under Review'; });
+                _resetTable();
+              },
             ),
             MetricCardData(
               value:
@@ -224,6 +232,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               label: 'Resolved',
               icon: Icons.check_circle_outline_rounded,
               accent: const Color(0xFF10B981),
+              onTap: () {
+                setState(() { history = true; status = 'All Statuses'; });
+                _resetTable();
+              },
             ),
             MetricCardData(
               value: '$blockedCount',
@@ -234,6 +246,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       : 'Blocked Accounts',
               icon: Icons.block_outlined,
               accent: const Color(0xFFEF4444),
+              onTap: () => context.go('/accounts'),
             ),
           ],
         ),
@@ -515,7 +528,7 @@ class _ReportTable extends StatelessWidget {
                   ),
                   DataCell(
                     Text(
-                      '${item.date.month.toString().padLeft(2, '0')}/${item.date.day.toString().padLeft(2, '0')}/${item.date.year}',
+                      shortDate.format(item.date),
                     ),
                   ),
                   DataCell(

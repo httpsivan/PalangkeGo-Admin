@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-final shortDate = DateFormat('MMM dd, yyyy');
+final shortDate = DateFormat('MMM dd, yyyy, h:mm a');
 final longDate = DateFormat('MMM dd, yyyy • hh:mm a');
 String relativeTime(DateTime value) {
   final difference = DateTime.now().difference(value);

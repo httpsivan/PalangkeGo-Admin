@@ -9,14 +9,13 @@ import '../../core/utils/export/admin_export_service.dart';
 import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
+import '../../core/widgets/sales_overview_card.dart';
 import '../../data/mock_data.dart';
 import '../../data/repositories/analytics_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
 
 String _fmtMoney(num value) => '₱${NumberFormat('#,##0.00').format(value)}';
-
-enum DatePreset { today, thisWeek, thisMonth, custom, all }
 
 class SalesReportsPage extends ConsumerStatefulWidget {
   const SalesReportsPage({super.key});
@@ -215,30 +214,55 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   label: 'TOTAL SALES',
                   icon: Icons.payments_outlined,
                   accent: const Color(0xFF10B981),
+                  onTap: () => tableController.animateTo(
+                    tableController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.netRevenue),
                   label: 'NET REVENUE',
                   icon: Icons.account_balance_wallet_outlined,
                   accent: const Color(0xFF059669),
+                  onTap: () => tableController.animateTo(
+                    tableController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
                 ),
                 MetricCardData(
                   value: '${summary.totalOrders}',
                   label: 'TOTAL ORDERS',
                   icon: Icons.receipt_long_outlined,
                   accent: const Color(0xFF3B82F6),
+                  onTap: () => tableController.animateTo(
+                    tableController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
                 ),
                 MetricCardData(
                   value: '${summary.completedOrders}',
                   label: 'COMPLETED ORDERS',
                   icon: Icons.check_circle_outline_rounded,
                   accent: const Color(0xFF10B981),
+                  onTap: () => tableController.animateTo(
+                    tableController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.refunds),
                   label: 'REFUNDS',
                   icon: Icons.replay_rounded,
                   accent: const Color(0xFFEF4444),
+                  onTap: () => tableController.animateTo(
+                    tableController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  ),
                 ),
               ],
             ),
@@ -254,7 +278,14 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 2. ANALYTICS SECTION: SALES OVERVIEW CHART (ROW 1), SALES BY CATEGORY & TOP SELLERS (ROW 2)
-                  _buildSalesOverviewCard(colors, filteredOrders, summary, orders),
+                  SalesOverviewCard(
+                    allOrders: orders,
+                    filteredOrders: filteredOrders,
+                    summary: summary,
+                    dateRangeLabel: _dateRangeLabel(),
+                    startDate: startDate,
+                    endDate: endDate,
+                  ),
                   const SizedBox(height: 16),
                   if (constraints.maxWidth >= 850)
                     Row(
@@ -400,287 +431,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // SALES OVERVIEW CHART
-  // ---------------------------------------------------------------------------
-  Widget _buildSalesOverviewCard(
-      AppSemanticColors colors,
-      List<Order> filteredOrders,
-      SalesSummary summary,
-      List<Order> allOrders) {
-    // Peak sales day calculation
-    final dailyTotals = <DateTime, double>{};
-    for (final o in filteredOrders) {
-      final day = DateTime(o.placedAt.year, o.placedAt.month, o.placedAt.day);
-      dailyTotals[day] = (dailyTotals[day] ?? 0.0) + o.total;
-    }
-    DateTime? peakDay;
-    double peakSales = 0.0;
-    dailyTotals.forEach((day, sales) {
-      if (sales > peakSales) {
-        peakSales = sales;
-        peakDay = day;
-      }
-    });
-    final peakDayText = peakDay != null
-        ? '${DateFormat('MMM d').format(peakDay!)} (${_fmtMoney(peakSales)})'
-        : 'N/A';
-
-    // Avg Order Value
-    final aovText = _fmtMoney(filteredOrders.isEmpty
-        ? 0
-        : summary.grossSales / filteredOrders.length);
-
-    // % Change vs Previous Period calculation
-    final (growthText, growthIsPositive) =
-        _calculatePeriodGrowth(allOrders, summary.grossSales);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.subtleBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sales Overview',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: colors.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Daily performance for ${_dateRangeLabel()}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: colors.mutedText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: colors.hoverSurface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: colors.subtleBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _chartMetricToggle('Sales', showSalesMetric, () {
-                      setState(() => showSalesMetric = true);
-                    }),
-                    _chartMetricToggle('Orders', !showSalesMetric, () {
-                      setState(() => showSalesMetric = false);
-                    }),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 220,
-            child: _SalesLineChart(
-              orders: filteredOrders,
-              startDate: startDate,
-              endDate: endDate,
-              isSales: showSalesMetric,
-              colors: colors,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Divider(height: 1, color: colors.subtleBorder),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, box) {
-              final isNarrow = box.maxWidth < 620;
-              final statItems = [
-                _summaryStatTile(
-                  label: 'AVG. ORDER VALUE',
-                  value: aovText,
-                  icon: Icons.shopping_bag_outlined,
-                  colors: colors,
-                ),
-                _summaryStatTile(
-                  label: 'PEAK SALES DAY',
-                  value: peakDayText,
-                  icon: Icons.star_outline_rounded,
-                  colors: colors,
-                ),
-                _summaryStatTile(
-                  label: 'VS PREVIOUS PERIOD',
-                  value: growthText,
-                  icon: growthIsPositive
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  accentColor: growthIsPositive
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
-                  colors: colors,
-                ),
-              ];
-
-              if (isNarrow) {
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 12,
-                  children: statItems,
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: statItems[0]),
-                  Container(width: 1, height: 30, color: colors.subtleBorder),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: statItems[1],
-                    ),
-                  ),
-                  Container(width: 1, height: 30, color: colors.subtleBorder),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: statItems[2],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  (String, bool) _calculatePeriodGrowth(
-      List<Order> allOrders, double currentGross) {
-    if (currentGross <= 0 || allOrders.isEmpty) {
-      return ('0.0%', true);
-    }
-
-    if (startDate != null && endDate != null) {
-      final duration = endDate!.difference(startDate!);
-      final prevStart =
-          startDate!.subtract(duration + const Duration(days: 1));
-      final prevEnd = startDate!.subtract(const Duration(seconds: 1));
-
-      final prevOrders = allOrders.where((o) =>
-          !o.placedAt.isBefore(prevStart) && !o.placedAt.isAfter(prevEnd));
-      final prevGross =
-          prevOrders.fold<double>(0.0, (sum, o) => sum + o.total);
-
-      if (prevGross > 0) {
-        final pct = ((currentGross - prevGross) / prevGross) * 100;
-        final sign = pct >= 0 ? '+' : '';
-        return ('$sign${pct.toStringAsFixed(1)}%', pct >= 0);
-      }
-    }
-
-    return ('+12.4%', true);
-  }
-
-  Widget _summaryStatTile({
-    required String label,
-    required String value,
-    required IconData icon,
-    required AppSemanticColors colors,
-    Color? accentColor,
-  }) {
-    final activeColor = accentColor ?? const Color(0xFF10B981);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: activeColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(icon, size: 15, color: activeColor),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w700,
-                  color: colors.mutedText,
-                  letterSpacing: 0.4,
-                ),
-              ),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: accentColor ?? colors.primaryText,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _chartMetricToggle(
-      String label, bool isSelected, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(5),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : null,
-          ),
         ),
       ),
     );
@@ -857,6 +607,35 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _chartMetricToggle(
+      String label, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2203,349 +1982,6 @@ class _OrderDetailsDialog extends StatelessWidget {
         ),
     };
     return StatusBadge(label: label, kind: kind);
-  }
-}
-
-// =============================================================================
-// INTERACTIVE SALES OVERVIEW LINE & AREA CHART
-// =============================================================================
-class _SalesLineChart extends StatefulWidget {
-  const _SalesLineChart({
-    required this.orders,
-    required this.startDate,
-    required this.endDate,
-    required this.isSales,
-    required this.colors,
-  });
-
-  final List<Order> orders;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final bool isSales;
-  final AppSemanticColors colors;
-
-  @override
-  State<_SalesLineChart> createState() => _SalesLineChartState();
-}
-
-class _SalesLineChartState extends State<_SalesLineChart> {
-  int? _hoveredIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    // 1. Group orders by day
-    final dailyData = <DateTime, (double sales, int orders)>{};
-
-    for (final o in widget.orders) {
-      final day = DateTime(o.placedAt.year, o.placedAt.month, o.placedAt.day);
-      final current = dailyData[day] ?? (0.0, 0);
-      dailyData[day] = (current.$1 + o.total, current.$2 + 1);
-    }
-
-    final sortedDays = dailyData.keys.toList()..sort();
-
-    // Ensure we have at least 2 data points for visualization
-    if (sortedDays.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.show_chart_rounded,
-                size: 32, color: widget.colors.mutedText),
-            const SizedBox(height: 6),
-            Text(
-              'No sales data in this period',
-              style: TextStyle(fontSize: 12, color: widget.colors.mutedText),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Build data points
-    final points = sortedDays.map((d) {
-      final info = dailyData[d]!;
-      return (
-        date: d,
-        value: widget.isSales ? info.$1 : info.$2.toDouble(),
-        sales: info.$1,
-        orders: info.$2,
-      );
-    }).toList();
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        return MouseRegion(
-          onHover: (event) {
-            final x = event.localPosition.dx;
-            final chartLeft = 45.0;
-            final chartRight = width - 15.0;
-            final chartWidth = chartRight - chartLeft;
-
-            if (x >= chartLeft && x <= chartRight && points.length > 1) {
-              final step = chartWidth / (points.length - 1);
-              final idx = ((x - chartLeft) / step).round().clamp(0, points.length - 1);
-              setState(() => _hoveredIndex = idx);
-            }
-          },
-          onExit: (_) => setState(() => _hoveredIndex = null),
-          child: Stack(
-            children: [
-              CustomPaint(
-                size: Size(width, height),
-                painter: _ChartPainter(
-                  points: points,
-                  isSales: widget.isSales,
-                  hoveredIndex: _hoveredIndex,
-                  gridColor: widget.colors.subtleBorder,
-                  textColor: widget.colors.secondaryText,
-                  primaryColor: const Color(0xFF10B981),
-                ),
-              ),
-              if (_hoveredIndex != null && _hoveredIndex! < points.length) ...[
-                _buildHoverTooltip(
-                  point: points[_hoveredIndex!],
-                  index: _hoveredIndex!,
-                  totalPoints: points.length,
-                  width: width,
-                  height: height,
-                  colors: widget.colors,
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHoverTooltip({
-    required ({DateTime date, double value, double sales, int orders}) point,
-    required int index,
-    required int totalPoints,
-    required double width,
-    required double height,
-    required AppSemanticColors colors,
-  }) {
-    final chartLeft = 45.0;
-    final chartRight = width - 15.0;
-    final chartWidth = chartRight - chartLeft;
-    final step = totalPoints > 1 ? chartWidth / (totalPoints - 1) : 0.0;
-    final posX = chartLeft + index * step;
-
-    return Positioned(
-      left: (posX - 60).clamp(10.0, width - 130.0),
-      top: 10,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: colors.primaryText,
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              DateFormat('MMM d, yyyy').format(point.date),
-              style: TextStyle(
-                color: colors.cardBackground,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${_fmtMoney(point.sales)} (${point.orders} orders)',
-              style: TextStyle(
-                color: colors.cardBackground,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChartPainter extends CustomPainter {
-  _ChartPainter({
-    required this.points,
-    required this.isSales,
-    required this.hoveredIndex,
-    required this.gridColor,
-    required this.textColor,
-    required this.primaryColor,
-  });
-
-  final List<({DateTime date, double value, double sales, int orders})> points;
-  final bool isSales;
-  final int? hoveredIndex;
-  final Color gridColor;
-  final Color textColor;
-  final Color primaryColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const leftMargin = 45.0;
-    const rightMargin = 15.0;
-    const topMargin = 20.0;
-    const bottomMargin = 28.0;
-
-    final chartWidth = size.width - leftMargin - rightMargin;
-    final chartHeight = size.height - topMargin - bottomMargin;
-
-    if (chartWidth <= 0 || chartHeight <= 0) return;
-
-    // Find max value
-    double maxVal = points.map((p) => p.value).fold(0.0, math.max);
-    if (maxVal == 0) maxVal = isSales ? 1000 : 5;
-    // Round max up nicely
-    maxVal = (maxVal * 1.15);
-
-    // 1. Draw horizontal grid lines & Y labels
-    const gridDivisions = 3;
-    final gridPaint = Paint()
-      ..color = gridColor.withValues(alpha: 0.7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    final textStyle = TextStyle(
-      color: textColor,
-      fontSize: 9.5,
-      fontWeight: FontWeight.w500,
-    );
-
-    for (int i = 0; i <= gridDivisions; i++) {
-      final y = topMargin + chartHeight * (1 - i / gridDivisions);
-      final value = (maxVal * (i / gridDivisions));
-
-      canvas.drawLine(
-        Offset(leftMargin, y),
-        Offset(size.width - rightMargin, y),
-        gridPaint,
-      );
-
-      final label = isSales
-          ? (value >= 1000 ? '₱${(value / 1000).toStringAsFixed(1)}k' : '₱${value.round()}')
-          : '${value.round()}';
-
-      final tp = TextPainter(
-        text: TextSpan(text: label, style: textStyle),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      tp.paint(canvas, Offset(leftMargin - tp.width - 6, y - tp.height / 2));
-    }
-
-    if (points.isEmpty) return;
-
-    // 2. Compute coordinate points
-    final count = points.length;
-    final stepX = count > 1 ? chartWidth / (count - 1) : chartWidth / 2;
-
-    final coords = <Offset>[];
-    for (int i = 0; i < count; i++) {
-      final px = count > 1 ? leftMargin + i * stepX : leftMargin + chartWidth / 2;
-      final py = topMargin + chartHeight * (1 - (points[i].value / maxVal).clamp(0.0, 1.0));
-      coords.add(Offset(px, py));
-    }
-
-    // 3. Draw smooth curve & gradient area fill
-    final linePath = Path();
-    final fillPath = Path();
-
-    linePath.moveTo(coords[0].dx, coords[0].dy);
-    fillPath.moveTo(coords[0].dx, topMargin + chartHeight);
-    fillPath.lineTo(coords[0].dx, coords[0].dy);
-
-    for (int i = 0; i < coords.length - 1; i++) {
-      final p0 = coords[i];
-      final p1 = coords[i + 1];
-      final midX = (p0.dx + p1.dx) / 2;
-      linePath.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
-      fillPath.cubicTo(midX, p0.dy, midX, p1.dy, p1.dx, p1.dy);
-    }
-
-    fillPath.lineTo(coords.last.dx, topMargin + chartHeight);
-    fillPath.close();
-
-    // Fill Gradient
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          primaryColor.withValues(alpha: 0.22),
-          primaryColor.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(
-          leftMargin, topMargin, chartWidth, chartHeight))
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Stroke line
-    final linePaint = Paint()
-      ..color = primaryColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(linePath, linePaint);
-
-    // 4. Draw points & X-axis date labels
-    final dotPaint = Paint()..color = Colors.white;
-    final dotBorderPaint = Paint()
-      ..color = primaryColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final maxLabels = math.min(count, 8);
-    final labelInterval = math.max(1, (count / maxLabels).floor());
-
-    for (int i = 0; i < count; i++) {
-      final coord = coords[i];
-      final isHovered = hoveredIndex == i;
-
-      // Draw point circle
-      canvas.drawCircle(coord, isHovered ? 5.5 : 3.0, dotPaint);
-      canvas.drawCircle(coord, isHovered ? 5.5 : 3.0, dotBorderPaint);
-
-      // Draw X label
-      if (i % labelInterval == 0 || i == count - 1) {
-        final dateLabel = DateFormat('MMM d').format(points[i].date);
-        final tp = TextPainter(
-          text: TextSpan(text: dateLabel, style: textStyle),
-          textDirection: TextDirection.ltr,
-        )..layout();
-
-        tp.paint(
-          canvas,
-          Offset(coord.dx - tp.width / 2, topMargin + chartHeight + 8),
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ChartPainter oldDelegate) {
-    return oldDelegate.points != points ||
-        oldDelegate.isSales != isSales ||
-        oldDelegate.hoveredIndex != hoveredIndex;
   }
 }
 

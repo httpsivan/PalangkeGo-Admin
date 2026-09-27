@@ -157,16 +157,18 @@ class AppLogo extends StatelessWidget {
         children: [
           basketIcon,
           SizedBox(width: compact ? 10 : 12),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              titleText,
-              if (showTagline && !compact) ...[
-                const SizedBox(height: 2),
-                taglineText,
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleText,
+                if (showTagline && !compact) ...[
+                  const SizedBox(height: 2),
+                  taglineText,
+                ],
               ],
-            ],
+            ),
           ),
         ],
       ),
@@ -411,61 +413,98 @@ class PageHeaderMetricRibbon extends StatelessWidget {
   }
 }
 
-class PageHeaderMetricTile extends StatelessWidget {
+class PageHeaderMetricTile extends StatefulWidget {
   const PageHeaderMetricTile({super.key, required this.data});
   final MetricCardData data;
 
   @override
+  State<PageHeaderMetricTile> createState() => _PageHeaderMetricTileState();
+}
+
+class _PageHeaderMetricTileState extends State<PageHeaderMetricTile> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
-    return InkWell(
-      onTap: data.onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              data.icon,
-              size: 18,
-              color: data.accent,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+    final data = widget.data;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: data.onTap != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: InkWell(
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Stack(
+            children: [
+              Row(
                 children: [
-                  Text(
-                    data.label.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: colors.secondaryText,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.7,
-                    ),
+                  Icon(
+                    data.icon,
+                    size: 18,
+                    color: data.accent,
                   ),
-                  const SizedBox(height: 2),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: AnimatedCounter(
-                      value: data.value,
-                      style: data.valueStyle ??
-                          GoogleFonts.plusJakartaSans(
-                            color: colors.primaryText,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.4,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          data.label.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: colors.secondaryText,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.7,
                           ),
+                        ),
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: AnimatedCounter(
+                            value: data.value,
+                            style: data.valueStyle ??
+                                GoogleFonts.plusJakartaSans(
+                                  color: colors.primaryText,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.4,
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+              if (data.onTap != null)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOut,
+                    transform: Matrix4.translationValues(_isHovered ? 2.0 : 0.0, 0, 0),
+                    child: Icon(
+                      Icons.arrow_outward_rounded,
+                      size: 12,
+                      color: _isHovered
+                          ? data.accent
+                          : colors.secondaryText.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme/theme_controller.dart';
 import '../../core/utils/export/admin_export_service.dart';
@@ -615,7 +616,7 @@ class _ApplicationTable extends StatelessWidget {
                 DataCell(CategoryBadge(category: item.category)),
                 DataCell(
                   Text(
-                    '${item.submittedAt.month.toString().padLeft(2, '0')}/${item.submittedAt.day.toString().padLeft(2, '0')}/${item.submittedAt.year}',
+                    DateFormat('MM/dd/yyyy, h:mm a').format(item.submittedAt),
                   ),
                 ),
                 DataCell(

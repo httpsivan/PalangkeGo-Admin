@@ -515,6 +515,18 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     );
   }
 
+  static String normalizeDuration(String? raw) {
+    if (raw == null) return '7 Days (1 Week)';
+    if (raw == '1 Day') return '1 Day';
+    if (raw == '3 Days') return '3 Days';
+    if (raw == '7 Days' || raw == '7 Days (1 Week)') return '7 Days (1 Week)';
+    if (raw == '14 Days' || raw == '14 Days (2 Weeks)') return '14 Days (2 Weeks)';
+    if (raw == '30 Days' || raw == '30 Days (1 Month)') return '30 Days (1 Month)';
+    if (raw == 'Permanent' || raw == 'Permanent (No Expiry)') return 'Permanent (No Expiry)';
+    if (raw == 'Custom Range (Calendar)') return 'Custom Range (Calendar)';
+    return '7 Days (1 Week)';
+  }
+
   late String selectedDuration = () {
     final item = widget.announcementToEdit;
     if (item != null) {
@@ -522,12 +534,12 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       final days = item.expiresAt!.difference(item.createdAt).inDays;
       if (days <= 1) return '1 Day';
       if (days <= 3) return '3 Days';
-      if (days <= 7) return '7 Days';
-      if (days <= 14) return '14 Days';
-      if (days <= 30) return '30 Days';
+      if (days <= 7) return '7 Days (1 Week)';
+      if (days <= 14) return '14 Days (2 Weeks)';
+      if (days <= 30) return '30 Days (1 Month)';
       return 'Custom Range (Calendar)';
     }
-    return '7 Days';
+    return '7 Days (1 Week)';
   }();
 
   DateTimeRange? customDateRange;
@@ -550,15 +562,15 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
 
     final now = DateTime.now();
     DateTime? computedExpiresAt;
-    if (selectedDuration == '1 Day') {
+    if (selectedDuration.startsWith('1 Day')) {
       computedExpiresAt = now.add(const Duration(days: 1));
-    } else if (selectedDuration == '3 Days') {
+    } else if (selectedDuration.startsWith('3 Days')) {
       computedExpiresAt = now.add(const Duration(days: 3));
-    } else if (selectedDuration == '7 Days') {
+    } else if (selectedDuration.startsWith('7 Days')) {
       computedExpiresAt = now.add(const Duration(days: 7));
-    } else if (selectedDuration == '14 Days') {
+    } else if (selectedDuration.startsWith('14 Days')) {
       computedExpiresAt = now.add(const Duration(days: 14));
-    } else if (selectedDuration == '30 Days') {
+    } else if (selectedDuration.startsWith('30 Days')) {
       computedExpiresAt = now.add(const Duration(days: 30));
     } else if (selectedDuration == 'Custom Range (Calendar)' &&
         customDateRange != null) {
@@ -741,7 +753,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                       const SizedBox(height: 7),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
-                        initialValue: selectedDuration,
+                        initialValue: normalizeDuration(selectedDuration),
                         items: const [
                           '1 Day',
                           '3 Days',

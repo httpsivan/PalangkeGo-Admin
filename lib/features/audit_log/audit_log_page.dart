@@ -60,19 +60,37 @@ class _AuditLogPageState extends ConsumerState<AuditLogPage> {
                 value: '${auditLogs.length}',
                 label: 'Recorded Actions',
                 icon: Icons.history_rounded,
-                accent: const Color(0xFF3B82F6)),
+                accent: const Color(0xFF3B82F6),
+                onTap: () => scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                ),
+            ),
             MetricCardData(
                 value:
                     '${auditLogs.where((item) => item.action == AuditAction.approveKyc || item.action == AuditAction.rejectKyc).length}',
                 label: 'KYC Actions',
                 icon: Icons.verified_user_outlined,
-                accent: const Color(0xFF10B981)),
+                accent: const Color(0xFF10B981),
+                onTap: () => scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                ),
+            ),
             MetricCardData(
                 value:
                     '${auditLogs.where((item) => item.action == AuditAction.blockAccount || item.action == AuditAction.suspendAccount).length}',
                 label: 'Account Controls',
                 icon: Icons.shield_outlined,
-                accent: const Color(0xFFF59E0B)),
+                accent: const Color(0xFFF59E0B),
+                onTap: () => scrollController.animateTo(
+                  scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                ),
+            ),
           ],
         ),
         Padding(

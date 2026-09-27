@@ -114,7 +114,7 @@ ThemeData buildLightTheme() {
       AppSemanticColors(
         pageBackground: Color(0xFFF8FAFC),
         navigationBackground: primary,
-        navigationHover: Color(0xFF174F41),
+        navigationHover: Color(0x24FFFFFF),
         navigationControl: Color(0x1FFFFFFF),
         activeNavigation: Colors.white,
         activeNavigationText: Color(0xFF073E32),

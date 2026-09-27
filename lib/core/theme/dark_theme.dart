@@ -144,7 +144,7 @@ ThemeData buildDarkTheme() {
       AppSemanticColors(
         pageBackground: AdminDarkColors.pageBackground,
         navigationBackground: AdminDarkColors.headerBackground,
-        navigationHover: AdminDarkColors.hoverGreen,
+        navigationHover: Color(0x24FFFFFF),
         navigationControl: AdminDarkColors.elevatedSurface,
         activeNavigation: Color(0xFFE5F4EE),
         activeNavigationText: AdminDarkColors.headerBackground,
