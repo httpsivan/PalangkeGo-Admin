@@ -126,7 +126,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                 foregroundColor: colors.secondaryText,
                 backgroundColor: colors.hoverSurface,
                 side: BorderSide(color: colors.subtleBorder),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 minimumSize: const Size(0, 32),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -158,11 +159,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               .toList()
             ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
           childWidget = _ApprovalTable(
-            items: (kycActionItems.isNotEmpty
-                    ? kycActionItems
-                    : data.applications)
-                .take(state.isExpanded ? 6 : 3)
-                .toList(),
+            items:
+                (kycActionItems.isNotEmpty ? kycActionItems : data.applications)
+                    .take(state.isExpanded ? 6 : 3)
+                    .toList(),
           );
           break;
 
@@ -175,7 +175,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                 foregroundColor: colors.secondaryText,
                 backgroundColor: colors.hoverSurface,
                 side: BorderSide(color: colors.subtleBorder),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 minimumSize: const Size(0, 32),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -223,7 +224,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                 foregroundColor: colors.secondaryText,
                 backgroundColor: colors.hoverSurface,
                 side: BorderSide(color: colors.subtleBorder),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 minimumSize: const Size(0, 32),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -338,7 +340,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       int i = 0;
       while (i < _panels.length) {
         final current = _panels[i];
-        final isNextHalf = (i + 1 < _panels.length) && !_panels[i + 1].isFullWidth;
+        final isNextHalf =
+            (i + 1 < _panels.length) && !_panels[i + 1].isFullWidth;
 
         if (!isDesktop || current.isFullWidth) {
           widgets.add(buildPanelWidget(current, i));
@@ -640,7 +643,8 @@ class _ResizablePanel extends StatelessWidget {
           decoration: isHoveringTarget
               ? BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF10B981), width: 2.5),
+                  border:
+                      Border.all(color: const Color(0xFF10B981), width: 2.5),
                 )
               : null,
           child: cardContent,
@@ -767,16 +771,19 @@ class _OverviewHero extends ConsumerWidget {
                   ),
                   if (desktop)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 14, color: Colors.white70),
+                          const Icon(Icons.calendar_today_rounded,
+                              size: 14, color: Colors.white70),
                           const SizedBox(width: 8),
                           Text(
                             dateStr,
@@ -857,47 +864,47 @@ class _ApprovalTable extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: constraints.maxWidth),
-          child: DataTable(
-            showCheckboxColumn: false,
-            headingRowColor: WidgetStatePropertyAll(
-              colors.tableHeader,
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              showCheckboxColumn: false,
+              headingRowColor: WidgetStatePropertyAll(
+                colors.tableHeader,
+              ),
+              headingTextStyle: GoogleFonts.inter(
+                color: colors.secondaryText,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+              dataTextStyle: GoogleFonts.inter(
+                color: colors.primaryText,
+                fontSize: 13,
+              ),
+              headingRowHeight: 44,
+              dataRowMinHeight: 64,
+              dataRowMaxHeight: 64,
+              horizontalMargin: 16,
+              columnSpacing: 20,
+              columns: const [
+                DataColumn(label: Text('APPLICATION ID')),
+                DataColumn(label: Text('APPLICANT')),
+                DataColumn(label: Text('STALL NAME')),
+                DataColumn(label: Text('CATEGORY')),
+                DataColumn(label: Text('VERIFICATION STATUS')),
+                DataColumn(label: Text('ACTIONS')),
+              ],
+              rows: rows,
+              dataRowColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered)) {
+                  return colors.hoverSurface;
+                }
+                return colors.cardBackground;
+              }),
             ),
-            headingTextStyle: GoogleFonts.inter(
-              color: colors.secondaryText,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-            ),
-            dataTextStyle: GoogleFonts.inter(
-              color: colors.primaryText,
-              fontSize: 13,
-            ),
-            headingRowHeight: 44,
-            dataRowMinHeight: 64,
-            dataRowMaxHeight: 64,
-            horizontalMargin: 16,
-            columnSpacing: 20,
-            columns: const [
-              DataColumn(label: Text('APPLICATION ID')),
-              DataColumn(label: Text('APPLICANT')),
-              DataColumn(label: Text('STALL NAME')),
-              DataColumn(label: Text('CATEGORY')),
-              DataColumn(label: Text('VERIFICATION STATUS')),
-              DataColumn(label: Text('ACTIONS')),
-            ],
-            rows: rows,
-            dataRowColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.hovered)) {
-                return colors.hoverSurface;
-              }
-              return colors.cardBackground;
-            }),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -926,9 +933,10 @@ class _Announcement extends StatelessWidget {
                     Row(
                       children: [
                         StatusBadge(
-                          label: announcement.audience.toLowerCase() == 'vendors'
-                              ? 'Stall Holders'
-                              : announcement.audience,
+                          label:
+                              announcement.audience.toLowerCase() == 'vendors'
+                                  ? 'Stall Holders'
+                                  : announcement.audience,
                           kind: switch (announcement.audience.toLowerCase()) {
                             'vendors' || 'stall holders' => BadgeKind.info,
                             'customers' => BadgeKind.warning,
@@ -945,8 +953,8 @@ class _Announcement extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       announcement.title,
-                      style:
-                          const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     FormattedText(

@@ -111,7 +111,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 icon: Icons.storefront_rounded,
                 accent: const Color(0xFF10B981),
                 onTap: () {
-                  setState(() { customers = false; status = 'Active'; });
+                  setState(() {
+                    customers = false;
+                    status = 'Active';
+                  });
                   _resetTable();
                 },
               ),
@@ -123,13 +126,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 icon: Icons.people_outline_rounded,
                 accent: const Color(0xFF3B82F6),
                 onTap: () {
-                  setState(() { customers = true; status = 'Active'; });
+                  setState(() {
+                    customers = true;
+                    status = 'Active';
+                  });
                   _resetTable();
                 },
               ),
             MetricCardData(
-              value:
-                  '${data.vendors.where((v) => v.status == AccountStatus.suspended).length + data.customers.where((c) => c.status == AccountStatus.suspended).length}',
+              value: customers
+                  ? '${data.customers.where((c) => c.status == AccountStatus.suspended).length}'
+                  : '${data.vendors.where((v) => v.status == AccountStatus.suspended).length}',
               label: 'Suspended Accounts',
               icon: Icons.pause_circle_outline_rounded,
               accent: const Color(0xFFF59E0B),
@@ -139,8 +146,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               },
             ),
             MetricCardData(
-              value:
-                  '${data.vendors.where((v) => v.status == AccountStatus.blocked).length + data.customers.where((c) => c.status == AccountStatus.blocked).length}',
+              value: customers
+                  ? '${data.customers.where((c) => c.status == AccountStatus.blocked).length}'
+                  : '${data.vendors.where((v) => v.status == AccountStatus.blocked).length}',
               label: 'Blocked Accounts',
               icon: Icons.block_rounded,
               accent: const Color(0xFFEF4444),
@@ -1055,7 +1063,6 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                       const SizedBox(height: 12),
                       _contact(context, 'Email Address', vendor.email),
                       _contact(context, 'Phone Number', vendor.phone),
-                      _contact(context, 'Primary Residence', vendor.residence),
                       const SizedBox(height: 17),
                       const SectionLabel('Account Status'),
                       const SizedBox(height: 9),
@@ -1556,24 +1563,26 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                           Expanded(
                             child: _statCard(
                               context,
-                              '${widget.account.orders}',
+                              widget.account.accountType == 'Stall Holder'
+                                  ? '${widget.account.orders}'
+                                  : '${widget.account.transactions.toInt()}',
                               widget.account.accountType == 'Stall Holder'
                                   ? 'RECENT ORDERS'
                                   : 'TOTAL ORDERS',
                               Icons.receipt_long_outlined,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _statCard(
-                              context,
-                              '\u20B1${(widget.account.transactions / 1000).toStringAsFixed(1)}K',
-                              widget.account.accountType == 'Stall Holder'
-                                  ? 'RECENT REVENUE'
-                                  : 'TOTAL TRANSACTIONS',
-                              Icons.account_balance_wallet_outlined,
+                          if (widget.account.accountType == 'Stall Holder') ...[
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _statCard(
+                                context,
+                                '\u20B1${(widget.account.transactions / 1000).toStringAsFixed(1)}K',
+                                'RECENT REVENUE',
+                                Icons.account_balance_wallet_outlined,
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 21),
@@ -1583,11 +1592,6 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                           context, 'Email Address', widget.account.email),
                       _contactRow(
                           context, 'Phone Number', widget.account.phone),
-                      _contactRow(
-                        context,
-                        'Primary Residence',
-                        widget.account.residence,
-                      ),
                       const SizedBox(height: 20),
                       _sectionTitle('RECENT ACTIVITY'),
                       const SizedBox(height: 10),
