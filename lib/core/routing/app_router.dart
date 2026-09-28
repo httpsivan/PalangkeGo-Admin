@@ -57,6 +57,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => AccountsPage(
                   selectedAccountId: state.uri.queryParameters['accountId'],
                   openDetailsOnLoad: state.uri.queryParameters['open'] == '1',
+                  initialTab: state.uri.queryParameters['tab'],
                 ),
               ),
             ],

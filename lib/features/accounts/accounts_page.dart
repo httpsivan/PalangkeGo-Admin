@@ -15,10 +15,12 @@ class AccountsPage extends ConsumerStatefulWidget {
     super.key,
     this.selectedAccountId,
     this.openDetailsOnLoad = false,
+    this.initialTab,
   });
 
   final String? selectedAccountId;
   final bool openDetailsOnLoad;
+  final String? initialTab;
 
   @override
   ConsumerState<AccountsPage> createState() => _AccountsPageState();
@@ -34,8 +36,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   bool selectedAccountOpened = false;
 
   @override
+  void initState() {
+    super.initState();
+    customers = widget.initialTab == 'customers';
+  }
+
+  @override
   void didUpdateWidget(covariant AccountsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      setState(() => customers = widget.initialTab == 'customers');
+    }
     if (widget.selectedAccountId != oldWidget.selectedAccountId ||
         widget.openDetailsOnLoad != oldWidget.openDetailsOnLoad) {
       selectedAccountOpened = false;
@@ -905,8 +916,10 @@ Future<bool?> showSuspensionDialog(
       ),
     );
   } finally {
-    reason.dispose();
-    note.dispose();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      reason.dispose();
+      note.dispose();
+    });
   }
 }
 

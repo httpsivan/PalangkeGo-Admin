@@ -673,7 +673,7 @@ class _OverviewHero extends ConsumerWidget {
         value: '$activeVendors',
         label: 'Active Stall Holders',
         icon: Icons.storefront_rounded,
-        accent: const Color(0xFF3B82F6),
+        accent: const Color(0xFF10B981),
         onTap: () => context.go('/accounts'),
       ),
       MetricCardData(
@@ -686,23 +686,23 @@ class _OverviewHero extends ConsumerWidget {
       MetricCardData(
         value: '${sales.totalOrders}',
         label: 'Total Orders',
-        icon: Icons.shopping_bag_outlined,
-        accent: const Color(0xFFEF4444),
+        icon: Icons.receipt_long_outlined,
+        accent: const Color(0xFF3B82F6),
         onTap: () => context.go('/sales-reports'),
       ),
       MetricCardData(
         value: _shortPeso(sales.netRevenue),
         label: 'Net Revenue',
-        icon: Icons.payments_outlined,
-        accent: const Color(0xFF10B981),
+        icon: Icons.account_balance_wallet_outlined,
+        accent: const Color(0xFF059669),
         onTap: () => context.go('/sales-reports'),
       ),
       MetricCardData(
         value: '$activeCustomers',
         label: 'Active Customers',
-        icon: Icons.trending_up_rounded,
-        accent: const Color(0xFF8B5CF6),
-        onTap: () => context.go('/accounts'),
+        icon: Icons.people_outline_rounded,
+        accent: const Color(0xFF3B82F6),
+        onTap: () => context.go('/accounts?tab=customers'),
       ),
     ];
     final hour = DateTime.now().hour;

@@ -252,9 +252,6 @@ class _NavItem extends StatelessWidget {
       ),
     );
 
-    if (tooltip != null && tooltip != label) {
-      return Tooltip(message: tooltip!, child: itemWidget);
-    }
     return itemWidget;
   }
 }
@@ -364,8 +361,9 @@ class _AccountSettingsDialogState
           password: password.isEmpty ? null : password,
         );
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text('Account settings updated.')),
     );
   }

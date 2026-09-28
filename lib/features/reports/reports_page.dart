@@ -880,8 +880,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         _showError(error);
         return;
       }
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             markResolved
@@ -891,7 +892,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         ),
       );
     } finally {
-      resolutionNote.dispose();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        resolutionNote.dispose();
+      });
     }
   }
 
@@ -973,20 +976,22 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         _showError(error);
         return;
       }
+      final messenger = ScaffoldMessenger.of(context);
+      final router = GoRouter.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content:
               Text('Account blocked successfully. Report moved to Resolved.'),
         ),
       );
-      if (mounted) {
-        context.go(
-          '/accounts?accountId=${Uri.encodeComponent(account.id)}&open=1',
-        );
-      }
+      router.go(
+        '/accounts?accountId=${Uri.encodeComponent(account.id)}&open=1',
+      );
     } finally {
-      reason.dispose();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        reason.dispose();
+      });
     }
   }
 
@@ -1027,13 +1032,14 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
           .read(appDataProvider.notifier)
           .updateReport(widget.report.id, value, result);
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$title completed.')));
+        messenger.showSnackBar(SnackBar(content: Text('$title completed.')));
       }
     } finally {
-      input.dispose();
+      Future.delayed(const Duration(milliseconds: 300), () {
+        input.dispose();
+      });
     }
   }
 

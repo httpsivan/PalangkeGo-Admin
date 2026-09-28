@@ -134,8 +134,9 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           );
     }
     if (mounted) {
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             widget.renewal != null
@@ -181,8 +182,9 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     }
     if (mounted) {
       setState(() => processing = false);
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Application reopened for review.')),
       );
     }
@@ -1084,8 +1086,9 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           );
     }
     if (mounted) {
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             'Additional documents requested from ${widget.applicant}.',

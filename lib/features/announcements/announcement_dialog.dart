@@ -230,8 +230,10 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       ),
     );
 
-    labelController.dispose();
-    urlController.dispose();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      labelController.dispose();
+      urlController.dispose();
+    });
 
     if (result == null) return;
     final (label, url) = result;
@@ -597,8 +599,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       );
       await ref.read(appDataProvider.notifier).updateAnnouncement(updated);
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Announcement updated successfully.')),
       );
       return;
@@ -623,8 +626,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
           ),
         );
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           draft
