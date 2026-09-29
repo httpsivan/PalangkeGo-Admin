@@ -1735,20 +1735,22 @@ class PaginationBar extends StatelessWidget {
     bool active = false,
   }) {
     final colors = semanticColors(context);
+    final colorScheme = Theme.of(context).colorScheme;
     final foreground = active
-        ? colors.heroForeground
+        ? colorScheme.onPrimary
         : onTap == null
             ? colors.disabledText
             : colors.primaryText;
 
     return Material(
-      color: active ? colors.heroBackground : colors.cardBackground,
+      color: active ? colorScheme.primary : colors.cardBackground,
       surfaceTintColor: Colors.transparent,
       borderRadius: BorderRadius.circular(7),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(7),
-        hoverColor: colors.hoverSurface,
+        hoverColor: active ? Colors.transparent : colors.hoverSurface,
+        splashColor: active ? Colors.transparent : null,
         child: Container(
           width: 24,
           height: 24,

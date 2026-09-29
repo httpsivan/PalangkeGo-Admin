@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
@@ -329,34 +330,25 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                         _resetTable();
                       },
                     ),
-                    FilterButton(
-                      label: 'Export',
-                      icon: Icons.download_outlined,
-                      isActive: true,
-                      onTap: () => _export(values),
+                    ExportButton(
+                      onExportPdf: () => _exportReports(
+                        allReports: reports,
+                        filteredReports: values,
+                        format: ExportFormat.pdf,
+                      ),
+                      onExportExcel: () => _exportReports(
+                        allReports: reports,
+                        filteredReports: values,
+                        format: ExportFormat.excel,
+                      ),
                     ),
                   ],
                 ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 260),
-                  switchInCurve: Curves.easeInOut,
-                  switchOutCurve: Curves.easeInOut,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SizeTransition(
-                      sizeFactor: animation,
-                      child: child,
-                    ),
-                  ),
-                  child: _ReportTable(
-                    key: ValueKey(
-                      '$history-$targetType-${values.map((item) => item.id).join(',')}',
-                    ),
-                    history: history,
-                    values: values.skip(safePage * 10).take(10).toList(),
-                    verticalController: tableScrollController,
-                    onOpen: _openReport,
-                  ),
+                _ReportTable(
+                  history: history,
+                  values: values.skip(safePage * 10).take(10).toList(),
+                  verticalController: tableScrollController,
+                  onOpen: _openReport,
                 ),
                 if (values.isNotEmpty)
                   PaginationBar(
@@ -388,37 +380,29 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         alwaysActive: true,
       );
 
-  void _export(List<Report> values) {
-    final csv = buildCsv([
-      [
-        'Type',
-        'Account / Issue',
-        'Submitted By',
-        'Violation Type',
-        'Category',
-        'Date',
-        'Status',
-      ],
-      ...values.map(
-        (item) => [
-          item.type == 'Vendor' ? 'Stall Holder' : item.type,
-          item.accountIssue,
-          item.submittedBy,
-          item.reason,
-          item.category ?? 'FRUITS',
-          item.date.toIso8601String(),
-          enumLabel(item.status),
-        ],
-      ),
-    ]);
-    final filename = targetType == 'Stall Holders'
-        ? 'palengkego-stall-holder-reports.csv'
-        : targetType == 'Customers'
-            ? 'palengkego-customer-reports.csv'
-            : 'palengkego-reports.csv';
-    downloadCsv(csv, filename);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reports CSV downloaded.')),
+  Future<void> _exportReports({
+    required List<Report> allReports,
+    required List<Report> filteredReports,
+    required ExportFormat format,
+  }) async {
+    final filters = <String>[
+      history ? 'Resolved Reports' : 'Review Reports',
+      if (targetType != 'All Types') 'Account Type: $targetType',
+      if (status != 'All Statuses') 'Status: $status',
+      if (stallCategory != 'All Categories') 'Stall Category: $stallCategory',
+      if (dateOrder != 'Newest to Oldest') 'Sort: $dateOrder',
+      if (search.text.trim().isNotEmpty) 'Search: "${search.text.trim()}"',
+    ];
+    final doc = ComplaintExportData.build(
+      allReports: allReports,
+      filteredReports: filteredReports,
+      activeFilters: filters.join(' | '),
+    );
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
     );
   }
 }
