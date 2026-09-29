@@ -139,10 +139,7 @@ class AppLogo extends StatelessWidget {
       style: GoogleFonts.inter(
         color: dark
             ? Colors.white70
-            : Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.6),
+            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         fontSize: compact ? 7.5 : 8.5,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
@@ -493,7 +490,8 @@ class _PageHeaderMetricTileState extends State<PageHeaderMetricTile> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     curve: Curves.easeOut,
-                    transform: Matrix4.translationValues(_isHovered ? 2.0 : 0.0, 0, 0),
+                    transform:
+                        Matrix4.translationValues(_isHovered ? 2.0 : 0.0, 0, 0),
                     child: Icon(
                       Icons.arrow_outward_rounded,
                       size: 12,
@@ -554,8 +552,10 @@ class MetricCard extends StatelessWidget {
                 icon: Icon(
                   Icons.arrow_outward_rounded,
                   size: 14,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withValues(alpha: .72),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: .72),
                 ),
               )
             : InkWell(
@@ -598,67 +598,67 @@ class MetricCard extends StatelessWidget {
       button: data.onTap != null,
       label: '${data.label}: ${data.value}',
       child: AnimatedHoverContainer(
-      onTap: data.onTap,
-      borderRadius: BorderRadius.circular(compact ? 12 : 14),
-      child: Container(
-        padding: compact
-            ? const EdgeInsets.symmetric(horizontal: 14)
-            : const EdgeInsets.fromLTRB(14, 12, 12, 12),
-        decoration: BoxDecoration(
-          color: colors.cardBackground,
-          borderRadius: BorderRadius.circular(compact ? 12 : 14),
-          border: Border.all(color: colors.subtleBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: .04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: compact
-            ? Row(
-                children: [
-                  icon,
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        onTap: data.onTap,
+        borderRadius: BorderRadius.circular(compact ? 12 : 14),
+        child: Container(
+          padding: compact
+              ? const EdgeInsets.symmetric(horizontal: 14)
+              : const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: colors.cardBackground,
+            borderRadius: BorderRadius.circular(compact ? 12 : 14),
+            border: Border.all(color: colors.subtleBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: compact
+              ? Row(
+                  children: [
+                    icon,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: value,
+                          ),
+                          const SizedBox(height: 4),
+                          Flexible(child: label),
+                        ],
+                      ),
+                    ),
+                    if (arrow != null) arrow,
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: value,
-                        ),
-                        const SizedBox(height: 4),
-                        Flexible(child: label),
+                        icon,
+                        const Spacer(),
+                        if (arrow != null) arrow,
                       ],
                     ),
-                  ),
-                  if (arrow != null) arrow,
-                ],
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      icon,
-                      const Spacer(),
-                      if (arrow != null) arrow,
-                    ],
-                  ),
-                  const Spacer(),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: value,
-                  ),
-                  const SizedBox(height: 3),
-                  Flexible(child: label),
-                ],
-              ),
+                    const Spacer(),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: value,
+                    ),
+                    const SizedBox(height: 3),
+                    Flexible(child: label),
+                  ],
+                ),
         ),
       ),
     );
@@ -748,12 +748,14 @@ class Toolbar extends StatelessWidget {
     this.onClear,
     this.searchHint = 'Search by name, email, or application ID...',
     this.trailing = const [],
+    this.emphasized = true,
   });
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback? onClear;
   final String searchHint;
   final List<Widget> trailing;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
@@ -795,6 +797,21 @@ class Toolbar extends StatelessWidget {
                   },
                   icon: const Icon(Icons.close_rounded, size: 16),
                 ),
+          enabledBorder: emphasized
+              ? OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(9),
+                  borderSide: BorderSide(
+                      color: semanticColors(context)
+                          .secondaryText
+                          .withValues(alpha: 0.45)),
+                )
+              : null,
+          focusedBorder: emphasized
+              ? OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(9),
+                  borderSide: BorderSide(color: semanticColors(context).accent),
+                )
+              : null,
         ),
       ),
     );
@@ -808,11 +825,16 @@ class Toolbar extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onClear,
               style: OutlinedButton.styleFrom(
-                foregroundColor: semanticColors(context).secondaryText,
+                foregroundColor: emphasized
+                    ? semanticColors(context).primaryText
+                    : semanticColors(context).secondaryText,
                 backgroundColor: semanticColors(context).hoverSurface,
                 side: BorderSide(
-                  color: semanticColors(context).subtleBorder,
-                ),
+                    color: emphasized
+                        ? semanticColors(context)
+                            .secondaryText
+                            .withValues(alpha: 0.45)
+                        : semanticColors(context).subtleBorder),
                 minimumSize: const Size(0, 38),
                 padding: const EdgeInsets.symmetric(horizontal: 11),
                 shape: RoundedRectangleBorder(
@@ -880,7 +902,7 @@ class FilterButton extends StatelessWidget {
     required this.label,
     this.icon = Icons.keyboard_arrow_down_rounded,
     this.onTap,
-    this.isActive = false,
+    this.isActive = true,
   });
   final String label;
   final IconData icon;
@@ -956,12 +978,14 @@ class FilterMenuButton extends StatelessWidget {
     required this.values,
     required this.onSelected,
     this.icon = Icons.keyboard_arrow_down_rounded,
+    this.alwaysActive = true,
   });
 
   final String label;
   final List<String> values;
   final ValueChanged<String> onSelected;
   final IconData icon;
+  final bool alwaysActive;
 
   @override
   Widget build(BuildContext context) {
@@ -970,7 +994,7 @@ class FilterMenuButton extends StatelessWidget {
         label == 'Newest First' ||
         label == 'Stall Category' ||
         label == 'Account Type';
-    final isActive = !isDefault && values.contains(label);
+    final isActive = alwaysActive || (!isDefault && values.contains(label));
 
     return MenuAnchor(
       alignmentOffset: const Offset(0, 4),
@@ -984,7 +1008,8 @@ class FilterMenuButton extends StatelessWidget {
           ),
         ),
         elevation: const WidgetStatePropertyAll(6),
-        shadowColor: WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.08)),
+        shadowColor:
+            WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.08)),
       ),
       menuChildren: [
         for (final value in values)
@@ -1407,7 +1432,8 @@ class DataPanel extends StatelessWidget {
                                 TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                 ),
                           ),
                           if (subtitle != null) ...[
@@ -1523,71 +1549,72 @@ class ScrollableDataTable extends StatelessWidget {
   Widget build(BuildContext context) => RepaintBoundary(
         child: LayoutBuilder(
           builder: (context, constraints) {
-          final colors = semanticColors(context);
-          final tableWidth =
-              constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
+            final colors = semanticColors(context);
+            final tableWidth = constraints.maxWidth > minWidth
+                ? constraints.maxWidth
+                : minWidth;
 
-          Widget table({
-            required List<DataRow> tableRows,
-            required double headingHeight,
-          }) =>
-              ConstrainedBox(
+            Widget table({
+              required List<DataRow> tableRows,
+              required double headingHeight,
+            }) =>
+                ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: tableWidth),
+                  child: DataTable(
+                    showCheckboxColumn: false,
+                    headingRowColor: WidgetStatePropertyAll(
+                      colors.tableHeader,
+                    ),
+                    headingTextStyle: GoogleFonts.inter(
+                      color: colors.secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                    dataTextStyle: GoogleFonts.inter(
+                      color: colors.primaryText,
+                      fontSize: 13,
+                    ),
+                    headingRowHeight: headingHeight,
+                    dataRowMinHeight: rowHeight,
+                    dataRowMaxHeight: rowHeight,
+                    columnSpacing: columnSpacing,
+                    columns: columns,
+                    rows: tableRows,
+                    dataRowColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.hovered)) {
+                        return colors.hoverSurface;
+                      }
+                      return colors.cardBackground;
+                    }),
+                  ),
+                );
+
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
                 constraints: BoxConstraints(minWidth: tableWidth),
-                child: DataTable(
-                  showCheckboxColumn: false,
-                  headingRowColor: WidgetStatePropertyAll(
-                    colors.tableHeader,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.duration(context, AppMotion.component),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: child,
                   ),
-                  headingTextStyle: GoogleFonts.inter(
-                    color: colors.secondaryText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                  ),
-                  dataTextStyle: GoogleFonts.inter(
-                    color: colors.primaryText,
-                    fontSize: 13,
-                  ),
-                  headingRowHeight: headingHeight,
-                  dataRowMinHeight: rowHeight,
-                  dataRowMaxHeight: rowHeight,
-                  columnSpacing: columnSpacing,
-                  columns: columns,
-                  rows: tableRows,
-                  dataRowColor: WidgetStateProperty.resolveWith((states) {
-                    if (states.contains(WidgetState.hovered)) {
-                      return colors.hoverSurface;
-                    }
-                    return colors.cardBackground;
-                  }),
+                  child: rows.isEmpty
+                      ? KeyedSubtree(
+                          key: const ValueKey('empty'),
+                          child: emptyState,
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('rows'),
+                          child: table(tableRows: rows, headingHeight: 48),
+                        ),
                 ),
-              );
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: tableWidth),
-              child: AnimatedSwitcher(
-                duration: AppMotion.duration(context, AppMotion.component),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-                child: rows.isEmpty
-                    ? KeyedSubtree(
-                        key: const ValueKey('empty'),
-                        child: emptyState,
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('rows'),
-                        child: table(tableRows: rows, headingHeight: 48),
-                      ),
               ),
-            ),
-          );
-        },
-      ),
-    );
+            );
+          },
+        ),
+      );
 }
 
 class PaginationBar extends StatelessWidget {

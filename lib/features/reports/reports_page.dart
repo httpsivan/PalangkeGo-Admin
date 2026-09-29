@@ -232,6 +232,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               children: [
                 Toolbar(
                   controller: search,
+                  emphasized: true,
                   onChanged: (_) => _resetTable(),
                   onClear: () {
                     search.clear();
@@ -285,6 +286,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     FilterButton(
                       label: 'Export',
                       icon: Icons.download_outlined,
+                      isActive: true,
                       onTap: () => _export(values),
                     ),
                   ],
@@ -337,6 +339,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         label: label,
         values: values,
         onSelected: onChanged,
+        alwaysActive: true,
       );
 
   void _export(List<Report> values) {
