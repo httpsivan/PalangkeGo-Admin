@@ -31,7 +31,8 @@ class SalesOverviewCard extends StatefulWidget {
   final DateTime? endDate;
   final DatePreset initialPreset;
   final Widget? trailingHeaderControls;
-  final void Function(DateTime? start, DateTime? end, DatePreset preset)? onDateRangeChanged;
+  final void Function(DateTime? start, DateTime? end, DatePreset preset)?
+      onDateRangeChanged;
 
   @override
   State<SalesOverviewCard> createState() => _SalesOverviewCardState();
@@ -50,7 +51,9 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
     _startDate = widget.startDate;
     _endDate = widget.endDate;
 
-    if (widget.startDate == null && widget.endDate == null && _selectedPreset != DatePreset.all) {
+    if (widget.startDate == null &&
+        widget.endDate == null &&
+        _selectedPreset != DatePreset.all) {
       _applyPreset(_selectedPreset, updateState: false);
     }
   }
@@ -58,7 +61,8 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
   @override
   void didUpdateWidget(covariant SalesOverviewCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.startDate != oldWidget.startDate || widget.endDate != oldWidget.endDate) {
+    if (widget.startDate != oldWidget.startDate ||
+        widget.endDate != oldWidget.endDate) {
       _startDate = widget.startDate;
       _endDate = widget.endDate;
     }
@@ -165,7 +169,9 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
   }
 
   String _dateRangeLabel() {
-    if (widget.dateRangeLabel != null && _selectedPreset == DatePreset.all && _startDate == null) {
+    if (widget.dateRangeLabel != null &&
+        _selectedPreset == DatePreset.all &&
+        _startDate == null) {
       return widget.dateRangeLabel!;
     }
     if (_startDate == null && _endDate == null) {
@@ -186,30 +192,6 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
   }
 
   String _fmtMoney(num value) => '₱${NumberFormat('#,##0.00').format(value)}';
-
-  (String, bool) _calculatePeriodGrowth(List<Order> allOrders, double currentGross) {
-    if (currentGross <= 0 || allOrders.isEmpty) {
-      return ('0.0%', true);
-    }
-
-    if (_startDate != null && _endDate != null) {
-      final duration = _endDate!.difference(_startDate!);
-      final prevStart = _startDate!.subtract(duration + const Duration(days: 1));
-      final prevEnd = _startDate!.subtract(const Duration(seconds: 1));
-
-      final prevOrders = allOrders.where((o) =>
-          !o.placedAt.isBefore(prevStart) && !o.placedAt.isAfter(prevEnd));
-      final prevGross = prevOrders.fold<double>(0.0, (sum, o) => sum + o.total);
-
-      if (prevGross > 0) {
-        final pct = ((currentGross - prevGross) / prevGross) * 100;
-        final sign = pct >= 0 ? '+' : '';
-        return ('$sign${pct.toStringAsFixed(1)}%', pct >= 0);
-      }
-    }
-
-    return ('+12.4%', true);
-  }
 
   Widget _presetPill(String label, DatePreset preset, AppSemanticColors colors,
       {VoidCallback? onTap, IconData? icon}) {
@@ -249,8 +231,8 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
     );
   }
 
-  Widget _chartMetricToggle(
-      String label, bool isSelected, VoidCallback onTap) {
+  Widget _chartMetricToggle(String label, bool isSelected, VoidCallback onTap) {
+    final colors = semanticColors(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -267,7 +249,7 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : colors.secondaryText,
                 fontSize: 11.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -347,16 +329,19 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
     } else {
       activeOrders = widget.allOrders.where((item) {
         final startCondition = _startDate == null ||
-            !item.placedAt.isBefore(DateTime(_startDate!.year, _startDate!.month, _startDate!.day, 0, 0, 0));
+            !item.placedAt.isBefore(DateTime(
+                _startDate!.year, _startDate!.month, _startDate!.day, 0, 0, 0));
         final endCondition = _endDate == null ||
-            !item.placedAt.isAfter(DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59));
+            !item.placedAt.isAfter(DateTime(
+                _endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59));
         return startCondition && endCondition;
       }).toList();
     }
 
-    final activeSummary = widget.summary != null && _startDate == null && _endDate == null
-        ? widget.summary!
-        : SalesSummary.fromOrders(activeOrders);
+    final activeSummary =
+        widget.summary != null && _startDate == null && _endDate == null
+            ? widget.summary!
+            : SalesSummary.fromOrders(activeOrders);
 
     // Peak sales day calculation
     final dailyTotals = <DateTime, double>{};
@@ -381,10 +366,6 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
         ? 0
         : activeSummary.grossSales / activeOrders.length);
 
-    // % Change vs Previous Period calculation
-    final (growthText, growthIsPositive) =
-        _calculatePeriodGrowth(widget.allOrders, activeSummary.grossSales);
-
     return Container(
       decoration: BoxDecoration(
         color: colors.cardBackground,
@@ -404,7 +385,7 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 740;
+              final isNarrow = constraints.maxWidth < 1050;
 
               final presetControls = Container(
                 padding: const EdgeInsets.all(2),
@@ -413,8 +394,9 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: colors.subtleBorder),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Wrap(
+                  spacing: 2,
+                  runSpacing: 2,
                   children: [
                     _presetPill('All Time', DatePreset.all, colors),
                     _presetPill('Today', DatePreset.today, colors),
@@ -453,20 +435,16 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                 ),
               );
 
-              final rightControls = SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    presetControls,
-                    const SizedBox(width: 8),
-                    metricControls,
-                    if (widget.trailingHeaderControls != null) ...[
-                      const SizedBox(width: 8),
-                      widget.trailingHeaderControls!,
-                    ],
-                  ],
-                ),
+              final rightControls = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  presetControls,
+                  metricControls,
+                  if (widget.trailingHeaderControls != null)
+                    widget.trailingHeaderControls!,
+                ],
               );
 
               if (isNarrow) {
@@ -566,17 +544,6 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                   icon: Icons.star_outline_rounded,
                   colors: colors,
                 ),
-                _summaryStatTile(
-                  label: 'VS PREVIOUS PERIOD',
-                  value: growthText,
-                  icon: growthIsPositive
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
-                  accentColor: growthIsPositive
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
-                  colors: colors,
-                ),
               ];
 
               if (isNarrow) {
@@ -595,13 +562,6 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                     child: Padding(
                       padding: const EdgeInsets.only(left: 12),
                       child: statItems[1],
-                    ),
-                  ),
-                  Container(width: 1, height: 30, color: colors.subtleBorder),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: statItems[2],
                     ),
                   ),
                 ],

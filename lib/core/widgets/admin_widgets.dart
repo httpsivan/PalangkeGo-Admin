@@ -1108,9 +1108,12 @@ class ExportButton extends StatelessWidget {
     final isEnabled = hasMenu || onTap != null;
 
     final effectiveFg = foregroundColor ??
-        (isEnabled ? colors.secondaryText : colors.disabledText);
+        (isEnabled ? colors.primaryText : colors.disabledText);
     final effectiveBg = backgroundColor ?? colors.hoverSurface;
-    final effectiveBorder = borderColor ?? colors.subtleBorder;
+    final effectiveBorder = borderColor ??
+        (isEnabled
+            ? colors.secondaryText.withValues(alpha: 0.45)
+            : colors.subtleBorder);
 
     final buttonChild = OutlinedButton(
       onPressed: isEnabled ? (hasMenu ? null : onTap) : null,
@@ -1144,9 +1147,7 @@ class ExportButton extends StatelessWidget {
             Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 15,
-              color: foregroundColor != null
-                  ? foregroundColor!.withValues(alpha: 0.8)
-                  : colors.mutedText,
+              color: effectiveFg.withValues(alpha: 0.8),
             ),
           ],
         ],
@@ -1535,6 +1536,7 @@ class ScrollableDataTable extends StatelessWidget {
     this.rowHeight = 68,
     this.minWidth = 0,
     this.emptyState = const EmptyState(),
+    this.horizontalScroll = true,
   });
 
   final List<DataColumn> columns;
@@ -1544,6 +1546,7 @@ class ScrollableDataTable extends StatelessWidget {
   final double rowHeight;
   final double minWidth;
   final Widget emptyState;
+  final bool horizontalScroll;
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
@@ -1590,28 +1593,31 @@ class ScrollableDataTable extends StatelessWidget {
                   ),
                 );
 
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: tableWidth),
-                child: AnimatedSwitcher(
-                  duration: AppMotion.duration(context, AppMotion.component),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
-                  child: rows.isEmpty
-                      ? KeyedSubtree(
-                          key: const ValueKey('empty'),
-                          child: emptyState,
-                        )
-                      : KeyedSubtree(
-                          key: const ValueKey('rows'),
-                          child: table(tableRows: rows, headingHeight: 48),
-                        ),
+            final content = ConstrainedBox(
+              constraints: BoxConstraints(minWidth: tableWidth),
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.component),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child,
                 ),
+                child: rows.isEmpty
+                    ? KeyedSubtree(
+                        key: const ValueKey('empty'),
+                        child: emptyState,
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('rows'),
+                        child: table(tableRows: rows, headingHeight: 48),
+                      ),
               ),
             );
+            return horizontalScroll
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: content,
+                  )
+                : content;
           },
         ),
       );

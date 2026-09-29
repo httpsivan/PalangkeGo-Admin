@@ -78,12 +78,10 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
   @override
   Widget build(BuildContext context) {
     final renewals = ref.watch(renewalsProvider);
-    final pendingCount = renewals
-        .where((item) => item.status == RenewalStatus.reviewing)
-        .length;
-    final historyCount = renewals
-        .where((item) => item.status != RenewalStatus.reviewing)
-        .length;
+    final pendingCount =
+        renewals.where((item) => item.status == RenewalStatus.reviewing).length;
+    final historyCount =
+        renewals.where((item) => item.status != RenewalStatus.reviewing).length;
 
     if (!_userSelectedTab && pendingCount == 0 && historyCount > 0) {
       history = true;
@@ -143,9 +141,8 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
       });
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
-    final totalApproved = renewals
-        .where((v) => v.status == RenewalStatus.approved)
-        .length;
+    final totalApproved =
+        renewals.where((v) => v.status == RenewalStatus.approved).length;
     final expiring = renewals.where((v) {
       final days = v.expiryDate.difference(DateTime.now()).inDays;
       return days >= 0 && days <= 7;
@@ -426,9 +423,8 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
       };
 
   String? _newestRenewalId(List<RenewalRequest> values) {
-    final reviewing = values
-        .where((item) => item.status == RenewalStatus.reviewing)
-        .toList();
+    final reviewing =
+        values.where((item) => item.status == RenewalStatus.reviewing).toList();
     if (reviewing.isEmpty) return null;
     var newest = reviewing.first;
     for (final item in reviewing.skip(1)) {
@@ -492,11 +488,14 @@ class _Table extends StatelessWidget {
                     children: [
                       Text(shortDate.format(v.expiryDate)),
                       Text(
-                        days < 0 ? 'Expired ${days.abs()}d ago' : '$days days left',
+                        days < 0
+                            ? 'Expired ${days.abs()}d ago'
+                            : '$days days left',
                         style: TextStyle(
                           fontSize: 9.5,
-                          fontWeight:
-                              (days <= 3 || days < 0) ? FontWeight.w800 : FontWeight.w500,
+                          fontWeight: (days <= 3 || days < 0)
+                              ? FontWeight.w800
+                              : FontWeight.w500,
                           color: (days <= 3 || days < 0)
                               ? colors.danger
                               : days <= 7
@@ -525,7 +524,8 @@ class _Table extends StatelessWidget {
           DataCell(
             TableActionReviewButton(
               label: history ? 'View Details' : 'Review',
-              tooltip: history ? 'View renewal details' : 'Review renewal request',
+              tooltip:
+                  history ? 'View renewal details' : 'Review renewal request',
               onPressed: () => open(v),
             ),
           ),
@@ -535,36 +535,37 @@ class _Table extends StatelessWidget {
 
     return ScrollableDataTable(
       verticalController: verticalController,
-      minWidth: 1500,
-      columnSpacing: 18,
+      minWidth: 1250,
+      horizontalScroll: MediaQuery.sizeOf(context).width < 1350,
+      columnSpacing: 12,
       emptyState: emptyState,
       columns: [
         const DataColumn(
-          columnWidth: FlexColumnWidth(1.25),
+          columnWidth: FlexColumnWidth(1.05),
           label: Text('RENEWAL ID'),
         ),
         const DataColumn(
-          columnWidth: FlexColumnWidth(1.25),
+          columnWidth: FlexColumnWidth(1.2),
           label: Text('STALL HOLDER'),
         ),
         const DataColumn(
-          columnWidth: FlexColumnWidth(1.35),
+          columnWidth: FlexColumnWidth(1.15),
           label: Text('STALL NAME'),
         ),
         const DataColumn(
-          columnWidth: FlexColumnWidth(0.95),
+          columnWidth: FlexColumnWidth(0.9),
           label: Text('CATEGORY'),
         ),
         DataColumn(
-          columnWidth: const FlexColumnWidth(1.25),
+          columnWidth: const FlexColumnWidth(1.35),
           label: Text(history ? 'EXPIRY DATE' : 'DATE SUBMITTED'),
         ),
         const DataColumn(
-          columnWidth: FlexColumnWidth(1.75),
+          columnWidth: FlexColumnWidth(1.45),
           label: Text('RENEWAL STATUS'),
         ),
         const DataColumn(
-          columnWidth: FlexColumnWidth(0.8),
+          columnWidth: FlexColumnWidth(1.05),
           label: Text('ACTIONS'),
         ),
       ],

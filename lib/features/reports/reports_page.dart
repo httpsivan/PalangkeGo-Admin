@@ -352,7 +352,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         'Category',
         'Date',
         'Status',
-        'Priority'
       ],
       ...values.map(
         (item) => [
@@ -363,7 +362,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           item.category ?? 'FRUITS',
           item.date.toIso8601String(),
           enumLabel(item.status),
-          enumLabel(item.priority),
         ],
       ),
     ]);
@@ -475,24 +473,15 @@ class _ReportTable extends StatelessWidget {
                     ),
                   ),
                   DataCell(
-                    StatusBadge(
-                      label: enumLabel(item.status),
-                      kind: item.status == ReportStatus.resolved
-                          ? BadgeKind.success
-                          : item.status == ReportStatus.underReview
-                              ? BadgeKind.info
-                              : BadgeKind.danger,
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      enumLabel(item.priority),
-                      style: TextStyle(
-                        color: item.priority == Priority.high
-                            ? colors.danger
-                            : item.priority == Priority.medium
-                                ? colors.warning
-                                : colors.mutedText,
+                    Padding(
+                      padding: const EdgeInsets.only(left: 32),
+                      child: StatusBadge(
+                        label: enumLabel(item.status),
+                        kind: item.status == ReportStatus.resolved
+                            ? BadgeKind.success
+                            : item.status == ReportStatus.underReview
+                                ? BadgeKind.info
+                                : BadgeKind.danger,
                       ),
                     ),
                   ),
@@ -502,7 +491,7 @@ class _ReportTable extends StatelessWidget {
     ).toList();
     return ScrollableDataTable(
       verticalController: verticalController,
-      minWidth: history ? 1450 : 1350,
+      minWidth: history ? 1450 : 1300,
       columnSpacing: 18,
       columns: history
           ? const [
@@ -561,16 +550,15 @@ class _ReportTable extends StatelessWidget {
                 label: Text('CATEGORY'),
               ),
               DataColumn(
-                columnWidth: FixedColumnWidth(130),
+                columnWidth: FixedColumnWidth(170),
                 label: Text('DATE'),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.1),
-                label: Text('STATUS'),
-              ),
-              DataColumn(
-                columnWidth: FixedColumnWidth(150),
-                label: Text('PRIORITY'),
+                label: Padding(
+                  padding: EdgeInsets.only(left: 32),
+                  child: Text('STATUS'),
+                ),
               ),
             ],
       rows: rows,
