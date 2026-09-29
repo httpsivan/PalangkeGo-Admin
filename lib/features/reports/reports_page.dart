@@ -10,7 +10,15 @@ import '../../data/repositories/mock_repository.dart';
 import '../../models/app_models.dart';
 
 class ReportsPage extends ConsumerStatefulWidget {
-  const ReportsPage({super.key});
+  const ReportsPage({
+    super.key,
+    this.selectedReportId,
+    this.openDetailsOnLoad = false,
+  });
+
+  final String? selectedReportId;
+  final bool openDetailsOnLoad;
+
   @override
   ConsumerState<ReportsPage> createState() => _ReportsPageState();
 }
@@ -24,10 +32,48 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   String dateOrder = 'Newest to Oldest';
   bool history = false;
   int page = 0;
+  bool _selectedReportOpened = false;
   bool _isStallHolderReport(Report item) =>
       item.type == 'Stall Holder' || item.type == 'Vendor';
 
   bool _isCustomerReport(Report item) => item.type == 'Customer';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openSelectedReport());
+  }
+
+  @override
+  void didUpdateWidget(covariant ReportsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedReportId != oldWidget.selectedReportId ||
+        widget.openDetailsOnLoad != oldWidget.openDetailsOnLoad) {
+      _selectedReportOpened = false;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openSelectedReport(),
+      );
+    }
+  }
+
+  Future<void> _openSelectedReport() async {
+    if (!mounted ||
+        _selectedReportOpened ||
+        !widget.openDetailsOnLoad ||
+        widget.selectedReportId == null) {
+      return;
+    }
+    Report? selected;
+    for (final item in ref.read(appDataProvider).reports) {
+      if (item.id == widget.selectedReportId) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null) return;
+    _selectedReportOpened = true;
+    await _openReport(selected);
+  }
 
   @override
   void dispose() {
@@ -348,7 +394,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         'Type',
         'Account / Issue',
         'Submitted By',
-        'Reason',
+        'Violation Type',
         'Category',
         'Date',
         'Status',
@@ -429,7 +475,6 @@ class _ReportTable extends StatelessWidget {
                           : longDate.format(item.resolvedAt!),
                     ),
                   ),
-                  DataCell(Text(item.resolvedBy ?? 'Administrator')),
                 ]
               : [
                   DataCell(
@@ -491,7 +536,7 @@ class _ReportTable extends StatelessWidget {
     ).toList();
     return ScrollableDataTable(
       verticalController: verticalController,
-      minWidth: history ? 1450 : 1300,
+      minWidth: 1300,
       columnSpacing: 18,
       columns: history
           ? const [
@@ -509,7 +554,7 @@ class _ReportTable extends StatelessWidget {
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.25),
-                label: Text('REASON'),
+                label: Text('VIOLATION TYPE'),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.3),
@@ -522,10 +567,6 @@ class _ReportTable extends StatelessWidget {
               DataColumn(
                 columnWidth: FlexColumnWidth(1.35),
                 label: Text('RESOLVED DATE'),
-              ),
-              DataColumn(
-                columnWidth: FlexColumnWidth(1.15),
-                label: Text('RESOLVED BY'),
               ),
             ]
           : const [
@@ -543,7 +584,7 @@ class _ReportTable extends StatelessWidget {
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.4),
-                label: Text('REASON'),
+                label: Text('VIOLATION TYPE'),
               ),
               DataColumn(
                 columnWidth: FlexColumnWidth(1.1),
@@ -729,6 +770,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
         : 'CUSTOMER';
   }
 
+  String _reporterTypeLabel() =>
+      _reportedAccountTypeLabel() == 'CUSTOMER' ? 'STALL HOLDER' : 'CUSTOMER';
+
   String _reportedAccountName() {
     final account = _reportedAccount(ref.watch(appDataProvider));
     if (account != null && account.name.isNotEmpty) return account.name;
@@ -741,23 +785,16 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
     final account = _reportedAccount(ref.watch(appDataProvider));
     final isCustomer =
         widget.report.type == 'Customer' || account?.type == 'Customer';
-    return isCustomer
-        ? 'Customer Account'
-        : 'Stall Holder: ${widget.report.owner.isNotEmpty ? widget.report.owner : widget.report.vendorName}';
+    return isCustomer ? 'Customer Account' : 'Stall Holder Account';
   }
 
-  Future<void> _dismissReport({bool markResolved = false}) async {
+  Future<void> _resolveReport() async {
     final resolutionNote = TextEditingController();
-    final title = markResolved ? 'Mark Report as Resolved?' : 'Dismiss Report?';
-    final confirmation = markResolved
-        ? 'This will mark the report as resolved without changing the account '
-            'status.'
-        : 'This will dismiss the report without changing the account status.';
     try {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text(title),
+          title: const Text('Mark Report as Resolved?'),
           content: SizedBox(
             width: 420,
             child: Column(
@@ -768,7 +805,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 const SizedBox(height: 7),
                 Text('Reported User: ${widget.report.accountIssue}'),
                 const SizedBox(height: 14),
-                Text(confirmation),
+                const Text(
+                  'This will mark the report as resolved without changing the account status.',
+                ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: resolutionNote,
@@ -788,23 +827,17 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child:
-                  Text(markResolved ? 'Mark as Resolved' : 'Confirm Dismiss'),
+              child: const Text('Mark as Resolved'),
             ),
           ],
         ),
       );
       if (confirmed != true || !mounted) return;
       setState(() => processing = true);
-      final error = markResolved
-          ? await ref.read(appDataProvider.notifier).resolveReport(
-                reportId: widget.report.id,
-                note: resolutionNote.text,
-              )
-          : await ref.read(appDataProvider.notifier).dismissReport(
-                reportId: widget.report.id,
-                note: resolutionNote.text,
-              );
+      final error = await ref.read(appDataProvider.notifier).resolveReport(
+            reportId: widget.report.id,
+            note: resolutionNote.text,
+          );
       if (!mounted) return;
       if (error != null) {
         setState(() => processing = false);
@@ -814,12 +847,8 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.pop(context);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            markResolved
-                ? 'Report resolved successfully. Moved to Resolved Reports.'
-                : 'Report dismissed successfully. Moved to Resolved Reports.',
-          ),
+        const SnackBar(
+          content: Text('Report resolved successfully. Moved to Resolved Reports.'),
         ),
       );
     } finally {
@@ -1009,7 +1038,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                       _info(context),
                       const SizedBox(height: 16),
                       Text(
-                        'REASON: ${widget.report.reason.toUpperCase()}',
+                        'VIOLATION TYPE: ${widget.report.reason.toUpperCase()}',
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -1163,20 +1192,13 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
   }
 
   Widget _footer(BuildContext context, _ReportedAccount? account) {
-    final outlineStyle = OutlinedButton.styleFrom(
+    final warningStyle = FilledButton.styleFrom(
+      backgroundColor: semanticColors(context).warning,
       minimumSize: const Size(0, 36),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-      ),
-    );
-    final warningStyle = outlineStyle.copyWith(
-      foregroundColor: WidgetStatePropertyAll(
-        semanticColors(context).warning,
-      ),
-      side: WidgetStatePropertyAll(
-        BorderSide(color: semanticColors(context).warning),
       ),
     );
     final resolvedStyle = FilledButton.styleFrom(
@@ -1198,7 +1220,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       ),
     );
 
-    final warningBtn = OutlinedButton.icon(
+    final warningBtn = FilledButton.icon(
       onPressed: processing
           ? null
           : () => action(
@@ -1210,14 +1232,8 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       label: const Text('Send Warning', style: TextStyle(fontSize: 11.5)),
     );
 
-    final dismissBtn = OutlinedButton(
-      onPressed: processing ? null : _dismissReport,
-      style: outlineStyle,
-      child: const Text('Dismiss Report', style: TextStyle(fontSize: 11.5)),
-    );
-
     final resolveBtn = FilledButton.icon(
-      onPressed: processing ? null : () => _dismissReport(markResolved: true),
+      onPressed: processing ? null : _resolveReport,
       style: resolvedStyle,
       icon: const Icon(Icons.check_circle_outline, size: 16),
       label: const Text('Mark as Resolved', style: TextStyle(fontSize: 11.5)),
@@ -1244,11 +1260,9 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
               children: [
                 Expanded(child: warningBtn),
                 const SizedBox(width: 10),
-                Expanded(child: dismissBtn),
+                Expanded(child: blockBtn),
                 const SizedBox(width: 10),
                 Expanded(child: resolveBtn),
-                const SizedBox(width: 10),
-                Expanded(child: blockBtn),
               ],
             );
           }
@@ -1259,16 +1273,13 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
                 children: [
                   Expanded(child: warningBtn),
                   const SizedBox(width: 10),
-                  Expanded(child: dismissBtn),
+                  Expanded(child: blockBtn),
                 ],
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: resolveBtn),
-                  const SizedBox(width: 10),
-                  Expanded(child: blockBtn),
-                ],
+              SizedBox(
+                width: double.infinity,
+                child: resolveBtn,
               ),
             ],
           );
@@ -1337,12 +1348,17 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       children: [
         Row(
           children: [
-            Expanded(child: _infoHeading(context, 'REPORTER INFORMATION')),
+            Expanded(
+              child: _infoHeading(
+                context,
+                'COMPLAINT FROM (${_reporterTypeLabel()})',
+              ),
+            ),
             const SizedBox(width: 24),
             Expanded(
               child: _infoHeading(
                 context,
-                'REPORTED ACCOUNT (${_reportedAccountTypeLabel()})',
+                'RELATED ${_reportedAccountTypeLabel()}',
               ),
             ),
           ],
@@ -1586,7 +1602,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       ),
       TableRow(children: [
         _cell('Sep 15, 2023'),
-        _cell(isCustomer ? 'Dispute with Stall Holder' : 'Late Delivery'),
+        _cell(isCustomer ? 'Customer Conflict' : 'Delivery Problem'),
         _cell('Warning Issued'),
         _cell('Closed'),
       ]),
@@ -1596,7 +1612,7 @@ class _ReportReviewDialogState extends ConsumerState<ReportReviewDialog> {
       rows.add(
         TableRow(children: [
           _cell('Aug 02, 2023'),
-          _cell(isCustomer ? 'Abusive Messaging' : 'Incorrect Pricing'),
+          _cell(isCustomer ? 'Order Management' : 'Payment Problem'),
           _cell('System Flag'),
           _cell('Closed'),
         ]),

@@ -41,11 +41,11 @@ void main() {
     expect(find.text('NAGA CITY PEOPLE’S MALL'), findsOneWidget);
     expect(find.text('Skip the Roam,\nOrder from Home.'), findsOneWidget);
 
-    // Verify header navigation items
-    expect(find.text('Home'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
-    expect(find.text('Contact'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Install App'), findsOneWidget);
+    // The admin login screen has no public navigation.
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('About'), findsNothing);
+    expect(find.text('Contact'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Install App'), findsNothing);
 
     // Verify login form heading
     expect(find.text('Welcome Back, Admin!'), findsOneWidget);
@@ -63,16 +63,16 @@ void main() {
     // Verify Log In button
     expect(find.widgetWithText(FilledButton, 'Log In'), findsOneWidget);
 
-    // Verify footer
+    // The login screen has no footer.
     expect(
       find.text(
         'Naga City People’s Mall — Market Enterprise and Promotions Office (MEPO)',
       ),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(find.text('Terms of Service'), findsOneWidget);
-    expect(find.text('Support'), findsOneWidget);
+    expect(find.text('Privacy Policy'), findsNothing);
+    expect(find.text('Terms of Service'), findsNothing);
+    expect(find.text('Support'), findsNothing);
   });
 
   testWidgets('clicking Keep me signed in label toggles the checkbox',
@@ -162,35 +162,4 @@ void main() {
     expect(find.text('Reset Password'), findsNothing);
   });
 
-  testWidgets('Header About and Install App buttons open modal dialogs',
-      (tester) async {
-    tester.view.physicalSize = const Size(1920, 1080);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final prefs = await SharedPreferences.getInstance();
-
-    await tester.pumpWidget(createLoginTestWidget(prefs: prefs));
-    await tester.pumpAndSettle();
-
-    // Tap About
-    await tester.tap(find.text('About'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('About PalengkeGo'), findsOneWidget);
-    await tester.tap(find.text('Close'));
-    await tester.pumpAndSettle();
-    expect(find.text('About PalengkeGo'), findsNothing);
-
-    // Tap Install App
-    await tester.tap(find.widgetWithText(FilledButton, 'Install App'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Install PalengkeGo'), findsOneWidget);
-    expect(find.text('Got It'), findsOneWidget);
-    await tester.tap(find.text('Got It'));
-    await tester.pumpAndSettle();
-    expect(find.text('Install PalengkeGo'), findsNothing);
-  });
 }

@@ -318,12 +318,19 @@ List<RenewalRequest> seedRenewals() {
 }
 
 List<Report> seedReports() {
-  final reasons = [
-    'Scam or Fraud',
-    'Harassment',
-    'Bug Report',
-    'Incorrect Pricing',
-    'Late Delivery',
+  const customerTopics = [
+    'Order Issue',
+    'Delivery Problem',
+    'Payment Problem',
+    'App Issue',
+    'Other',
+  ];
+  const stallHolderTopics = [
+    'App Issue',
+    'Payout/Earnings',
+    'Order Management',
+    'Customer Conflict',
+    'Other Support',
   ];
   final categories = [
     'FRESH FISH',
@@ -342,8 +349,12 @@ List<Report> seedReports() {
     final accountIssue = isStallHolder
         ? _names[(index ~/ 2) % _names.length]
         : _customers[(index ~/ 2) % _customers.length];
-    final submittedBy = _customers[(index + 9) % _customers.length];
-    final reason = reasons[index % reasons.length];
+    final submittedBy = isStallHolder
+        ? _customers[(index + 9) % _customers.length]
+        : _names[(index ~/ 2) % _names.length];
+    final reason = (isStallHolder ? customerTopics : stallHolderTopics)[
+      index % customerTopics.length
+    ];
     final date = DateTime(2023, 10, 24).subtract(Duration(days: index));
 
     // Ensure specific accounts used in unit tests (e.g. Diosa Fruit Stand, Juan Dela Cruz) remain active (pending/underReview)
@@ -353,6 +364,22 @@ List<Report> seedReports() {
     };
 
     final String description = switch (reason) {
+      'Order Issue' =>
+          'The order was incomplete and the stall holder did not provide the items shown in the order confirmation.',
+      'Delivery Problem' =>
+          'The delivery arrived outside the agreed time window, causing the perishable items to spoil.',
+      'Payment Problem' =>
+          'The payment was completed but the order status did not update and no refund has been received.',
+      'App Issue' =>
+          'The PalengkeGo app failed while processing an order or account request related to this report.',
+      'Payout/Earnings' =>
+          'A completed order for the related customer is missing from the stall holder payout summary.',
+      'Order Management' =>
+          'The stall holder needs help managing an order for the related customer after its status did not update correctly.',
+      'Customer Conflict' =>
+          'The customer used abusive language while disputing an order and the stall holder needs assistance.',
+      'Other Support' =>
+          'The stall holder submitted a support concern that does not fit the available topics.',
       'Scam or Fraud' => isStallHolder
           ? 'The stall holder collected payment for premium produce but substituted lower grade items and refused a refund upon delivery.'
           : 'The customer claimed goods were never delivered despite rider photo proof and opened a fraudulent chargeback dispute.',
@@ -387,10 +414,8 @@ List<Report> seedReports() {
       reporterEmail:
           '${submittedBy.toLowerCase().replaceAll(RegExp(r'[^a-z]+'), '.')}@example.com',
       phone: '+63 917 123 ${4500 + index}',
-      vendorName: isStallHolder
-          ? accountIssue
-          : _names[(index + 10) % _names.length],
-      owner: _customers[(index + 3) % _customers.length],
+      vendorName: isStallHolder ? accountIssue : submittedBy,
+      owner: '',
       stallNumber: 'Block ${12 + index}',
       previousViolations: (index % 3),
       notes: isResolved ? 'Resolved by admin officer after investigation.' : '',

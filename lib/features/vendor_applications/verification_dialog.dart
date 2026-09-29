@@ -1103,7 +1103,10 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             message:
                 'Requested document update from ${widget.applicant}: "$value"',
             type: NotificationType.vendorApplication,
-            route: '/applications',
+            target: NotificationTarget(
+              type: NotificationTargetType.application,
+              id: widget.id,
+            ),
             actionLabel: 'View Status',
           );
     }
@@ -1116,7 +1119,10 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             message:
                 'Requested document update from ${widget.applicant}: "$value"',
             type: NotificationType.renewal,
-            route: '/renewals',
+            target: NotificationTarget(
+              type: NotificationTargetType.renewal,
+              id: widget.id,
+            ),
             actionLabel: 'View Status',
           );
     }

@@ -1648,47 +1648,35 @@ class PaginationBar extends StatelessWidget {
     }
 
     final int safePage = page.clamp(0, pageCount - 1);
-    final pagination = AnimatedSwitcher(
-      duration: AppMotion.duration(context, AppMotion.component),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
-      child: KeyedSubtree(
-        key: ValueKey(safePage),
-        child: Wrap(
-          spacing: 5,
-          children: [
-            _button(
-              context,
-              Icons.chevron_left_rounded,
-              safePage > 0 ? () => onPageChanged(safePage - 1) : null,
-            ),
-            for (var i = 0; i < pageCount && i < 3; i++)
-              _button(
-                context,
-                i + 1,
-                () => onPageChanged(i),
-                active: i == safePage,
-              ),
-            if (pageCount > 4) _button(context, '...', null),
-            if (pageCount > 3)
-              _button(
-                context,
-                pageCount,
-                () => onPageChanged(pageCount - 1),
-                active: safePage == pageCount - 1,
-              ),
-            _button(
-              context,
-              Icons.chevron_right_rounded,
-              safePage < pageCount - 1
-                  ? () => onPageChanged(safePage + 1)
-                  : null,
-            ),
-          ],
+    final pagination = Wrap(
+      spacing: 5,
+      children: [
+        _button(
+          context,
+          Icons.chevron_left_rounded,
+          safePage > 0 ? () => onPageChanged(safePage - 1) : null,
         ),
-      ),
+        for (var i = 0; i < pageCount && i < 3; i++)
+          _button(
+            context,
+            i + 1,
+            () => onPageChanged(i),
+            active: i == safePage,
+          ),
+        if (pageCount > 4) _button(context, '...', null),
+        if (pageCount > 3)
+          _button(
+            context,
+            pageCount,
+            () => onPageChanged(pageCount - 1),
+            active: safePage == pageCount - 1,
+          ),
+        _button(
+          context,
+          Icons.chevron_right_rounded,
+          safePage < pageCount - 1 ? () => onPageChanged(safePage + 1) : null,
+        ),
+      ],
     );
 
     final summary = Text(
@@ -1753,39 +1741,36 @@ class PaginationBar extends StatelessWidget {
             ? colors.disabledText
             : colors.primaryText;
 
-    return AnimatedButtonFeedback(
-      enabled: onTap != null,
-      child: Material(
-        color: active ? colors.heroBackground : colors.cardBackground,
-        surfaceTintColor: Colors.transparent,
+    return Material(
+      color: active ? colors.heroBackground : colors.cardBackground,
+      surfaceTintColor: Colors.transparent,
+      borderRadius: BorderRadius.circular(7),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(7),
-          hoverColor: colors.hoverSurface,
-          child: Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
-              border: active ? null : Border.all(color: colors.subtleBorder),
-            ),
-            child: label is IconData
-                ? Icon(
-                    label,
-                    size: 16,
-                    color: foreground,
-                  )
-                : Text(
-                    '$label',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: foreground,
-                    ),
-                  ),
+        hoverColor: colors.hoverSurface,
+        child: Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(7),
+            border: active ? null : Border.all(color: colors.subtleBorder),
           ),
+          child: label is IconData
+              ? Icon(
+                  label,
+                  size: 16,
+                  color: foreground,
+                )
+              : Text(
+                  '$label',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: foreground,
+                  ),
+                ),
         ),
       ),
     );

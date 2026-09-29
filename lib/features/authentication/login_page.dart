@@ -116,13 +116,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             backgroundColor: const Color(0xFFF8FAFC),
             body: Form(
               key: formKey,
-              child: Column(
-                children: [
-                  const _Header(dark: false),
-                  Expanded(child: body),
-                  const _Footer(),
-                ],
-              ),
+              child: body,
             ),
           );
         },
@@ -205,10 +199,46 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
             ),
           ),
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Container(
+              padding: EdgeInsets.fromLTRB(
+                compact ? 24 : 44,
+                compact ? 18 : 28,
+                compact ? 24 : 34,
+                compact ? 14 : 20,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    const Color(0xFF061F19).withValues(alpha: .58),
+                    const Color(0xFF0B4A3B).withValues(alpha: .38),
+                    const Color(0xFF12342B).withValues(alpha: 0),
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Transform.scale(
+                scale: compact ? 1 : 1.06,
+                alignment: Alignment.topLeft,
+                child: AppLogo(
+                  dark: true,
+                  compact: compact,
+                  showTagline: true,
+                  showAdminBadge: true,
+                ),
+              ),
+            ),
+          ),
           // Promotional text aligned at the bottom with high contrast and readable hierarchy
           Positioned(
             left: 0,
-            right: 0,
+            right: compact ? 0 : width * .09,
             bottom: 0,
             child: Padding(
               padding: EdgeInsets.fromLTRB(
@@ -244,22 +274,69 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ),
                   SizedBox(height: compact ? 12 : 18),
-                  Text(
-                    'Skip the Roam,\nOrder from Home.',
-                    style: GoogleFonts.radley(
-                      color: Colors.white,
-                      fontSize: headlineSize,
-                      height: 1.18,
-                      fontWeight: FontWeight.w700,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          offset: const Offset(0, 2),
-                          blurRadius: 10,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Skip the Roam,\nOrder from ',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: headlineSize,
+                            height: 1.16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.1,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'Home.',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: const Color(0xFF39E5AD),
+                            fontSize: headlineSize,
+                            height: 1.16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.1,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  if (!compact && width >= 1200) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'A safer, faster, and more convenient way to\naccess fresh market goods.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: .9),
+                        fontSize: 16,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _marketFeature(
+                            Icons.shopping_cart_outlined,
+                            'Support Local\nStall Holders',
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: _marketFeature(
+                            Icons.eco_outlined,
+                            'Access Fresh\nMarket Goods',
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: _marketFeature(
+                            Icons.groups_2_outlined,
+                            'Build a Stronger\nCommunity',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -269,6 +346,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
   }
 
+  Widget _marketFeature(IconData icon, String label) => Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFF047857).withValues(alpha: .38),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF34D399).withValues(alpha: .22),
+              ),
+            ),
+            child: Icon(icon, size: 31, color: const Color(0xFF5EEAD4)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: Colors.white.withValues(alpha: .92),
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+
   Widget _loginForm(BuildContext context) {
     final colors = semanticColors(context);
     final isDesktop = MediaQuery.sizeOf(context).width >= 820;
@@ -277,14 +383,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: AppLogo(
-            compact: MediaQuery.sizeOf(context).width < 400,
-            showTagline: true,
-            showAdminBadge: true,
-          ),
-        ),
-        const SizedBox(height: 20),
         Text(
           'Welcome Back, Admin!',
           textAlign: TextAlign.center,
@@ -1138,7 +1236,6 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
-    final bg = dark ? colors.heroBackground : Colors.white;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final horizontalPad = screenWidth < 400
         ? 10.0
@@ -1149,22 +1246,9 @@ class _Header extends StatelessWidget {
       height: 72,
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: horizontalPad),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border(
-          bottom: BorderSide(
-            color: dark ? colors.borderOnHero : colors.subtleBorder,
-          ),
-        ),
-      ),
+      color: Colors.transparent,
       child: Row(
         children: [
-          AppLogo(
-            dark: dark,
-            compact: screenWidth < 768,
-            showTagline: screenWidth >= 900,
-            showAdminBadge: screenWidth >= 440,
-          ),
           const Spacer(),
           if (!isCompact)
             SingleChildScrollView(

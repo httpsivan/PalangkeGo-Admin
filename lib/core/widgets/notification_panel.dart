@@ -220,7 +220,7 @@ class _NotificationPanelState extends ConsumerState<_NotificationPanel>
   void _navigate(AdminNotification item) {
     ref.read(notificationProvider.notifier).markRead(item.id);
     close();
-    if (item.route != null) context.go(item.route!);
+    if (item.destination != null) context.go(item.destination!);
   }
 
   @override

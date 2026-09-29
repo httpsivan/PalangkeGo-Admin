@@ -66,7 +66,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/applications',
-                builder: (context, state) => const VendorApplicationsPage(),
+                builder: (context, state) => VendorApplicationsPage(
+                  selectedApplicationId:
+                      state.uri.queryParameters['applicationId'],
+                  openDetailsOnLoad: state.uri.queryParameters['open'] == '1',
+                ),
               ),
             ],
           ),
@@ -74,7 +78,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/renewal',
-                builder: (context, state) => const RenewalsPage(),
+                builder: (context, state) => RenewalsPage(
+                  selectedRenewalId: state.uri.queryParameters['renewalId'],
+                  openDetailsOnLoad: state.uri.queryParameters['open'] == '1',
+                ),
               ),
             ],
           ),
@@ -82,7 +89,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/reports',
-                builder: (context, state) => const ReportsPage(),
+                builder: (context, state) => ReportsPage(
+                  selectedReportId: state.uri.queryParameters['reportId'],
+                  openDetailsOnLoad: state.uri.queryParameters['open'] == '1',
+                ),
               ),
             ],
           ),

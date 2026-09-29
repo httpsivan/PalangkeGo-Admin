@@ -477,7 +477,7 @@ class ComplaintExportData {
       const ReportColumn(label: 'Type', flex: 1.0),
       const ReportColumn(label: 'Account / Issue', flex: 1.5),
       const ReportColumn(label: 'Submitted By', flex: 1.4),
-      const ReportColumn(label: 'Reason', flex: 1.6),
+      const ReportColumn(label: 'Violation Type', flex: 1.6),
       const ReportColumn(label: 'Category', flex: 1.0),
       const ReportColumn(label: 'Date', flex: 1.2),
       const ReportColumn(label: 'Status', flex: 1.1),

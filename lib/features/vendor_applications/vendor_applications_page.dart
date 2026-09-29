@@ -15,7 +15,15 @@ import 'verification_dialog.dart';
 enum _ApplicationView { all, pending, history }
 
 class VendorApplicationsPage extends ConsumerStatefulWidget {
-  const VendorApplicationsPage({super.key});
+  const VendorApplicationsPage({
+    super.key,
+    this.selectedApplicationId,
+    this.openDetailsOnLoad = false,
+  });
+
+  final String? selectedApplicationId;
+  final bool openDetailsOnLoad;
+
   @override
   ConsumerState<VendorApplicationsPage> createState() =>
       _VendorApplicationsPageState();
@@ -31,6 +39,7 @@ class _VendorApplicationsPageState
   _ApplicationView view = _ApplicationView.all;
   int page = 0;
   late Set<String> _viewedApplicationIds;
+  bool _selectedApplicationOpened = false;
 
   @override
   void initState() {
@@ -40,6 +49,44 @@ class _VendorApplicationsPageState
             .getStringList(_viewedApplicationsPreference)
             ?.toSet() ??
         <String>{};
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _openSelectedApplication(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant VendorApplicationsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedApplicationId != oldWidget.selectedApplicationId ||
+        widget.openDetailsOnLoad != oldWidget.openDetailsOnLoad) {
+      _selectedApplicationOpened = false;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openSelectedApplication(),
+      );
+    }
+  }
+
+  void _openSelectedApplication() {
+    if (!mounted ||
+        _selectedApplicationOpened ||
+        !widget.openDetailsOnLoad ||
+        widget.selectedApplicationId == null) {
+      return;
+    }
+    VendorApplication? selected;
+    for (final item in ref.read(appDataProvider).applications) {
+      if (item.id == widget.selectedApplicationId) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null) return;
+    _selectedApplicationOpened = true;
+    _markApplicationViewed(selected.id);
+    showBlurredDialog(
+      context,
+      (context) => VerificationDialog.application(selected!),
+    );
   }
 
   void _markApplicationViewed(String applicationId) {

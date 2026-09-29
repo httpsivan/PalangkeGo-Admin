@@ -11,7 +11,15 @@ import '../../data/repositories/vendor_repository.dart';
 import '../vendor_applications/verification_dialog.dart';
 
 class RenewalsPage extends ConsumerStatefulWidget {
-  const RenewalsPage({super.key});
+  const RenewalsPage({
+    super.key,
+    this.selectedRenewalId,
+    this.openDetailsOnLoad = false,
+  });
+
+  final String? selectedRenewalId;
+  final bool openDetailsOnLoad;
+
   @override
   ConsumerState<RenewalsPage> createState() => _RenewalsPageState();
 }
@@ -26,6 +34,7 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
   bool _userSelectedTab = false;
   int page = 0;
   late Set<String> _viewedRenewalIds;
+  bool _selectedRenewalOpened = false;
 
   @override
   void initState() {
@@ -35,6 +44,42 @@ class _RenewalsPageState extends ConsumerState<RenewalsPage> {
             .getStringList(_viewedRenewalsPreference)
             ?.toSet() ??
         <String>{};
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openSelectedRenewal());
+  }
+
+  @override
+  void didUpdateWidget(covariant RenewalsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedRenewalId != oldWidget.selectedRenewalId ||
+        widget.openDetailsOnLoad != oldWidget.openDetailsOnLoad) {
+      _selectedRenewalOpened = false;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openSelectedRenewal(),
+      );
+    }
+  }
+
+  void _openSelectedRenewal() {
+    if (!mounted ||
+        _selectedRenewalOpened ||
+        !widget.openDetailsOnLoad ||
+        widget.selectedRenewalId == null) {
+      return;
+    }
+    RenewalRequest? selected;
+    for (final item in ref.read(renewalsProvider)) {
+      if (item.id == widget.selectedRenewalId) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null) return;
+    _selectedRenewalOpened = true;
+    _markRenewalViewed(selected.id);
+    showBlurredDialog(
+      context,
+      (context) => VerificationDialog.renewal(selected!),
+    );
   }
 
   void _markRenewalViewed(String id) {

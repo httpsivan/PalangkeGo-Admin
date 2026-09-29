@@ -229,23 +229,6 @@ class _AnnouncementHistoryPageState
                         _resetPagination();
                       },
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() {
-                        search.clear();
-                        selectedAudience = 'All Audiences';
-                        selectedStatus = 'All Statuses';
-                        selectedSort = 'Newest First';
-                        _resetPagination();
-                      }),
-                      icon: const Icon(Icons.tune_rounded, size: 14),
-                      label: const Text(
-                        'Clear Filters',
-                        style: TextStyle(fontSize: 11.5),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                    ),
                   ],
                 ),
                 ScrollableDataTable(
