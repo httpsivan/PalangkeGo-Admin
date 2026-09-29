@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/theme_controller.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_shell.dart';
@@ -17,55 +16,14 @@ class ReportsPage extends ConsumerStatefulWidget {
 }
 
 class _ReportsPageState extends ConsumerState<ReportsPage> {
-  static const _viewedReportsPreference = 'reports_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
   String targetType = 'All Types';
+  String dateOrder = 'Newest to Oldest';
   bool history = false;
   int page = 0;
-  late Set<String> _viewedReportIds;
-
-  @override
-  void initState() {
-    super.initState();
-    _viewedReportIds = ref
-            .read(sharedPreferencesProvider)
-            .getStringList(_viewedReportsPreference)
-            ?.toSet() ??
-        <String>{};
-  }
-
-  void _markReportViewed(String id) {
-    if (!_viewedReportIds.add(id)) return;
-    setState(() {});
-    ref.read(sharedPreferencesProvider).setStringList(
-          _viewedReportsPreference,
-          _viewedReportIds.toList(),
-        );
-  }
-
-  String? _newestReportId(List<Report> values) {
-    final pending =
-        values.where((item) => item.status == ReportStatus.pending).toList();
-    if (pending.isEmpty) {
-      final active =
-          values.where((item) => item.status != ReportStatus.resolved).toList();
-      if (active.isEmpty) return null;
-      var newest = active.first;
-      for (final item in active.skip(1)) {
-        if (item.date.isAfter(newest.date)) newest = item;
-      }
-      return newest.id;
-    }
-    var newest = pending.first;
-    for (final item in pending.skip(1)) {
-      if (item.date.isAfter(newest.date)) newest = item;
-    }
-    return newest.id;
-  }
-
   bool _isStallHolderReport(Report item) =>
       item.type == 'Stall Holder' || item.type == 'Vendor';
 
@@ -98,6 +56,25 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         );
       }
     });
+  }
+
+  Future<void> _openReport(Report report) async {
+    if (report.status == ReportStatus.pending) {
+      await ref.read(appDataProvider.notifier).updateReport(
+            report.id,
+            ReportStatus.underReview,
+            'Review started by administrator.',
+          );
+    }
+    if (!mounted) return;
+    final current = ref
+        .read(appDataProvider)
+        .reports
+        .firstWhere((item) => item.id == report.id, orElse: () => report);
+    showBlurredDialog(
+      context,
+      (context) => ReportReviewDialog(report: current),
+    );
   }
 
   @override
@@ -136,35 +113,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                   (item.category ?? 'FRUITS') == selectedCategory),
         )
         .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final now = DateTime.now();
-    final todayReports = reports.where(
-      (item) =>
-          item.status != ReportStatus.resolved &&
-          item.date.year == now.year &&
-          item.date.month == now.month &&
-          item.date.day == now.day,
-    );
-    final todayPending = todayReports.where(
-      (item) => item.status == ReportStatus.pending,
-    );
-    final Set<String> newReportIds;
-    if (todayPending.isNotEmpty) {
-      newReportIds = todayPending
-          .map((item) => item.id)
-          .where((id) => !_viewedReportIds.contains(id))
-          .toSet();
-    } else if (todayReports.isNotEmpty) {
-      newReportIds = todayReports
-          .map((item) => item.id)
-          .where((id) => !_viewedReportIds.contains(id))
-          .toSet();
-    } else {
-      final newestId = _newestReportId(reports);
-      newReportIds = newestId != null && !_viewedReportIds.contains(newestId)
-          ? {newestId}
-          : <String>{};
-    }
+      ..sort((a, b) {
+        final aDate = history ? a.resolvedAt ?? a.date : a.date;
+        final bDate = history ? b.resolvedAt ?? b.date : b.date;
+        return dateOrder == 'Oldest to Newest'
+            ? aDate.compareTo(bDate)
+            : bDate.compareTo(aDate);
+      });
     final int totalPages = (values.length / 10).ceil();
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
 
@@ -211,7 +166,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               icon: Icons.folder_copy_outlined,
               accent: const Color(0xFFEF4444),
               onTap: () {
-                setState(() { history = false; status = 'Pending'; });
+                setState(() {
+                  history = false;
+                  status = 'Pending';
+                });
                 _resetTable();
               },
             ),
@@ -222,7 +180,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               icon: Icons.visibility_outlined,
               accent: const Color(0xFF3B82F6),
               onTap: () {
-                setState(() { history = false; status = 'Under Review'; });
+                setState(() {
+                  history = false;
+                  status = 'Under Review';
+                });
                 _resetTable();
               },
             ),
@@ -233,7 +194,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               icon: Icons.check_circle_outline_rounded,
               accent: const Color(0xFF10B981),
               onTap: () {
-                setState(() { history = true; status = 'All Statuses'; });
+                setState(() {
+                  history = true;
+                  status = 'All Statuses';
+                });
                 _resetTable();
               },
             ),
@@ -274,6 +238,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     status = 'All Statuses';
                     stallCategory = 'All Categories';
                     targetType = 'All Types';
+                    dateOrder = 'Newest to Oldest';
                     history = false;
                     _resetTable();
                   },
@@ -309,6 +274,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       stallCategory = value;
                       _resetTable();
                     }),
+                    _filter(
+                      dateOrder,
+                      const ['Newest to Oldest', 'Oldest to Newest'],
+                      (value) {
+                        setState(() => dateOrder = value);
+                        _resetTable();
+                      },
+                    ),
                     FilterButton(
                       label: 'Export',
                       icon: Icons.download_outlined,
@@ -333,15 +306,8 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                     ),
                     history: history,
                     values: values.skip(safePage * 10).take(10).toList(),
-                    newReportIds: newReportIds,
                     verticalController: tableScrollController,
-                    onOpen: (item) {
-                      _markReportViewed(item.id);
-                      showBlurredDialog(
-                        context,
-                        (context) => ReportReviewDialog(report: item),
-                      );
-                    },
+                    onOpen: _openReport,
                   ),
                 ),
                 if (values.isNotEmpty)
@@ -415,13 +381,11 @@ class _ReportTable extends StatelessWidget {
     super.key,
     required this.history,
     required this.values,
-    required this.newReportIds,
     required this.verticalController,
     required this.onOpen,
   });
   final bool history;
   final List<Report> values;
-  final Set<String> newReportIds;
   final ScrollController verticalController;
   final ValueChanged<Report> onOpen;
   @override
@@ -429,16 +393,7 @@ class _ReportTable extends StatelessWidget {
     final colors = semanticColors(context);
     final rows = values.map(
       (item) {
-        final isNew = !history && newReportIds.contains(item.id);
         return DataRow(
-          color: isNew
-              ? WidgetStateProperty.resolveWith<Color?>((states) {
-                  if (states.contains(WidgetState.hovered)) {
-                    return colors.info.withValues(alpha: 0.13);
-                  }
-                  return colors.info.withValues(alpha: 0.07);
-                })
-              : null,
           onSelectChanged: (_) => onOpen(item),
           cells: history
               ? [
@@ -480,16 +435,6 @@ class _ReportTable extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (isNew)
-                          Container(
-                            width: 3.5,
-                            height: 24,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              color: colors.info,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
                         Flexible(
                           child: Text(
                             item.type == 'Vendor' ? 'Stall Holder' : item.type,
@@ -511,11 +456,6 @@ class _ReportTable extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        if (isNew)
-                          const StatusBadge(
-                            label: 'NEW',
-                            kind: BadgeKind.info,
-                          ),
                       ],
                     ),
                   ),

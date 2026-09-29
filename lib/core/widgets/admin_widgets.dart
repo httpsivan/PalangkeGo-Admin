@@ -1448,7 +1448,7 @@ class ApplicationStatusBadge extends StatelessWidget {
     final colors = semanticColors(context);
     final label = switch (status) {
       ApplicationStatus.verified => 'Verified',
-      ApplicationStatus.reviewing => 'Reviewing',
+      ApplicationStatus.reviewing => 'Pending',
       ApplicationStatus.invalidDocs => 'Re-Upload Requested',
       ApplicationStatus.rejected => 'Rejected',
     };

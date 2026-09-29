@@ -12,6 +12,8 @@ import '../../models/app_models.dart';
 import 'application_utils.dart';
 import 'verification_dialog.dart';
 
+enum _ApplicationView { all, pending, history }
+
 class VendorApplicationsPage extends ConsumerStatefulWidget {
   const VendorApplicationsPage({super.key});
   @override
@@ -26,8 +28,7 @@ class _VendorApplicationsPageState
   final tableScrollController = ScrollController();
   String status = 'All Statuses';
   String stallCategory = 'All Categories';
-  bool history = false;
-  bool _userSelectedTab = false;
+  _ApplicationView view = _ApplicationView.all;
   int page = 0;
   late Set<String> _viewedApplicationIds;
 
@@ -81,7 +82,8 @@ class _VendorApplicationsPageState
 
   DateTime _getEffectiveToday(List<VendorApplication> applications) {
     final now = DateTime.now();
-    final hasToday = applications.any((item) => isSameCalendarDay(item.submittedAt, now));
+    final hasToday =
+        applications.any((item) => isSameCalendarDay(item.submittedAt, now));
     if (hasToday || applications.isEmpty) {
       return now;
     }
@@ -107,10 +109,6 @@ class _VendorApplicationsPageState
         .length;
     final historyCount = data.applications.length - pendingCount;
 
-    if (!_userSelectedTab && pendingCount == 0 && historyCount > 0) {
-      history = true;
-    }
-
     final categories = <String>{
       'All Categories',
       ...data.applications.map((item) => item.category),
@@ -122,12 +120,13 @@ class _VendorApplicationsPageState
 
     final effectiveToday = _getEffectiveToday(data.applications);
     final newApplications = data.applications
-        .where((item) => isApplicationNew(item, _viewedApplicationIds, effectiveToday))
+        .where((item) =>
+            item.status == ApplicationStatus.reviewing &&
+            isApplicationNew(item, _viewedApplicationIds, effectiveToday))
         .toList();
     final newApplicationIds = newApplications.map((item) => item.id).toSet();
     final newTodayCount = newApplications.length;
-    final newTodayFormatted =
-        newTodayCount < 10 ? '0$newTodayCount' : '$newTodayCount';
+    final newTodayFormatted = '$newTodayCount';
 
     final values = data.applications
         .where(
@@ -143,9 +142,10 @@ class _VendorApplicationsPageState
                           status.toLowerCase().replaceAll(' ', ''))) &&
               (stallCategory == 'All Categories' ||
                   item.category == stallCategory) &&
-              (!history
-                  ? item.status == ApplicationStatus.reviewing
-                  : item.status != ApplicationStatus.reviewing),
+              (view == _ApplicationView.all ||
+                  (view == _ApplicationView.pending
+                      ? item.status == ApplicationStatus.reviewing
+                      : item.status != ApplicationStatus.reviewing)),
         )
         .toList()
       ..sort((a, b) {
@@ -171,7 +171,7 @@ class _VendorApplicationsPageState
         description: 'Try changing your search or filter selection.',
         icon: Icons.search_off_rounded,
       );
-    } else if (!history) {
+    } else if (view == _ApplicationView.pending) {
       emptyStateWidget = EmptyState(
         message: 'No pending applications',
         description:
@@ -180,8 +180,7 @@ class _VendorApplicationsPageState
         action: OutlinedButton.icon(
           onPressed: () {
             setState(() {
-              history = true;
-              _userSelectedTab = true;
+              view = _ApplicationView.history;
               status = 'All Statuses';
             });
             _resetTable();
@@ -197,6 +196,13 @@ class _VendorApplicationsPageState
             ),
           ),
         ),
+      );
+    } else if (view == _ApplicationView.all) {
+      emptyStateWidget = const EmptyState(
+        message: 'No applications found',
+        description:
+            'Stall holder applications will appear here when submitted.',
+        icon: Icons.assignment_outlined,
       );
     } else {
       emptyStateWidget = const EmptyState(
@@ -221,8 +227,9 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF10B981),
               onTap: () {
                 setState(() {
-                  history = false;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.all;
+                  search.clear();
+                  stallCategory = 'All Categories';
                   status = 'All Statuses';
                 });
                 _resetTable();
@@ -235,8 +242,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFF59E0B),
               onTap: () {
                 setState(() {
-                  history = false;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.pending;
                   status = 'Reviewing';
                 });
                 _resetTable();
@@ -249,8 +255,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF10B981),
               onTap: () {
                 setState(() {
-                  history = true;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.history;
                   status = 'Verified';
                 });
                 _resetTable();
@@ -263,8 +268,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFD97706),
               onTap: () {
                 setState(() {
-                  history = true;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.history;
                   status = 'Re-Upload Requested';
                 });
                 _resetTable();
@@ -277,8 +281,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFEF4444),
               onTap: () {
                 setState(() {
-                  history = true;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.history;
                   status = 'Rejected';
                 });
                 _resetTable();
@@ -291,8 +294,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF3B82F6),
               onTap: () {
                 setState(() {
-                  history = false;
-                  _userSelectedTab = true;
+                  view = _ApplicationView.pending;
                   status = 'All Statuses';
                 });
                 _resetTable();
@@ -308,15 +310,19 @@ class _VendorApplicationsPageState
             36,
           ),
           child: DataPanel(
-            title: history ? 'Application History' : 'Recent Applications',
+            title: switch (view) {
+              _ApplicationView.all => 'All Applications',
+              _ApplicationView.pending => 'Recent Applications',
+              _ApplicationView.history => 'Application History',
+            },
             headerAction: _ApplicationViewToggle(
-              history: history,
+              view: view,
+              totalCount: data.applications.length,
               requestsCount: pendingCount,
               historyCount: historyCount,
               onChanged: (value) {
                 setState(() {
-                  history = value;
-                  _userSelectedTab = true;
+                  view = value;
                   status = 'All Statuses';
                 });
                 _resetTable();
@@ -331,7 +337,7 @@ class _VendorApplicationsPageState
                     search.clear();
                     status = 'All Statuses';
                     stallCategory = 'All Categories';
-                    history = false;
+                    view = _ApplicationView.all;
                     _resetTable();
                   },
                   trailing: [
@@ -347,15 +353,15 @@ class _VendorApplicationsPageState
                       (value) {
                         setState(() {
                           status = value;
-                          if (value == 'Verified' ||
+                          if (value == 'All Statuses') {
+                            view = _ApplicationView.all;
+                          } else if (value == 'Verified' ||
                               value == 'Re-Upload Requested' ||
                               value == 'Invalid Docs' ||
                               value == 'Rejected') {
-                            history = true;
-                            _userSelectedTab = true;
+                            view = _ApplicationView.history;
                           } else if (value == 'Reviewing') {
-                            history = false;
-                            _userSelectedTab = true;
+                            view = _ApplicationView.pending;
                           }
                         });
                         _resetTable();
@@ -384,7 +390,7 @@ class _VendorApplicationsPageState
                   ],
                 ),
                 _ApplicationTable(
-                  history: history,
+                  history: view == _ApplicationView.history,
                   values: values.skip(safePage * 10).take(10).toList(),
                   newApplicationIds: newApplicationIds,
                   verticalController: tableScrollController,
@@ -455,21 +461,23 @@ class _VendorApplicationsPageState
 
 class _ApplicationViewToggle extends StatelessWidget {
   const _ApplicationViewToggle({
-    required this.history,
+    required this.view,
+    required this.totalCount,
     required this.requestsCount,
     required this.historyCount,
     required this.onChanged,
   });
 
-  final bool history;
+  final _ApplicationView view;
+  final int totalCount;
   final int requestsCount;
   final int historyCount;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<_ApplicationView> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
-    return SegmentedButton<bool>(
+    return SegmentedButton<_ApplicationView>(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -514,18 +522,23 @@ class _ApplicationViewToggle extends StatelessWidget {
         mouseCursor: const WidgetStatePropertyAll(SystemMouseCursors.click),
       ),
       segments: [
-        ButtonSegment<bool>(
-          value: false,
+        ButtonSegment<_ApplicationView>(
+          value: _ApplicationView.all,
+          label: Text('All Applications ($totalCount)'),
+          icon: const Icon(Icons.list_alt_rounded, size: 15),
+        ),
+        ButtonSegment<_ApplicationView>(
+          value: _ApplicationView.pending,
           label: Text('Pending Review ($requestsCount)'),
           icon: const Icon(Icons.assignment_outlined, size: 15),
         ),
-        ButtonSegment<bool>(
-          value: true,
+        ButtonSegment<_ApplicationView>(
+          value: _ApplicationView.history,
           label: Text('Application History ($historyCount)'),
           icon: const Icon(Icons.history_rounded, size: 15),
         ),
       ],
-      selected: {history},
+      selected: {view},
       showSelectedIcon: false,
       onSelectionChanged: (selection) => onChanged(selection.first),
     );

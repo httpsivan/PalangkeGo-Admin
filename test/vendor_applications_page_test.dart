@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:palengkego_admin/core/theme/app_theme.dart';
 import 'package:palengkego_admin/core/theme/theme_controller.dart';
 import 'package:palengkego_admin/data/mock_data.dart';
+import 'package:palengkego_admin/data/repositories/mock_repository.dart';
 import 'package:palengkego_admin/features/vendor_applications/application_utils.dart';
 import 'package:palengkego_admin/features/vendor_applications/vendor_applications_page.dart';
 import 'package:palengkego_admin/features/vendor_applications/verification_dialog.dart';
@@ -15,7 +16,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Vendor Applications Utilities & Logic', () {
-    test('isSameCalendarDay returns true for matching year, month, and day', () {
+    test('isSameCalendarDay returns true for matching year, month, and day',
+        () {
       final date1 = DateTime(2023, 10, 24, 14, 30);
       final date2 = DateTime(2023, 10, 24, 08, 00);
       final date3 = DateTime(2023, 10, 25, 08, 00);
@@ -157,7 +159,8 @@ void main() {
       expect(find.text('Reject'), findsNothing);
       expect(find.text('Request Additional Documents'), findsNothing);
       expect(find.text('Reopen for Review'), findsOneWidget);
-      expect(find.textContaining('Invalid business permit'), findsAtLeastNWidgets(1));
+      expect(find.textContaining('Invalid business permit'),
+          findsAtLeastNWidgets(1));
     });
 
     testWidgets(
@@ -218,6 +221,56 @@ void main() {
       expect(find.text('NEW TODAY'), findsOneWidget);
       expect(find.textContaining('Pending Review'), findsOneWidget);
       expect(find.textContaining('Application History'), findsOneWidget);
+      expect(find.text('All Applications (25)'), findsOneWidget);
+      expect(find.text('#APP-92834'), findsOneWidget); // Already approved.
+      expect(find.text('#APP-92839'), findsOneWidget); // Awaiting review.
+      expect(find.text('#APP-92836'), findsOneWidget); // Re-upload requested.
+
+      await tester.tap(find.text('Pending Review (5)'));
+      await tester.pumpAndSettle();
+      expect(find.text('#APP-92834'), findsNothing);
+      expect(find.text('#APP-92839'), findsOneWidget);
+
+      await tester.enterText(
+          find.byType(TextField).first, 'no matching applicant');
+      await tester.pumpAndSettle();
+      expect(find.text('No results found'), findsOneWidget);
+      await tester.tap(find.text('TOTAL APPLICATIONS'));
+      await tester.pumpAndSettle();
+      expect(find.text('#APP-92834'), findsOneWidget);
+      expect(find.text('#APP-92839'), findsOneWidget);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(VendorApplicationsPage)),
+      );
+      final approval =
+          container.read(appDataProvider.notifier).updateApplication(
+                '#APP-92839',
+                ApplicationStatus.verified,
+              );
+      await tester.pump(const Duration(seconds: 1));
+      await approval;
+      await tester.pumpAndSettle();
+
+      expect(find.text('All Applications (25)'), findsOneWidget);
+      expect(find.text('Pending Review (4)'), findsOneWidget);
+      expect(find.text('#APP-92839'), findsOneWidget);
+      expect(
+        container
+            .read(appDataProvider)
+            .applications
+            .firstWhere((item) => item.id == '#APP-92839')
+            .status,
+        ApplicationStatus.verified,
+      );
+
+      await tester.tap(find.text('Pending Review (4)'));
+      await tester.pumpAndSettle();
+      expect(find.text('#APP-92839'), findsNothing);
+      await tester.tap(find.text('Application History (21)'));
+      await tester.pumpAndSettle();
+      expect(find.text('#APP-92839'), findsOneWidget);
+      expect(find.text('#APP-92843'), findsNothing);
     });
   });
 }
