@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/utils/csv_exporter.dart';
 import '../../core/utils/formatters.dart';
@@ -9,6 +10,12 @@ import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
+
+String _accountRevenue(num? value) {
+  final amount = value ?? 0;
+  if (!amount.isFinite || amount <= 0) return '₱0';
+  return '₱${NumberFormat.decimalPattern().format(amount)}';
+}
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({
@@ -149,7 +156,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               value: customers
                   ? '${data.customers.where((c) => c.status == AccountStatus.blocked).length}'
                   : '${data.vendors.where((v) => v.status == AccountStatus.blocked).length}',
-              label: 'Blocked Accounts',
+              label: customers ? 'Blocked Customers' : 'Blocked Stall Holders',
               icon: Icons.block_rounded,
               accent: const Color(0xFFEF4444),
               onTap: () {
@@ -725,6 +732,9 @@ Future<void> showAccountDialog(
                           onUnblock: account.status == AccountStatus.blocked
                               ? (notes) => update(notes, AccountStatus.active)
                               : null,
+                          onBlock: account.status != AccountStatus.blocked
+                              ? (notes) => update(notes, AccountStatus.blocked)
+                              : null,
                           onLift: account.suspension != null &&
                                   account.suspension!.liftedAt == null
                               ? (_) => ref
@@ -1053,7 +1063,7 @@ class _AccountDrawerState extends ConsumerState<_AccountDrawer> {
                             child: _metric(
                               context,
                               'RECENT REVENUE',
-                              '₱${(vendor.transactions / 1000).toStringAsFixed(1)}k',
+                              _accountRevenue(vendor.transactions),
                             ),
                           ),
                         ],
@@ -1323,6 +1333,7 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
     this.onUnblock,
     this.onLift,
     this.onSuspend,
+    this.onBlock,
   });
 
   final _AccountDetailsData account;
@@ -1331,6 +1342,7 @@ class _AccountDetailsDialog extends ConsumerStatefulWidget {
   final Future<void> Function(String notes)? onUnblock;
   final Future<void> Function(String notes)? onLift;
   final Future<bool?> Function()? onSuspend;
+  final Future<void> Function(String notes)? onBlock;
 
   @override
   ConsumerState<_AccountDetailsDialog> createState() =>
@@ -1345,10 +1357,11 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
   bool unblocking = false;
   bool lifting = false;
   bool suspending = false;
+  bool blocking = false;
   bool closePromptOpen = false;
 
   bool get dirty => notes.text != widget.account.administrativeNotes;
-  bool get busy => saving || unblocking || lifting || suspending;
+  bool get busy => saving || unblocking || lifting || suspending || blocking;
 
   @override
   void initState() {
@@ -1415,6 +1428,52 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     }
   }
 
+  Future<void> _block() async {
+    if (busy || widget.onBlock == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Block account?'),
+        content: Text(
+          'Block access for ${widget.account.name}? The account status will '
+          'change to Blocked and the account holder will not be able to use '
+          'PalengkeGo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: semanticColors(context).danger,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.block_outlined, size: 17),
+            label: const Text('Block account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => blocking = true);
+    try {
+      await widget.onBlock!(notes.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.account.name} has been blocked.')),
+      );
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to block account: $error')),
+      );
+      setState(() => blocking = false);
+    }
+  }
+
   Future<void> _unblock() async {
     if (busy || widget.onUnblock == null) return;
     final confirmed = await showDialog<bool>(
@@ -1446,7 +1505,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
       await widget.onUnblock!(notes.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${widget.account.name} has been unblocked.')),
+        const SnackBar(content: Text('Account is restored and user can log in again')),
       );
       Navigator.of(context).pop();
     } catch (error) {
@@ -1577,7 +1636,7 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
                             Expanded(
                               child: _statCard(
                                 context,
-                                '\u20B1${(widget.account.transactions / 1000).toStringAsFixed(1)}K',
+                                _accountRevenue(widget.account.transactions),
                                 'RECENT REVENUE',
                                 Icons.account_balance_wallet_outlined,
                               ),
@@ -2049,69 +2108,98 @@ class _AccountDetailsDialogState extends ConsumerState<_AccountDetailsDialog> {
     final canUnblock = widget.onUnblock != null;
     final canLift = widget.onLift != null;
     final canSuspend = widget.onSuspend != null;
+    final canBlock = widget.onBlock != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(22, 9, 22, 15),
       child: Row(
         children: [
           Expanded(
-            child: canUnblock
-                ? OutlinedButton.icon(
-                    onPressed: busy ? null : _unblock,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: semanticColors(context).success,
-                    ),
-                    icon: unblocking
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.lock_open_rounded, size: 17),
-                    label: Text(
-                      unblocking ? 'Unblocking...' : 'Unblock Account',
+            child: Row(
+              children: [
+                if (canUnblock)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : _unblock,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: semanticColors(context).success,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      icon: unblocking
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.lock_open_rounded, size: 17),
+                      label: Text(
+                        unblocking ? 'Unblocking...' : 'Unblock',
+                      ),
                     ),
                   )
-                : canLift
-                    ? OutlinedButton.icon(
-                        onPressed: busy ? null : _liftSuspension,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: semanticColors(context).warning,
-                        ),
-                        icon: lifting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.lock_open_rounded, size: 17),
-                        label: Text(
-                          lifting ? 'Lifting...' : 'Lift Suspension',
-                        ),
-                      )
-                    : canSuspend
-                        ? OutlinedButton.icon(
-                            onPressed: busy ? null : _suspend,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: semanticColors(context).warning,
-                            ),
-                            icon: suspending
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(
-                                    Icons.pause_circle_outline,
-                                    size: 17,
-                                  ),
-                            label: Text(
-                              suspending ? 'Suspending...' : 'Suspend Account',
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+                else if (canLift)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : _liftSuspension,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: semanticColors(context).warning,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      icon: lifting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.lock_open_rounded, size: 17),
+                      label: Text(
+                        lifting ? 'Lifting...' : 'Lift',
+                      ),
+                    ),
+                  )
+                else if (canSuspend)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : _suspend,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: semanticColors(context).warning,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      icon: suspending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.pause_circle_outline, size: 17),
+                      label: Text(
+                        suspending ? 'Suspending...' : 'Suspend',
+                      ),
+                    ),
+                  ),
+                if (canBlock) ...[
+                  if (canUnblock || canLift || canSuspend) const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: busy ? null : _block,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: semanticColors(context).danger,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      icon: blocking
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.block_outlined, size: 17),
+                      label: Text(
+                        blocking ? 'Blocking...' : 'Block',
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

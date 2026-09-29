@@ -111,15 +111,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ],
                   ),
                 )
-              : SizedBox.expand(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(flex: 52, child: _market(loginContext, false)),
-                      Expanded(flex: 48, child: _loginForm(loginContext)),
-                    ],
-                  ),
-                );
+              : _desktopLoginBody(loginContext);
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
             body: Form(
@@ -134,6 +126,43 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _desktopLoginBody(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0xFFF6FBF8),
+              image: DecorationImage(
+                image: AssetImage('assets/images/login_right_decor.png'),
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: constraints.maxWidth * .52,
+            child: ClipPath(
+              clipper: const _MarketDiagonalClipper(),
+              child: _market(context, false),
+            ),
+          ),
+          Positioned(
+            left: constraints.maxWidth * .48,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            child: _loginForm(context),
+          ),
+        ],
       ),
     );
   }
@@ -248,6 +277,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Center(
+          child: AppLogo(
+            compact: MediaQuery.sizeOf(context).width < 400,
+            showTagline: true,
+            showAdminBadge: true,
+          ),
+        ),
+        const SizedBox(height: 20),
         Text(
           'Welcome Back, Admin!',
           textAlign: TextAlign.center,
@@ -258,19 +295,48 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 7),
         Text(
-          'Authorized personnel only',
+          'Sign in to manage stalls, orders, renewals,\ncomplaints, and more.',
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            fontSize: 12.5,
+            fontSize: 13,
+            height: 1.45,
             fontWeight: FontWeight.w500,
             color: colors.secondaryText,
           ),
         ),
-        const SizedBox(height: 16),
-        Center(child: _ModeBadge(firebase: ref.read(firebaseEnabledProvider))),
-        const SizedBox(height: 26),
+        const SizedBox(height: 14),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: colors.successContainer,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: colors.success.withValues(alpha: .25)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  size: 16,
+                  color: colors.success,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'Authorized personnel only',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: colors.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
         Text(
           'Email Address',
           style: GoogleFonts.inter(
@@ -590,16 +656,43 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ],
                     )
-                  : Text(
-                      'Log In',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.login_rounded, size: 19),
+                        const SizedBox(width: 9),
+                        Text(
+                          'Log In',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.lock_outline_rounded,
+              size: 15,
+              color: colors.mutedText,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              'Your data is protected and secure.',
+              style: GoogleFonts.inter(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: colors.mutedText,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -612,17 +705,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             : const EdgeInsets.symmetric(horizontal: 24, vertical: 28));
 
     final card = Container(
-      constraints: const BoxConstraints(maxWidth: 440),
+      constraints: const BoxConstraints(maxWidth: 480),
       padding: cardPadding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 28,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -630,7 +723,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
 
     final panel = Container(
-      color: const Color(0xFFF8FAFC),
+      color: isDesktop ? Colors.transparent : const Color(0xFFF8FAFC),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Center(
         child: isDesktop
@@ -728,6 +821,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     );
     controller.dispose();
   }
+}
+
+class _MarketDiagonalClipper extends CustomClipper<Path> {
+  const _MarketDiagonalClipper();
+
+  @override
+  Path getClip(Size size) => Path()
+    ..moveTo(0, 0)
+    ..lineTo(size.width, 0)
+    ..lineTo(size.width * .83, size.height)
+    ..lineTo(0, size.height)
+    ..close();
+
+  @override
+  bool shouldReclip(covariant _MarketDiagonalClipper oldClipper) => false;
 }
 
 class _LoginSlideshow extends StatefulWidget {

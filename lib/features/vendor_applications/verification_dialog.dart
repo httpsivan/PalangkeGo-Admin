@@ -68,9 +68,16 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       final createdVendor = latestVendors.cast<Vendor?>().firstWhere(
             (v) =>
                 v?.name.trim().toLowerCase() ==
-                    widget.application?.applicant.trim().toLowerCase() ||
+                    widget.applicant.trim().toLowerCase() ||
                 v?.id == 'VND-${widget.id.replaceAll(RegExp(r'[^0-9]'), '')}',
-            orElse: () => latestVendors.isNotEmpty ? latestVendors.first : null,
+            orElse: () => latestVendors.cast<Vendor?>().firstWhere(
+                  (v) =>
+                      v?.name.trim().toLowerCase().contains(
+                            widget.applicant.trim().toLowerCase(),
+                          ) ==
+                      true,
+                  orElse: () => null,
+                ),
           );
 
       final messenger = ScaffoldMessenger.of(context);
@@ -78,13 +85,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
 
       Navigator.pop(context);
 
+      messenger.clearSnackBars();
       if (widget.application != null) {
-        messenger.showSnackBar(
+        final controller = messenger.showSnackBar(
           SnackBar(
             content: Text(
-              'Application approved! Stall allocation (${createdVendor?.location ?? widget.application?.location}) locked.',
+              'Application approved! Stall allocation (${widget.location}) locked.',
             ),
-            duration: const Duration(seconds: 8),
+            duration: const Duration(seconds: 4),
             action: createdVendor != null
                 ? SnackBarAction(
                     label: 'View Account',
@@ -95,10 +103,23 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                 : null,
           ),
         );
+        Future.delayed(const Duration(seconds: 4), () {
+          try {
+            controller.close();
+          } catch (_) {}
+        });
       } else {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Stall renewal approved.')),
+        final controller = messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Stall renewal approved.'),
+            duration: Duration(seconds: 4),
+          ),
         );
+        Future.delayed(const Duration(seconds: 4), () {
+          try {
+            controller.close();
+          } catch (_) {}
+        });
       }
     }
   }
@@ -219,10 +240,11 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         vertical: narrow ? 10 : 34,
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 970, maxHeight: 720),
-        child: SingleChildScrollView(
+        constraints: const BoxConstraints(maxWidth: 970),
+        child: Padding(
           padding: EdgeInsets.all(narrow ? 16 : 28),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -291,7 +313,9 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   children: [
                     Expanded(flex: 68, child: _documents(context)),
                     const SizedBox(width: 25),
-                    Expanded(flex: 32, child: _summary(context, currentApp, currentRenewal)),
+                    Expanded(
+                        flex: 32,
+                        child: _summary(context, currentApp, currentRenewal)),
                   ],
                 ),
               const SizedBox(height: 22),
@@ -339,65 +363,68 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       final targetVendorId =
           vendor?.id ?? 'VND-${widget.id.replaceAll(RegExp(r'[^0-9]'), '')}';
 
-      return Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: const Color(0xFF10B981).withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  size: 18,
-                  color: Color(0xFF059669),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF059669),
-                  ),
-                ),
-              ],
-            ),
+      final statusMessage = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFF10B981).withValues(alpha: 0.3),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.go('/accounts?accountId=$targetVendorId&open=1');
-                },
-                icon: const Icon(Icons.person_outline_rounded, size: 16),
-                label: const Text('View Account Profile'),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              size: 18,
+              color: Color(0xFF059669),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF059669),
               ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: processing ? null : _reopenForReview,
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Reopen for Review'),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: semanticColors(context).subtleBorder),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ],
+            ),
+          ],
+        ),
+      );
+      final actions = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/accounts?accountId=$targetVendorId&open=1');
+            },
+            icon: const Icon(Icons.person_outline_rounded, size: 16),
+            label: const Text('View Account Profile'),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            onPressed: processing ? null : _reopenForReview,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Reopen for Review'),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: semanticColors(context).subtleBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
           ),
         ],
+      );
+      return LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 900
+            ? Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [statusMessage, actions],
+              )
+            : Row(
+                children: [statusMessage, const Spacer(), actions],
+              ),
       );
     }
 
@@ -407,7 +434,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           currentApp?.submittedAt ??
           DateTime.now();
       final dateStr = dateTimeFormat.format(date);
-      final reason = currentApp?.rejectionReason ?? currentRenewal?.rejectionReason;
+      final reason =
+          currentApp?.rejectionReason ?? currentRenewal?.rejectionReason;
       final label = currentRenewal != null && (reason == null || reason.isEmpty)
           ? 'Expired on $dateStr'
           : 'Rejected on $dateStr';
@@ -480,7 +508,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           ),
           OutlinedButton.icon(
             onPressed: processing ? null : reject,
-            icon: const Icon(Icons.close_rounded, size: 15, color: Color(0xFFEF4444)),
+            icon: const Icon(Icons.close_rounded,
+                size: 15, color: Color(0xFFEF4444)),
             label: const Text(
               'Reject',
               style: TextStyle(
@@ -566,8 +595,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   : 3,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio:
-              MediaQuery.sizeOf(context).width < 500 ? 1.6 : 1.15,
+          childAspectRatio: MediaQuery.sizeOf(context).width < 500 ? 1.6 : 1.15,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: tiles,
@@ -626,7 +654,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       content = Image.asset(
         asset,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _docPlaceholderIcon(colors, isPdf, isWord),
+        errorBuilder: (_, __, ___) =>
+            _docPlaceholderIcon(colors, isPdf, isWord),
       );
     } else {
       content = _docPlaceholderIcon(colors, isPdf, isWord);
@@ -771,11 +800,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                 'EMAIL ADDRESS',
                 '${widget.applicant.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '.')}@gmail.com',
               ),
-              if (app?.status == ApplicationStatus.verified || renewal?.status == RenewalStatus.approved) ...[
+              if (app?.status == ApplicationStatus.verified ||
+                  renewal?.status == RenewalStatus.approved) ...[
                 const SizedBox(height: 6),
                 OutlinedButton.icon(
                   onPressed: () {
-                    final targetId = 'VND-${widget.id.replaceAll(RegExp(r'[^0-9]'), '')}';
+                    final targetId =
+                        'VND-${widget.id.replaceAll(RegExp(r'[^0-9]'), '')}';
                     Navigator.pop(context);
                     context.go('/accounts?accountId=$targetId&open=1');
                   },
@@ -796,7 +827,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 14),
           _buildRenewalHistoryCard(context),
         ],
-        if (app?.rejectionReason != null && app!.rejectionReason!.isNotEmpty) ...[
+        if (app?.rejectionReason != null &&
+            app!.rejectionReason!.isNotEmpty) ...[
           const SizedBox(height: 14),
           Container(
             width: double.infinity,
@@ -804,7 +836,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             decoration: BoxDecoration(
               color: colors.dangerContainer,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+              border: Border.all(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
             ),
             child: _item(
               app.status == ApplicationStatus.invalidDocs
@@ -1067,7 +1100,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           );
       ref.read(notificationProvider.notifier).addNotification(
             title: 'Additional Documents Requested',
-            message: 'Requested document update from ${widget.applicant}: "$value"',
+            message:
+                'Requested document update from ${widget.applicant}: "$value"',
             type: NotificationType.vendorApplication,
             route: '/applications',
             actionLabel: 'View Status',
@@ -1079,7 +1113,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           .updateRenewal(widget.id, RenewalStatus.reviewing);
       ref.read(notificationProvider.notifier).addNotification(
             title: 'Additional Documents Requested',
-            message: 'Requested document update from ${widget.applicant}: "$value"',
+            message:
+                'Requested document update from ${widget.applicant}: "$value"',
             type: NotificationType.renewal,
             route: '/renewals',
             actionLabel: 'View Status',
