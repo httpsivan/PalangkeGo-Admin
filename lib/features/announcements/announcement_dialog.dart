@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -678,17 +677,6 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          context.go('/announcements');
-                        },
-                        icon: const Icon(Icons.history_rounded, size: 16),
-                        label: const Text(
-                          'View History',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                      ),
                       StatusBadge(
                         label: isEditMode
                             ? (widget.announcementToEdit!.isDraft
@@ -710,7 +698,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
               const SizedBox(height: 15),
               const Text(
                 'Announcement Title',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 7),
               TextField(controller: title),
@@ -723,7 +711,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     children: [
                       const Text(
                         'Target Audience',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 7),
                       DropdownButtonFormField<String>(
@@ -752,11 +740,12 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     children: [
                       const Text(
                         'Announcement Duration',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 7),
                       DropdownButtonFormField<String>(
                         isExpanded: true,
+                        menuMaxHeight: 240,
                         initialValue: normalizeDuration(selectedDuration),
                         items: const [
                           '1 Day',
@@ -835,7 +824,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                 children: [
                   const Text(
                     'Feature Image (Optional)',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   if ((image != null || imageUrl != null) && imageWidth != null && imageHeight != null)
                     Text(
@@ -1028,7 +1017,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
               const SizedBox(height: 16),
               const Text(
                 'Message Body',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 7),
               Container(
