@@ -131,7 +131,7 @@ class SalesSummary {
 
   factory SalesSummary.fromOrders(Iterable<Order> orders) {
     final list = orders.toList();
-    final gross = list.fold<double>(0, (sum, item) => sum + item.subtotal);
+    final gross = list.fold<double>(0, (sum, item) => sum + item.total);
     final disc = list.fold<double>(0, (sum, item) => sum + item.discounts);
     final ref = list.fold<double>(0, (sum, item) => sum + item.refundAmount);
     final fees = list.fold<double>(0, (sum, item) => sum + item.platformFee);
@@ -152,7 +152,7 @@ class SalesSummary {
       discounts: disc,
       refunds: ref,
       platformFees: fees,
-      netRevenue: (gross - disc - ref).clamp(0.0, double.infinity),
+      netRevenue: list.fold<double>(0, (sum, item) => sum + item.netRevenue),
     );
   }
 }

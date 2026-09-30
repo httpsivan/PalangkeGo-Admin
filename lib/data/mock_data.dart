@@ -667,7 +667,7 @@ List<Order> seedOrders() {
     ];
 
     return Order(
-      id: '$datePart-${(index ~/ 38 + 1).toString().padLeft(2, '0')}',
+      id: '$datePart-${(index + 1).toString().padLeft(2, '0')}',
       transactionId: 'TXN-${72001 + index}',
       placedAt: placedAt,
       customerName: customers[index % customers.length],

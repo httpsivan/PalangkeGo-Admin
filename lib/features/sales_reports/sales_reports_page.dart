@@ -59,6 +59,15 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     super.dispose();
   }
 
+  void _scrollToTransactions() {
+    if (!tableController.hasClients) return;
+    tableController.animateTo(
+      tableController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   void _applyPreset(DatePreset preset, {bool updateState = true}) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -215,55 +224,35 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   label: 'TOTAL SALES',
                   icon: Icons.payments_outlined,
                   accent: const Color(0xFF10B981),
-                  onTap: () => tableController.animateTo(
-                    tableController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
+                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.netRevenue),
                   label: 'NET REVENUE',
                   icon: Icons.account_balance_wallet_outlined,
                   accent: const Color(0xFF059669),
-                  onTap: () => tableController.animateTo(
-                    tableController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
+                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: '${summary.totalOrders}',
                   label: 'TOTAL ORDERS',
                   icon: Icons.receipt_long_outlined,
                   accent: const Color(0xFF3B82F6),
-                  onTap: () => tableController.animateTo(
-                    tableController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
+                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: '${summary.completedOrders}',
                   label: 'COMPLETED ORDERS',
                   icon: Icons.check_circle_outline_rounded,
                   accent: const Color(0xFF10B981),
-                  onTap: () => tableController.animateTo(
-                    tableController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
+                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.refunds),
                   label: 'REFUNDS',
                   icon: Icons.replay_rounded,
                   accent: const Color(0xFFEF4444),
-                  onTap: () => tableController.animateTo(
-                    tableController.position.maxScrollExtent,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                  ),
+                  onTap: _scrollToTransactions,
                 ),
               ],
             ),

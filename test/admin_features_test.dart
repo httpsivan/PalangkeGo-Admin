@@ -68,6 +68,10 @@ void main() {
     expect(order.netRevenue, 210);
     expect(order.quantity, 2);
     expect(order.categories, 'GRAINS');
+
+    final summary = SalesSummary.fromOrders([order]);
+    expect(summary.grossSales, order.total);
+    expect(summary.netRevenue, order.netRevenue);
   });
 
   test('sales summary aggregates seeded order data', () {
@@ -77,6 +81,10 @@ void main() {
     expect(
       orders.map((order) => order.id),
       everyElement(matches(RegExp(r'^\d{6}-\d{2}$'))),
+    );
+    expect(
+      orders.map((order) => order.id.substring(7)),
+      List.generate(orders.length, (index) => '${index + 1}'.padLeft(2, '0')),
     );
     expect(summary.totalOrders, orders.length);
     expect(summary.grossSales, greaterThan(0));
