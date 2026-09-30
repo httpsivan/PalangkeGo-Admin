@@ -397,6 +397,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       allReports: allReports,
       filteredReports: filteredReports,
       activeFilters: filters.join(' | '),
+      accountType: targetType,
     );
     await AdminExportService.export(
       context: context,

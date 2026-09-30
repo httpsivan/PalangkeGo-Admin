@@ -489,6 +489,7 @@ class _AnnouncementHistoryPageState
       allAnnouncements: allAnnouncements,
       filteredAnnouncements: filteredAnnouncements,
       activeFilters: filterLabels.join(' | '),
+      audience: selectedAudience,
     );
 
     await AdminExportService.export(

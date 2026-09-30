@@ -1656,21 +1656,30 @@ class PaginationBar extends StatelessWidget {
           Icons.chevron_left_rounded,
           safePage > 0 ? () => onPageChanged(safePage - 1) : null,
         ),
-        for (var i = 0; i < pageCount && i < 3; i++)
-          _button(
-            context,
-            i + 1,
-            () => onPageChanged(i),
-            active: i == safePage,
-          ),
-        if (pageCount > 4) _button(context, '...', null),
-        if (pageCount > 3)
+        if (pageCount <= 5)
+          for (var i = 0; i < pageCount; i++)
+            _button(
+              context,
+              i + 1,
+              () => onPageChanged(i),
+              active: i == safePage,
+            )
+        else ...[
+          for (var i = 0; i < 3; i++)
+            _button(
+              context,
+              i + 1,
+              () => onPageChanged(i),
+              active: i == safePage,
+            ),
+          _button(context, '...', null),
           _button(
             context,
             pageCount,
             () => onPageChanged(pageCount - 1),
             active: safePage == pageCount - 1,
           ),
+        ],
         _button(
           context,
           Icons.chevron_right_rounded,

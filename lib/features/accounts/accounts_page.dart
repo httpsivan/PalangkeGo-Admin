@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/export/admin_export_service.dart';
+import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -293,10 +294,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 stallCategory = value;
                 _resetTable();
               }),
-              FilterButton(
-                label: 'Export',
-                icon: Icons.download_outlined,
-                onTap: () => _export(visible, 'vendors'),
+              ExportButton(
+                onExportPdf: () => _exportStallHolders(
+                  allVendors: values,
+                  filteredVendors: visible,
+                  format: ExportFormat.pdf,
+                ),
+                onExportExcel: () => _exportStallHolders(
+                  allVendors: values,
+                  filteredVendors: visible,
+                  format: ExportFormat.excel,
+                ),
               ),
             ],
           ),
@@ -358,10 +366,17 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                 status = v;
                 _resetTable();
               }),
-              FilterButton(
-                label: 'Export',
-                icon: Icons.download_outlined,
-                onTap: () => _export(visible, 'customers'),
+              ExportButton(
+                onExportPdf: () => _exportCustomers(
+                  allCustomers: values,
+                  filteredCustomers: visible,
+                  format: ExportFormat.pdf,
+                ),
+                onExportExcel: () => _exportCustomers(
+                  allCustomers: values,
+                  filteredCustomers: visible,
+                  format: ExportFormat.excel,
+                ),
               ),
             ],
           ),
@@ -400,17 +415,51 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
         onSelected: onChanged,
       );
 
-  void _export(List<dynamic> values, String name) {
-    final csv = buildCsv([
-      ['ID', 'Name', 'Email', 'Status'],
-      ...values.map(
-        (item) => [item.id, item.name, item.email, enumLabel(item.status)],
-      ),
-    ]);
-    downloadCsv(csv, 'palengkego-$name.csv');
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('CSV export prepared.')));
+  Future<void> _exportStallHolders({
+    required List<Vendor> allVendors,
+    required List<Vendor> filteredVendors,
+    required ExportFormat format,
+  }) async {
+    final filters = <String>[
+      'Stall Holders',
+      if (status != 'All Statuses') 'Status: $status',
+      if (stallCategory != 'All Categories') 'Stall Category: $stallCategory',
+      if (search.text.trim().isNotEmpty) 'Search: "${search.text.trim()}"',
+    ];
+    final doc = AccountsExportData.buildStallHolders(
+      allVendors: allVendors,
+      filteredVendors: filteredVendors,
+      activeFilters: filters.join(' | '),
+    );
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
+    );
+  }
+
+  Future<void> _exportCustomers({
+    required List<Customer> allCustomers,
+    required List<Customer> filteredCustomers,
+    required ExportFormat format,
+  }) async {
+    final filters = <String>[
+      'Customers',
+      if (status != 'All Statuses') 'Status: $status',
+      if (search.text.trim().isNotEmpty) 'Search: "${search.text.trim()}"',
+    ];
+    final doc = AccountsExportData.buildCustomers(
+      allCustomers: allCustomers,
+      filteredCustomers: filteredCustomers,
+      activeFilters: filters.join(' | '),
+    );
+    await AdminExportService.export(
+      context: context,
+      ref: ref,
+      doc: doc,
+      format: format,
+    );
   }
 }
 
