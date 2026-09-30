@@ -74,6 +74,10 @@ void main() {
     final orders = seedOrders();
     final summary = SalesSummary.fromOrders(orders);
 
+    expect(
+      orders.map((order) => order.id),
+      everyElement(matches(RegExp(r'^\d{6}-\d{2}$'))),
+    );
     expect(summary.totalOrders, orders.length);
     expect(summary.grossSales, greaterThan(0));
     expect(summary.netRevenue, greaterThan(0));

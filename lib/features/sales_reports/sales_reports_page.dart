@@ -946,20 +946,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               page = 0;
             }),
           ),
-          ExportButton(
-            onExportPdf: () => _exportSales(
-              allOrders: allOrders,
-              filteredOrders: filteredOrders,
-              summary: summary,
-              format: ExportFormat.pdf,
-            ),
-            onExportExcel: () => _exportSales(
-              allOrders: allOrders,
-              filteredOrders: filteredOrders,
-              summary: summary,
-              format: ExportFormat.excel,
-            ),
-          ),
         ],
       ),
       child: Column(

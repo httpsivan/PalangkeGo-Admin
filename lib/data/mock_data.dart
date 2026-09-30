@@ -626,6 +626,7 @@ List<Order> seedOrders() {
     PaymentMethod.cashOnDelivery,
   ];
 
+  final now = DateTime.now();
   return List.generate(48, (index) {
     // Select vendor profile ensuring realistic distribution across Accounts stall holders
     final profileIdx = switch (index % 12) {
@@ -643,6 +644,11 @@ List<Order> seedOrders() {
     final prodPrimary = profile.products[index % profile.products.length];
     final prodSecondary = profile.products[(index + 1) % profile.products.length];
     final quantity = 1 + index % 4;
+    final placedAt =
+        now.subtract(Duration(days: index % 38, hours: index % 12));
+    final datePart = '${(placedAt.year % 100).toString().padLeft(2, '0')}'
+        '${placedAt.month.toString().padLeft(2, '0')}'
+        '${placedAt.day.toString().padLeft(2, '0')}';
 
     final items = [
       OrderItem(
@@ -661,10 +667,9 @@ List<Order> seedOrders() {
     ];
 
     return Order(
-      id: 'ORD-${2026001 + index}',
+      id: '$datePart-${(index ~/ 38 + 1).toString().padLeft(2, '0')}',
       transactionId: 'TXN-${72001 + index}',
-      placedAt: DateTime.now()
-          .subtract(Duration(days: index % 38, hours: index % 12)),
+      placedAt: placedAt,
       customerName: customers[index % customers.length],
       vendorName: profile.name,
       stallName: profile.stall,
