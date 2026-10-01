@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -115,6 +117,15 @@ class AppDataController extends StateNotifier<AppDataState> {
                 ),
         ) {
     if (firebaseEnabled) {
+      _liveDataSubscription = FirebaseAdminService.instance.liveDataChanges
+          .listen(
+        (_) {
+          _liveReloadTimer?.cancel();
+          _liveReloadTimer = Timer(const Duration(milliseconds: 200), reload);
+        },
+        onError: (Object error) =>
+            debugPrint('[admin] Firestore live update failed: $error'),
+      );
       reload();
     } else {
       _restore();
@@ -124,6 +135,15 @@ class AppDataController extends StateNotifier<AppDataState> {
   final SharedPreferences _preferences;
   final bool firebaseEnabled;
   final MockAdminDataSource _dataSource;
+  StreamSubscription<void>? _liveDataSubscription;
+  Timer? _liveReloadTimer;
+
+  @override
+  void dispose() {
+    _liveReloadTimer?.cancel();
+    _liveDataSubscription?.cancel();
+    super.dispose();
+  }
 
   /// Loads server truth. Called on startup and after every trusted
   /// mutation — the callables (and their audit trail) are the source of

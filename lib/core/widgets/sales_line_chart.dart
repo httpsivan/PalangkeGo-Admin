@@ -38,6 +38,7 @@ class SalesLineChartState extends State<SalesLineChart> {
     final dailyData = <DateTime, (double sales, int orders)>{};
 
     for (final o in widget.orders) {
+      if (widget.isSales && !o.contributesToSales) continue;
       final day = DateTime(o.placedAt.year, o.placedAt.month, o.placedAt.day);
       final current = dailyData[day] ?? (0.0, 0);
       dailyData[day] = (current.$1 + o.total, current.$2 + 1);

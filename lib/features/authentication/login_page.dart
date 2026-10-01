@@ -782,12 +782,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               color: colors.mutedText,
             ),
             const SizedBox(width: 7),
-            Text(
-              'Your data is protected and secure.',
-              style: GoogleFonts.inter(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: colors.mutedText,
+            Flexible(
+              child: Text(
+                'Your data is protected and secure.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: colors.mutedText,
+                ),
               ),
             ),
           ],
@@ -1016,8 +1019,8 @@ class _LoginSlideshowState extends State<_LoginSlideshow> {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.dark});
+class Header extends StatelessWidget {
+  const Header({super.key, required this.dark});
   final bool dark;
 
   void _showInfoDialog(BuildContext context, String title, String content) {
@@ -1371,8 +1374,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Footer extends StatelessWidget {
-  const _Footer();
+class Footer extends StatelessWidget {
+  const Footer({super.key});
 
   void _showInfo(BuildContext context, String title, String content) {
     final colors = semanticColors(context);
@@ -1520,8 +1523,8 @@ class _Footer extends StatelessWidget {
 
 /// Honest mode indicator — demo (seeded data) vs live Firebase. Civic
 /// clarity over decoration: a quiet pill, no glass, no gradients.
-class _ModeBadge extends StatelessWidget {
-  const _ModeBadge({required this.firebase});
+class ModeBadge extends StatelessWidget {
+  const ModeBadge({super.key, required this.firebase});
 
   final bool firebase;
 

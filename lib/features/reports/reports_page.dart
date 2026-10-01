@@ -410,7 +410,6 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
 
 class _ReportTable extends StatelessWidget {
   const _ReportTable({
-    super.key,
     required this.history,
     required this.values,
     required this.verticalController,

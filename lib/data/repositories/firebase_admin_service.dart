@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +25,40 @@ class FirebaseAdminService {
   FirebaseFunctions get _functions => FirebaseFunctions.instanceFor(
         region: 'asia-southeast1',
       );
+
+  /// Emits when data represented in the admin portal changes. The controller
+  /// reloads one complete snapshot so every navigation view stays aligned.
+  Stream<void> get liveDataChanges {
+    late final StreamController<void> controller;
+    final subscriptions = <StreamSubscription<QuerySnapshot>>[];
+    const collections = [
+      'users',
+      'vendorStalls',
+      'kycSubmissions',
+      'licenseRenewals',
+      'orders',
+      'adminActions',
+      'systemAnnouncements',
+    ];
+    controller = StreamController<void>(
+      onListen: () {
+        for (final collection in collections) {
+          subscriptions.add(
+            _db.collection(collection).snapshots().listen(
+              (_) => controller.add(null),
+              onError: controller.addError,
+            ),
+          );
+        }
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+      },
+    );
+    return controller.stream;
+  }
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +208,9 @@ class FirebaseAdminService {
     final stallsSnap = await _db.collection('vendorStalls').get();
     final kycSnap = await _db.collection('kycSubmissions').get();
     final renewalsSnap = await _db.collection('licenseRenewals').get();
-    final ordersSnap = await _db.collection('orders').limit(500).get();
+    // Reporting must use the complete order history; silently truncating at
+    // 500 records makes the account and sales totals disagree over time.
+    final ordersSnap = await _db.collection('orders').get();
     final auditSnap = await _db
         .collection('adminActions')
         .orderBy('at', descending: true)
@@ -186,7 +224,9 @@ class FirebaseAdminService {
 
     final usersById = {for (final d in usersSnap.docs) d.id: d.data()};
     final stallById = {for (final d in stallsSnap.docs) d.id: d.data()};
-    final orders = [for (final d in ordersSnap.docs) _mapOrder(d)];
+    final orders = [
+      for (final d in ordersSnap.docs) _mapOrder(d, usersById, stallById),
+    ];
 
     final vendorNames = <String, String>{};
     final vendorOrderCounts = <String, int>{};
@@ -194,7 +234,10 @@ class FirebaseAdminService {
     for (final order in orders) {
       final stallId = order.transactionId; // transactionId carries stallId
       vendorOrderCounts[stallId] = (vendorOrderCounts[stallId] ?? 0) + 1;
-      vendorRevenue[stallId] = (vendorRevenue[stallId] ?? 0) + order.netRevenue;
+      if (order.contributesToSales) {
+        vendorRevenue[stallId] =
+            (vendorRevenue[stallId] ?? 0) + order.netRevenue;
+      }
     }
     stallById.forEach((id, stall) {
       vendorNames[id] = (stall['name'] as String?) ?? id;
@@ -255,15 +298,43 @@ class FirebaseAdminService {
 
   // ── Mappers ─────────────────────────────────────────────────────────────────
 
-  Order _mapOrder(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+  Order _mapOrder(
+    QueryDocumentSnapshot<Map<String, dynamic>> d,
+    Map<String, Map<String, dynamic>> usersById,
+    Map<String, Map<String, dynamic>> stallById,
+  ) {
     final data = d.data();
+    final stallId = (data['stallId'] as String?) ?? '';
+    final stall = stallById[stallId] ?? const <String, dynamic>{};
+    final holder = usersById[stallId] ?? const <String, dynamic>{};
+    final storedVendorName = (data['vendorName'] as String?)?.trim();
+    final vendorName = storedVendorName?.isNotEmpty == true
+        ? storedVendorName!
+        : ((holder['displayName'] as String?)?.trim().isNotEmpty == true
+            ? (holder['displayName'] as String).trim()
+            : (holder['email'] as String?) ??
+                (stall['name'] as String?) ??
+                'Unassigned stall holder');
+    final storedStallName = (data['stallName'] as String?)?.trim();
+    final stallName = storedStallName?.isNotEmpty == true
+        ? storedStallName!
+        : ((stall['name'] as String?)?.trim().isNotEmpty == true
+            ? (stall['name'] as String).trim()
+            : vendorName);
     final items = (data['items'] as List<dynamic>? ?? [])
         .map((i) => Map<String, dynamic>.from(i as Map))
         .map((i) => OrderItem(
-              name: (i['productName'] as String?) ?? '',
-              category: '',
+              name: (i['productName'] as String?) ??
+                  (i['name'] as String?) ??
+                  '',
+              category: (i['category'] as String?) ??
+                  (i['productCategory'] as String?) ??
+                  '',
               quantity: ((i['quantity'] as num?) ?? 0).round(),
-              unitPrice: ((i['unitPrice'] as num?) ?? 0).toDouble(),
+              unitPrice: ((i['unitPrice'] as num?) ??
+                      (i['price'] as num?) ??
+                      0)
+                  .toDouble(),
             ))
         .toList();
     final method = switch (data['paymentMethod'] as String?) {
@@ -287,17 +358,24 @@ class FirebaseAdminService {
     };
     return Order(
       id: d.id,
-      transactionId: (data['stallId'] as String?) ?? '',
-      placedAt: _asDate(data['placedAt']) ?? DateTime.now(),
+      transactionId: stallId,
+      placedAt:
+          _asDate(data['placedAt']) ?? _asDate(data['createdAt']) ?? DateTime.now(),
       customerName: (data['customerName'] as String?) ?? '',
-      vendorName: (data['vendorName'] as String?) ?? '',
-      stallName: (data['vendorName'] as String?) ?? '',
+      vendorName: vendorName,
+      stallName: stallName,
       items: items,
-      discounts: 0,
+      discounts: ((data['discountAmount'] as num?) ??
+              (data['discount'] as num?) ??
+              0)
+          .toDouble(),
       deliveryFee: ((data['deliveryFee'] as num?) ?? 0).toDouble(),
       platformFee: ((data['serviceFee'] as num?) ?? 0).toDouble() +
           ((data['priorityFee'] as num?) ?? 0).toDouble(),
-      refundAmount: 0,
+      refundAmount: ((data['refundAmount'] as num?) ??
+              (data['refund'] as num?) ??
+              0)
+          .toDouble(),
       paymentMethod: method,
       paymentStatus: payStatus,
       status: status,

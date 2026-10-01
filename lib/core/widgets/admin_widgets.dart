@@ -771,6 +771,8 @@ class Toolbar extends StatelessWidget {
         ),
         decoration: InputDecoration(
           isDense: true,
+          filled: true,
+          fillColor: semanticColors(context).hoverSurface.withValues(alpha: 0.95),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           prefixIcon: Icon(

@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
@@ -545,6 +546,15 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
 
   DateTimeRange? customDateRange;
 
+  String get _customDurationLabel {
+    final range = customDateRange;
+    if (range == null) return '';
+    final days = range.end.difference(range.start).inDays;
+    final dateFormat = DateFormat('MMM d, yyyy');
+    return '${dateFormat.format(range.start)} – ${dateFormat.format(range.end)} '
+        '($days ${days == 1 ? 'day' : 'days'})';
+  }
+
   Future<void> save(bool draft) async {
     if (title.text.trim().isEmpty || body.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -575,7 +585,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       computedExpiresAt = now.add(const Duration(days: 30));
     } else if (selectedDuration == 'Custom Range (Calendar)' &&
         customDateRange != null) {
-      computedExpiresAt = customDateRange!.end;
+      final end = customDateRange!.end;
+      computedExpiresAt = DateTime(end.year, end.month, end.day, 23, 59, 59);
     } else {
       computedExpiresAt = null;
     }
@@ -771,11 +782,12 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                           if (value == null) return;
                           if (value == 'Custom Range (Calendar)') {
                             final now = DateTime.now();
+                            final start = DateUtils.dateOnly(now);
                             final picked = await showDatePicker(
                               context: context,
                               initialDate: customDateRange?.end ??
                                   now.add(const Duration(days: 7)),
-                              firstDate: DateTime(2024),
+                              firstDate: start,
                               lastDate: now.add(const Duration(days: 365)),
                               barrierColor: Colors.black.withValues(alpha: 0.45),
                               builder: _buildFloatingDatePicker,
@@ -784,7 +796,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                               setState(() {
                                 selectedDuration = 'Custom Range (Calendar)';
                                 customDateRange = DateTimeRange(
-                                  start: now,
+                                  start: start,
                                   end: DateTime(
                                       picked.year, picked.month, picked.day, 23, 59, 59),
                                 );
@@ -795,6 +807,18 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                           }
                         },
                       ),
+                      if (customDateRange != null &&
+                          selectedDuration == 'Custom Range (Calendar)') ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Active for: $_customDurationLabel',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: colors.secondaryText,
+                          ),
+                        ),
+                      ],
                     ],
                   );
 

@@ -21,6 +21,7 @@ class SalesOverviewCard extends StatefulWidget {
     this.initialPreset = DatePreset.all,
     this.trailingHeaderControls,
     this.onDateRangeChanged,
+    this.showDateControls = true,
   });
 
   final List<Order> allOrders;
@@ -33,6 +34,7 @@ class SalesOverviewCard extends StatefulWidget {
   final Widget? trailingHeaderControls;
   final void Function(DateTime? start, DateTime? end, DatePreset preset)?
       onDateRangeChanged;
+  final bool showDateControls;
 
   @override
   State<SalesOverviewCard> createState() => _SalesOverviewCardState();
@@ -111,12 +113,17 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
   }
 
   Future<void> _pickCustomDateRange() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
+    final today = DateUtils.dateOnly(DateTime.now());
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _startDate ?? now,
+      initialDateRange: _startDate != null && _endDate != null
+          ? DateTimeRange(
+              start: DateUtils.dateOnly(_startDate!),
+              end: DateUtils.dateOnly(_endDate!),
+            )
+          : null,
       firstDate: DateTime(2020),
-      lastDate: now.add(const Duration(days: 365)),
+      lastDate: today,
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: (context, child) {
         final media = MediaQuery.of(context);
@@ -157,8 +164,8 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
     );
 
     if (picked != null) {
-      final s = DateTime(picked.year, picked.month, picked.day);
-      final e = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+      final s = DateUtils.dateOnly(picked.start);
+      final e = DateUtils.dateOnly(picked.end);
       setState(() {
         _selectedPreset = DatePreset.custom;
         _startDate = s;
@@ -322,26 +329,14 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
 
-    // Compute active orders based on date preset
-    final List<Order> activeOrders;
-    if (_startDate == null && _endDate == null) {
-      activeOrders = widget.filteredOrders ?? widget.allOrders;
-    } else {
-      activeOrders = widget.allOrders.where((item) {
-        final startCondition = _startDate == null ||
-            !item.placedAt.isBefore(DateTime(
-                _startDate!.year, _startDate!.month, _startDate!.day, 0, 0, 0));
-        final endCondition = _endDate == null ||
-            !item.placedAt.isAfter(DateTime(
-                _endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59));
-        return startCondition && endCondition;
-      }).toList();
-    }
-
-    final activeSummary =
-        widget.summary != null && _startDate == null && _endDate == null
-            ? widget.summary!
-            : SalesSummary.fromOrders(activeOrders);
+    // Charts, peak-day and average-order-value must use the same order set as
+    // the report totals. Pending and cancelled orders are transactions, not
+    // sales, so they do not belong in this sales overview.
+    final activeOrders = (widget.filteredOrders ?? widget.allOrders)
+        .where((order) => order.contributesToSales)
+        .toList();
+    final activeSummary = widget.summary ?? SalesSummary.fromOrders(activeOrders);
+    final rangeLabel = widget.dateRangeLabel ?? _dateRangeLabel();
 
     // Peak sales day calculation
     final dailyTotals = <DateTime, double>{};
@@ -440,7 +435,7 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  presetControls,
+                  if (widget.showDateControls) presetControls,
                   metricControls,
                   if (widget.trailingHeaderControls != null)
                     widget.trailingHeaderControls!,
@@ -464,7 +459,7 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Daily performance for ${_dateRangeLabel()}',
+                          'Daily performance for $rangeLabel',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
@@ -497,7 +492,7 @@ class _SalesOverviewCardState extends State<SalesOverviewCard> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Daily performance for ${_dateRangeLabel()}',
+                          'Daily performance for $rangeLabel',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(

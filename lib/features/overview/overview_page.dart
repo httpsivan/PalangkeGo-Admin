@@ -9,7 +9,6 @@ import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../core/widgets/formatted_text.dart';
 import '../../core/widgets/sales_line_chart.dart';
-import '../../core/widgets/sales_overview_card.dart';
 import '../../data/repositories/mock_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
@@ -203,15 +202,57 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               ),
             ),
           );
-          childWidget = SizedBox(
-            height: state.isExpanded ? 320 : 220,
-            child: SalesLineChart(
-              orders: data.orders,
-              startDate: null,
-              endDate: null,
-              isSales: true,
-              colors: colors,
-            ),
+          final today = DateUtils.dateOnly(DateTime.now());
+          final snapshotStart = today.subtract(const Duration(days: 29));
+          final snapshotOrders = data.orders
+              .where((order) => !order.placedAt.isBefore(snapshotStart))
+              .toList();
+          final snapshot = SalesSummary.fromOrders(snapshotOrders);
+          childWidget = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Text(
+                  'Last 30 days',
+                  style: TextStyle(fontSize: 11, color: colors.mutedText),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: state.isExpanded ? 260 : 170,
+                  child: SalesLineChart(
+                    orders: snapshotOrders,
+                    startDate: snapshotStart,
+                    endDate: today,
+                    isSales: true,
+                    colors: colors,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _SnapshotMetric(
+                        label: 'NET REVENUE',
+                        value: _shortPeso(snapshot.netRevenue),
+                      ),
+                    ),
+                    Expanded(
+                      child: _SnapshotMetric(
+                        label: 'ORDERS',
+                        value: '${snapshot.totalOrders}',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           );
           break;
 
@@ -252,15 +293,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
               ),
             ),
           );
-          final now = DateTime.now();
-          final thisMonthOrders = data.orders
-              .where((o) =>
-                  o.placedAt.year == now.year && o.placedAt.month == now.month)
-              .toList();
-          final effectiveOrders =
-              thisMonthOrders.isNotEmpty ? thisMonthOrders : data.orders;
           childWidget = _TopSellers(
-            orders: effectiveOrders,
+            orders: data.orders
+                .where((order) => order.contributesToSales)
+                .toList(),
             limit: state.isExpanded ? 6 : 3,
           );
           break;
@@ -322,14 +358,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
         index: index,
         headerAction: headerAction,
         childWidget: childWidget,
-        isRawCard: state.id == OverviewPanelId.salesChart,
-        rawCardBuilder: (headerControls) => SalesOverviewCard(
-          allOrders: data.orders,
-          filteredOrders: data.orders,
-          summary: SalesSummary.fromOrders(data.orders),
-          dateRangeLabel: 'All time',
-          trailingHeaderControls: headerControls,
-        ),
         onReorder: _reorder,
         onStateChanged: () => setState(() {}),
       );
@@ -502,8 +530,6 @@ class _ResizablePanel extends StatelessWidget {
     required this.childWidget,
     required this.onReorder,
     required this.onStateChanged,
-    this.isRawCard = false,
-    this.rawCardBuilder,
   });
 
   final _PanelState state;
@@ -512,8 +538,6 @@ class _ResizablePanel extends StatelessWidget {
   final Widget childWidget;
   final void Function(int from, int to) onReorder;
   final VoidCallback onStateChanged;
-  final bool isRawCard;
-  final Widget Function(Widget headerControls)? rawCardBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -570,18 +594,16 @@ class _ResizablePanel extends StatelessWidget {
             opacity: 0.9,
             child: Transform.scale(
               scale: 1.02,
-              child: isRawCard && rawCardBuilder != null
-                  ? rawCardBuilder!(headerButtons)
-                  : DataPanel(
-                      title: state.title,
-                      titleStyle: GoogleFonts.inter(
-                        color: colors.primaryText,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      headerAction: headerAction,
-                      child: childWidget,
-                    ),
+              child: DataPanel(
+                title: state.title,
+                titleStyle: GoogleFonts.inter(
+                  color: colors.primaryText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                headerAction: headerAction,
+                child: childWidget,
+              ),
             ),
           ),
         ),
@@ -619,18 +641,16 @@ class _ResizablePanel extends StatelessWidget {
     final cardContent = AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOutCubic,
-      child: isRawCard && rawCardBuilder != null
-          ? rawCardBuilder!(headerControls)
-          : DataPanel(
-              title: state.title,
-              titleStyle: GoogleFonts.inter(
-                color: colors.primaryText,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              headerAction: headerControls,
-              child: childWidget,
-            ),
+      child: DataPanel(
+        title: state.title,
+        titleStyle: GoogleFonts.inter(
+          color: colors.primaryText,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+        headerAction: headerControls,
+        child: childWidget,
+      ),
     );
 
     return DragTarget<int>(
@@ -661,7 +681,13 @@ class _OverviewHero extends ConsumerWidget {
     final profile = ref.watch(adminProfileProvider);
     final data = ref.watch(appDataProvider);
     final colors = semanticColors(context);
-    final sales = SalesSummary.fromOrders(data.orders);
+    // Keep the hero metrics on the same explicit period as Sales Overview.
+    final today = DateUtils.dateOnly(DateTime.now());
+    final salesWindowStart = today.subtract(const Duration(days: 29));
+    final sales = SalesSummary.fromOrders(
+      data.orders
+          .where((order) => !order.placedAt.isBefore(salesWindowStart)),
+    );
     final activeVendors = data.vendors
         .where((vendor) => vendor.status == AccountStatus.active)
         .length;
@@ -689,14 +715,14 @@ class _OverviewHero extends ConsumerWidget {
       ),
       MetricCardData(
         value: '${sales.totalOrders}',
-        label: 'Total Orders',
+        label: '30-Day Orders',
         icon: Icons.receipt_long_outlined,
         accent: const Color(0xFF3B82F6),
         onTap: () => context.go('/sales-reports'),
       ),
       MetricCardData(
         value: _shortPeso(sales.netRevenue),
-        label: 'Net Revenue',
+        label: '30-Day Net Revenue',
         icon: Icons.account_balance_wallet_outlined,
         accent: const Color(0xFF059669),
         onTap: () => context.go('/sales-reports'),
@@ -815,6 +841,41 @@ String _shortPeso(double value) {
 }
 
 String _fmtMoney(num value) => '₱${NumberFormat('#,##0.00').format(value)}';
+
+class _SnapshotMetric extends StatelessWidget {
+  const _SnapshotMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = semanticColors(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: colors.mutedText,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: colors.primaryText,
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _ApprovalTable extends StatelessWidget {
   const _ApprovalTable({required this.items});
