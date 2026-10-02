@@ -214,10 +214,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
       ..sort();
     categories.insert(0, 'All Categories');
     final filteredOrders = _filtered(orders);
-    final summary = SalesSummary.fromOrders(filteredOrders);
     final salesOrders = filteredOrders
         .where((order) => order.contributesToSales)
         .toList();
+    final summary = SalesSummary.fromOrders(salesOrders);
     final selectedStallHolders = approvedStallHolders
         .where((item) =>
             vendor == 'All Stall Holders' || item.name == vendor)
@@ -377,6 +377,14 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                 _presetPill('Today', DatePreset.today),
                 _presetPill('This Week', DatePreset.thisWeek),
                 _presetPill('This Month', DatePreset.thisMonth),
+                _presetPill(
+                  selectedPreset == DatePreset.custom
+                      ? _dateRangeLabel()
+                      : 'Custom Date',
+                  DatePreset.custom,
+                  icon: Icons.calendar_today_outlined,
+                  onTap: _pickCustomDateRange,
+                ),
               ],
             ),
           ),
@@ -835,13 +843,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             onChanged: (_) => setState(() => page = 0),
             onClear: _clearFilters,
             trailing: [
-              FilterButton(
-                label: selectedPreset == DatePreset.custom
-                    ? _dateRangeLabel()
-                    : 'Custom Date',
-                icon: Icons.calendar_today_outlined,
-                onTap: _pickCustomDateRange,
-              ),
               ExportButton(
                 onExportPdf: () => _exportSales(
                   allOrders: allOrders,

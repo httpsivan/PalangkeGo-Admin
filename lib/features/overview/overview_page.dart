@@ -205,7 +205,9 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           final today = DateUtils.dateOnly(DateTime.now());
           final snapshotStart = today.subtract(const Duration(days: 29));
           final snapshotOrders = data.orders
-              .where((order) => !order.placedAt.isBefore(snapshotStart))
+              .where((order) =>
+                  order.contributesToSales &&
+                  !order.placedAt.isBefore(snapshotStart))
               .toList();
           final snapshot = SalesSummary.fromOrders(snapshotOrders);
           childWidget = Column(
@@ -295,7 +297,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           );
           childWidget = _TopSellers(
             orders: data.orders
-                .where((order) => order.contributesToSales)
+                .where((order) =>
+                    order.contributesToSales &&
+                    !order.placedAt.isBefore(
+                      DateUtils.dateOnly(DateTime.now())
+                          .subtract(const Duration(days: 29)),
+                    ))
                 .toList(),
             limit: state.isExpanded ? 6 : 3,
           );
@@ -686,7 +693,9 @@ class _OverviewHero extends ConsumerWidget {
     final salesWindowStart = today.subtract(const Duration(days: 29));
     final sales = SalesSummary.fromOrders(
       data.orders
-          .where((order) => !order.placedAt.isBefore(salesWindowStart)),
+          .where((order) =>
+              order.contributesToSales &&
+              !order.placedAt.isBefore(salesWindowStart)),
     );
     final activeVendors = data.vendors
         .where((vendor) => vendor.status == AccountStatus.active)
