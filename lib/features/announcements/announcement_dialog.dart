@@ -5,10 +5,12 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/config/app_config.dart';
 import '../../core/widgets/admin_widgets.dart';
 import '../../core/widgets/formatted_text.dart';
 import '../../data/repositories/mock_repository.dart';
+import '../../data/repositories/supabase_announcement_service.dart';
 import '../../models/app_models.dart';
 
 const _maxFeatureImageBytes = 50 * 1024 * 1024;
@@ -67,7 +69,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     widget.announcementToEdit?.audience ?? widget.initialAudience,
   );
   late bool notify = widget.announcementToEdit != null
-      ? widget.announcementToEdit!.notificationType.toLowerCase().contains('push')
+      ? widget.announcementToEdit!.notificationType
+          .toLowerCase()
+          .contains('push')
       : widget.initialNotify;
   bool loading = false;
   Uint8List? image;
@@ -88,7 +92,10 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
       imageUrl = item.imageUrl;
       if (image != null) {
         imageSizeBytes = image!.lengthInBytes;
-        ui.instantiateImageCodec(image!).then((codec) => codec.getNextFrame()).then((frame) {
+        ui
+            .instantiateImageCodec(image!)
+            .then((codec) => codec.getNextFrame())
+            .then((frame) {
           if (mounted) {
             setState(() {
               imageWidth = frame.image.width;
@@ -130,9 +137,11 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     if (selected.toLowerCase().startsWith(openTag.toLowerCase()) &&
         selected.toLowerCase().endsWith(closeTag.toLowerCase()) &&
         selected.length >= openTag.length + closeTag.length) {
-      final unwrapped = selected.substring(openTag.length, selected.length - closeTag.length);
+      final unwrapped =
+          selected.substring(openTag.length, selected.length - closeTag.length);
       body.text = text.substring(0, start) + unwrapped + text.substring(end);
-      body.selection = TextSelection(baseOffset: start, extentOffset: start + unwrapped.length);
+      body.selection = TextSelection(
+          baseOffset: start, extentOffset: start + unwrapped.length);
       return;
     }
 
@@ -144,8 +153,10 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
           after.toLowerCase() == closeTag.toLowerCase()) {
         final newStart = start - openTag.length;
         final newEnd = end + closeTag.length;
-        body.text = text.substring(0, newStart) + selected + text.substring(newEnd);
-        body.selection = TextSelection(baseOffset: newStart, extentOffset: newStart + selected.length);
+        body.text =
+            text.substring(0, newStart) + selected + text.substring(newEnd);
+        body.selection = TextSelection(
+            baseOffset: newStart, extentOffset: newStart + selected.length);
         return;
       }
     }
@@ -174,10 +185,14 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     final line = text.substring(lineStart, lineEnd);
 
     if (line.startsWith('• ')) {
-      body.text = text.substring(0, lineStart) + line.substring(2) + text.substring(lineEnd);
-      body.selection = TextSelection.collapsed(offset: (sel.start - 2).clamp(lineStart, body.text.length));
+      body.text = text.substring(0, lineStart) +
+          line.substring(2) +
+          text.substring(lineEnd);
+      body.selection = TextSelection.collapsed(
+          offset: (sel.start - 2).clamp(lineStart, body.text.length));
     } else {
-      body.text = '${text.substring(0, lineStart)}• $line${text.substring(lineEnd)}';
+      body.text =
+          '${text.substring(0, lineStart)}• $line${text.substring(lineEnd)}';
       body.selection = TextSelection.collapsed(offset: sel.start + 2);
     }
   }
@@ -194,7 +209,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     final result = await showDialog<(String, String)>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Insert Link', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        title: const Text('Insert Link',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -218,7 +234,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(
               ctx,
@@ -396,7 +413,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogCtx).pop(),
-                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white),
                         tooltip: 'Close preview',
                       ),
                     ],
@@ -405,8 +423,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                 const Divider(height: 1, color: Colors.white24),
                 Flexible(
                   child: ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(bottom: Radius.circular(14)),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(14)),
                     child: Container(
                       color: const Color(0xFF020617),
                       alignment: Alignment.center,
@@ -479,8 +497,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     );
   }
 
-  static Widget _buildFloatingDatePicker(
-      BuildContext context, Widget? child) {
+  static Widget _buildFloatingDatePicker(BuildContext context, Widget? child) {
     final media = MediaQuery.of(context);
     final dialogWidth = (media.size.width * 0.9).clamp(320.0, 480.0);
     final dialogHeight = (media.size.height * 0.85).clamp(420.0, 560.0);
@@ -522,9 +539,12 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
     if (raw == '1 Day') return '1 Day';
     if (raw == '3 Days') return '3 Days';
     if (raw == '7 Days' || raw == '7 Days (1 Week)') return '7 Days (1 Week)';
-    if (raw == '14 Days' || raw == '14 Days (2 Weeks)') return '14 Days (2 Weeks)';
-    if (raw == '30 Days' || raw == '30 Days (1 Month)') return '30 Days (1 Month)';
-    if (raw == 'Permanent' || raw == 'Permanent (No Expiry)') return 'Permanent (No Expiry)';
+    if (raw == '14 Days' || raw == '14 Days (2 Weeks)')
+      return '14 Days (2 Weeks)';
+    if (raw == '30 Days' || raw == '30 Days (1 Month)')
+      return '30 Days (1 Month)';
+    if (raw == 'Permanent' || raw == 'Permanent (No Expiry)')
+      return 'Permanent (No Expiry)';
     if (raw == 'Custom Range (Calendar)') return 'Custom Range (Calendar)';
     return '7 Days (1 Week)';
   }
@@ -635,6 +655,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
             imageUrl: imageUrl,
           ),
         );
+    final isLiveBackend =
+        ref.read(supabaseAnnouncementServiceProvider).isConfigured ||
+            ref.read(firebaseEnabledProvider);
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
@@ -643,7 +666,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
         content: Text(
           draft
               ? 'Announcement saved as draft locally.'
-              : 'Announcement queued locally; backend delivery is not configured.',
+              : (isLiveBackend
+                  ? 'Announcement published to live market feed.'
+                  : 'Announcement queued locally; backend delivery is not configured.'),
         ),
       ),
     );
@@ -664,7 +689,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
           maxHeight: math.min(680.0, MediaQuery.sizeOf(context).height * 0.8),
         ),
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(narrow ? 16 : 28, 22, narrow ? 16 : 28, 20),
+          padding:
+              EdgeInsets.fromLTRB(narrow ? 16 : 28, 22, narrow ? 16 : 28, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -722,7 +748,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     children: [
                       const Text(
                         'Target Audience',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 7),
                       DropdownButtonFormField<String>(
@@ -751,7 +778,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     children: [
                       const Text(
                         'Announcement Duration',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 7),
                       DropdownButtonFormField<String>(
@@ -789,16 +817,17 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                                   now.add(const Duration(days: 7)),
                               firstDate: start,
                               lastDate: now.add(const Duration(days: 365)),
-                              barrierColor: Colors.black.withValues(alpha: 0.45),
+                              barrierColor:
+                                  Colors.black.withValues(alpha: 0.45),
                               builder: _buildFloatingDatePicker,
                             );
                             if (picked != null) {
                               setState(() {
                                 selectedDuration = 'Custom Range (Calendar)';
                                 customDateRange = DateTimeRange(
-                                  start: start,
-                                  end: DateTime(
-                                      picked.year, picked.month, picked.day, 23, 59, 59),
+                                  start: now,
+                                  end: DateTime(picked.year, picked.month,
+                                      picked.day, 23, 59, 59),
                                 );
                               });
                             }
@@ -850,7 +879,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                     'Feature Image (Optional)',
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
-                  if ((image != null || imageUrl != null) && imageWidth != null && imageHeight != null)
+                  if ((image != null || imageUrl != null) &&
+                      imageWidth != null &&
+                      imageHeight != null)
                     Text(
                       'Real Size: $imageWidth × $imageHeight px • ${_formatBytes(imageSizeBytes ?? (image?.lengthInBytes ?? 0))}',
                       style: TextStyle(
@@ -923,7 +954,9 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: AspectRatio(
-                        aspectRatio: (imageWidth != null && imageHeight != null && imageHeight! > 0)
+                        aspectRatio: (imageWidth != null &&
+                                imageHeight != null &&
+                                imageHeight! > 0)
                             ? (imageWidth! / imageHeight!)
                             : (1200 / 600),
                         child: Stack(
@@ -931,7 +964,8 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                           fit: StackFit.expand,
                           children: [
                             Tooltip(
-                              message: 'Click to view real size in full preview',
+                              message:
+                                  'Click to view real size in full preview',
                               child: InkWell(
                                 onTap: () => _showRealSizeDialog(context),
                                 child: image != null
@@ -942,102 +976,104 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
                                     : Image.asset(
                                         imageUrl!,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Image.network(
+                                        errorBuilder: (_, __, ___) =>
+                                            Image.network(
                                           imageUrl!,
                                           fit: BoxFit.cover,
                                         ),
                                       ),
                               ),
                             ),
-                          Positioned(
-                            top: 8,
-                            left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.72),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.photo_size_select_actual_outlined,
-                                    size: 13,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Real Size: ${imageWidth ?? 0} × ${imageHeight ?? 0} px • ${_formatBytes(imageSizeBytes ?? (image?.lengthInBytes ?? 0))}${imageWidth != null && imageHeight != null ? ' (${_aspectRatioString(imageWidth!, imageHeight!)})' : ''}',
-                                    style: const TextStyle(
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.72),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.2)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.photo_size_select_actual_outlined,
+                                      size: 13,
                                       color: Colors.white,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w600,
                                     ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Real Size: ${imageWidth ?? 0} × ${imageHeight ?? 0} px • ${_formatBytes(imageSizeBytes ?? (image?.lengthInBytes ?? 0))}${imageWidth != null && imageHeight != null ? ' (${_aspectRatioString(imageWidth!, imageHeight!)})' : ''}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Material(
+                                color: Colors.black.withValues(alpha: 0.68),
+                                shape: const CircleBorder(),
+                                child: IconButton(
+                                  onPressed: () => setState(() {
+                                    image = null;
+                                    originalImageBytes = null;
+                                    imageUrl = null;
+                                    imageName = null;
+                                    imageSizeBytes = null;
+                                    imageWidth = null;
+                                    imageHeight = null;
+                                  }),
+                                  tooltip: 'Remove feature image',
+                                  icon: const Icon(Icons.close_rounded),
+                                  iconSize: 18,
+                                  color: Colors.white,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              right: 8,
+                              bottom: 8,
+                              child: Wrap(
+                                spacing: 6,
+                                children: [
+                                  _actionPill(
+                                    icon: Icons.zoom_in_rounded,
+                                    label: 'View Real Size',
+                                    onTap: () => _showRealSizeDialog(context),
+                                  ),
+                                  _actionPill(
+                                    icon: Icons.crop_rounded,
+                                    label: 'Edit/Crop',
+                                    onTap: editImage,
+                                  ),
+                                  _actionPill(
+                                    icon: Icons.refresh_rounded,
+                                    label: 'Change',
+                                    onTap: pick,
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Material(
-                              color: Colors.black.withValues(alpha: 0.68),
-                              shape: const CircleBorder(),
-                              child: IconButton(
-                                onPressed: () => setState(() {
-                                  image = null;
-                                  originalImageBytes = null;
-                                  imageUrl = null;
-                                  imageName = null;
-                                  imageSizeBytes = null;
-                                  imageWidth = null;
-                                  imageHeight = null;
-                                }),
-                                tooltip: 'Remove feature image',
-                                icon: const Icon(Icons.close_rounded),
-                                iconSize: 18,
-                                color: Colors.white,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            right: 8,
-                            bottom: 8,
-                            child: Wrap(
-                              spacing: 6,
-                              children: [
-                                _actionPill(
-                                  icon: Icons.zoom_in_rounded,
-                                  label: 'View Real Size',
-                                  onTap: () => _showRealSizeDialog(context),
-                                ),
-                                _actionPill(
-                                  icon: Icons.crop_rounded,
-                                  label: 'Edit/Crop',
-                                  onTap: editImage,
-                                ),
-                                _actionPill(
-                                  icon: Icons.refresh_rounded,
-                                  label: 'Change',
-                                  onTap: pick,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
               const SizedBox(height: 16),
               const Text(
                 'Message Body',
@@ -1106,8 +1142,7 @@ class _AnnouncementDialogState extends ConsumerState<AnnouncementDialog> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final notifyRow = ConstrainedBox(
-                    constraints:
-                        BoxConstraints(maxWidth: constraints.maxWidth),
+                    constraints: BoxConstraints(maxWidth: constraints.maxWidth),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

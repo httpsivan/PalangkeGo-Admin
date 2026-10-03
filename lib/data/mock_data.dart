@@ -120,7 +120,25 @@ List<Vendor> seedVendors({List<Order>? ordersSource}) {
   }
 
   // Seed vendor accounts for applicants whose initial applications are verified
-  final verifiedIndices = [0, 1, 3, 4, 6, 7, 8, 10, 11, 13, 15, 16, 18, 19, 21, 22, 24];
+  final verifiedIndices = [
+    0,
+    1,
+    3,
+    4,
+    6,
+    7,
+    8,
+    10,
+    11,
+    13,
+    15,
+    16,
+    18,
+    19,
+    21,
+    22,
+    24
+  ];
 
   return List.generate(verifiedIndices.length, (i) {
     final index = verifiedIndices[i];
@@ -336,7 +354,8 @@ List<RenewalRequest> seedRenewals() {
     'SARI-SARI',
   ];
   final now = DateTime.now();
-  final targetYear = (now.month > 1 || (now.month == 1 && now.day > 7)) ? 2027 : 2026;
+  final targetYear =
+      (now.month > 1 || (now.month == 1 && now.day > 7)) ? 2027 : 2026;
   final annualJanuaryDeadline = DateTime(targetYear, 1, 7);
   final expiredJanuaryDeadline = DateTime(targetYear - 1, 1, 7);
 
@@ -355,7 +374,8 @@ List<RenewalRequest> seedRenewals() {
       };
       final DateTime submittedAt = status == RenewalStatus.expired
           ? expiredJanuaryDeadline.subtract(Duration(days: index % 5 + 1))
-          : DateTime(now.year, now.month, now.day).subtract(Duration(days: index % 5));
+          : DateTime(now.year, now.month, now.day)
+              .subtract(Duration(days: index % 5));
 
       return RenewalRequest(
         id: '#RN-${92834 + index}',
@@ -407,9 +427,9 @@ List<Report> seedReports() {
     final submittedBy = isStallHolder
         ? _customers[(index + 9) % _customers.length]
         : _names[(index ~/ 2) % _names.length];
-    final reason = (isStallHolder ? customerTopics : stallHolderTopics)[
-      index % customerTopics.length
-    ];
+    final reason = (isStallHolder
+        ? customerTopics
+        : stallHolderTopics)[index % customerTopics.length];
     final date = DateTime(2023, 10, 24).subtract(Duration(days: index));
 
     // Ensure specific accounts used in unit tests (e.g. Diosa Fruit Stand, Juan Dela Cruz) remain active (pending/underReview)
@@ -420,21 +440,21 @@ List<Report> seedReports() {
 
     final String description = switch (reason) {
       'Order Issue' =>
-          'The order was incomplete and the stall holder did not provide the items shown in the order confirmation.',
+        'The order was incomplete and the stall holder did not provide the items shown in the order confirmation.',
       'Delivery Problem' =>
-          'The delivery arrived outside the agreed time window, causing the perishable items to spoil.',
+        'The delivery arrived outside the agreed time window, causing the perishable items to spoil.',
       'Payment Problem' =>
-          'The payment was completed but the order status did not update and no refund has been received.',
+        'The payment was completed but the order status did not update and no refund has been received.',
       'App Issue' =>
-          'The PalengkeGo app failed while processing an order or account request related to this report.',
+        'The PalengkeGo app failed while processing an order or account request related to this report.',
       'Payout/Earnings' =>
-          'A completed order for the related customer is missing from the stall holder payout summary.',
+        'A completed order for the related customer is missing from the stall holder payout summary.',
       'Order Management' =>
-          'The stall holder needs help managing an order for the related customer after its status did not update correctly.',
+        'The stall holder needs help managing an order for the related customer after its status did not update correctly.',
       'Customer Conflict' =>
-          'The customer used abusive language while disputing an order and the stall holder needs assistance.',
+        'The customer used abusive language while disputing an order and the stall holder needs assistance.',
       'Other Support' =>
-          'The stall holder submitted a support concern that does not fit the available topics.',
+        'The stall holder submitted a support concern that does not fit the available topics.',
       'Scam or Fraud' => isStallHolder
           ? 'The stall holder collected payment for premium produce but substituted lower grade items and refused a refund upon delivery.'
           : 'The customer claimed goods were never delivered despite rider photo proof and opened a fraudulent chargeback dispute.',
@@ -442,7 +462,7 @@ List<Report> seedReports() {
           ? 'The seller became hostile and sent aggressive messages on the chat feature after a customer inquired about late order delivery.'
           : 'The customer submitted abusive and profane messages to the vendor staff during order inquiry.',
       'Bug Report' =>
-          'The mobile application crashed during checkout while selecting delivery location, causing duplicated pending order charges.',
+        'The mobile application crashed during checkout while selecting delivery location, causing duplicated pending order charges.',
       'Incorrect Pricing' => isStallHolder
           ? 'Stall displayed price of ₱180/kg on app listing but charged ₱250/kg at digital payment checkout without notice.'
           : 'Customer attempted to override listed item prices by placing invalid custom order notes.',
@@ -452,8 +472,18 @@ List<Report> seedReports() {
     };
 
     final isResolved = status == ReportStatus.resolved;
-    final decisions = ['Warning Issued', 'Account Blocked', 'Refund Approved', 'No Violation'];
-    final actions = ['Warning Issued', 'Account Blocked', 'Refund Processed', 'Dismissed'];
+    final decisions = [
+      'Warning Issued',
+      'Account Blocked',
+      'Refund Approved',
+      'No Violation'
+    ];
+    final actions = [
+      'Warning Issued',
+      'Account Blocked',
+      'Refund Processed',
+      'Dismissed'
+    ];
 
     return Report(
       id: '#RPT-${(index + 1) * 100}',
@@ -469,8 +499,9 @@ List<Report> seedReports() {
       reporterEmail:
           '${submittedBy.toLowerCase().replaceAll(RegExp(r'[^a-z]+'), '.')}@example.com',
       phone: '+63 917 123 ${4500 + index}',
-      vendorName: isStallHolder ? accountIssue : submittedBy,
-      owner: '',
+      vendorName:
+          isStallHolder ? accountIssue : _names[(index + 10) % _names.length],
+      owner: _customers[(index + 3) % _customers.length],
       stallNumber: 'Block ${12 + index}',
       previousViolations: (index % 3),
       notes: isResolved ? 'Resolved by admin officer after investigation.' : '',
@@ -686,18 +717,19 @@ List<Order> seedOrders() {
     // Select vendor profile ensuring realistic distribution across Accounts stall holders
     final profileIdx = switch (index % 12) {
       0 || 1 || 2 => 0, // Aicel Castillo (Fresh Fish) - 12 orders
-      3 || 4 => 1,      // Mila Mendoza (Meat) - 8 orders
-      5 || 6 => 2,      // Elena Ramos (Fruits) - 8 orders
-      7 => 3,           // Sophie Sb (Chicken) - 4 orders
-      8 => 4,           // Emilio Navarro (Vegetables) - 4 orders
-      9 => 5,           // Diosa Del Rosario (Dried Fish) - 4 orders
-      10 => 6,          // Maria Clara Santos (Maritatas) - 4 orders
-      _ => 7,           // Antonio Reyes (SARI-SARI) - 4 orders
+      3 || 4 => 1, // Mila Mendoza (Meat) - 8 orders
+      5 || 6 => 2, // Elena Ramos (Fruits) - 8 orders
+      7 => 3, // Sophie Sb (Chicken) - 4 orders
+      8 => 4, // Emilio Navarro (Vegetables) - 4 orders
+      9 => 5, // Diosa Del Rosario (Dried Fish) - 4 orders
+      10 => 6, // Maria Clara Santos (Maritatas) - 4 orders
+      _ => 7, // Antonio Reyes (SARI-SARI) - 4 orders
     };
 
     final profile = vendorProfiles[profileIdx];
     final prodPrimary = profile.products[index % profile.products.length];
-    final prodSecondary = profile.products[(index + 1) % profile.products.length];
+    final prodSecondary =
+        profile.products[(index + 1) % profile.products.length];
     final quantity = 1 + index % 4;
     final placedAt =
         now.subtract(Duration(days: index % 38, hours: index % 12));
@@ -1003,4 +1035,3 @@ List<AuditLog> seedAuditLogs() {
     ),
   ];
 }
-

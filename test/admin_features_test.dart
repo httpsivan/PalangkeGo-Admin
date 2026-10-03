@@ -331,19 +331,18 @@ void main() {
     );
   });
 
-  test('renewal requests filtering, badge equality, mutual exclusivity, and sorting',
+  test(
+      'renewal requests filtering, badge equality, mutual exclusivity, and sorting',
       () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final controller = AppDataController(preferences, firebaseEnabled: false);
     final renewals = controller.state.renewals;
 
-    final requestsTabItems = renewals
-        .where((r) => r.status == RenewalStatus.reviewing)
-        .toList();
-    final historyTabItems = renewals
-        .where((r) => r.status != RenewalStatus.reviewing)
-        .toList();
+    final requestsTabItems =
+        renewals.where((r) => r.status == RenewalStatus.reviewing).toList();
+    final historyTabItems =
+        renewals.where((r) => r.status != RenewalStatus.reviewing).toList();
 
     // Requests tab only contains pending Under Review renewals
     expect(
@@ -372,8 +371,12 @@ void main() {
       ..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
     for (int i = 0; i < sortedRequests.length - 1; i++) {
       expect(
-        sortedRequests[i].expiryDate.isBefore(sortedRequests[i + 1].expiryDate) ||
-            sortedRequests[i].expiryDate.isAtSameMomentAs(sortedRequests[i + 1].expiryDate),
+        sortedRequests[i]
+                .expiryDate
+                .isBefore(sortedRequests[i + 1].expiryDate) ||
+            sortedRequests[i]
+                .expiryDate
+                .isAtSameMomentAs(sortedRequests[i + 1].expiryDate),
         isTrue,
       );
     }

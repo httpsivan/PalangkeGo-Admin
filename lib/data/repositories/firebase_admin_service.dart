@@ -82,7 +82,9 @@ class FirebaseAdminService {
       return null;
     } on FirebaseAuthException catch (e) {
       return switch (e.code) {
-        'invalid-credential' || 'wrong-password' || 'user-not-found' =>
+        'invalid-credential' ||
+        'wrong-password' ||
+        'user-not-found' =>
           'The email or password is incorrect.',
         'invalid-email' => 'That email address is not valid.',
         'too-many-requests' =>
@@ -152,6 +154,7 @@ class FirebaseAdminService {
     required String body,
     required String targetAudience,
     DateTime? expiresAt,
+    String? imageUrl,
   }) async {
     try {
       await _db.collection('systemAnnouncements').add({
@@ -160,8 +163,8 @@ class FirebaseAdminService {
         'targetAudience': targetAudience,
         'createdBy': _auth.currentUser?.uid,
         'createdAt': FieldValue.serverTimestamp(),
-        if (expiresAt != null)
-          'expiresAt': Timestamp.fromDate(expiresAt),
+        if (expiresAt != null) 'expiresAt': Timestamp.fromDate(expiresAt),
+        if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
       });
       return null;
     } on FirebaseException catch (e) {
@@ -174,6 +177,9 @@ class FirebaseAdminService {
     required String title,
     required String body,
     required String targetAudience,
+    DateTime? expiresAt,
+    String? imageUrl,
+    bool clearImage = false,
   }) async {
     try {
       await _db.collection('systemAnnouncements').doc(id).update({
@@ -181,6 +187,11 @@ class FirebaseAdminService {
         'body': body,
         'targetAudience': targetAudience,
         'updatedAt': FieldValue.serverTimestamp(),
+        if (expiresAt != null) 'expiresAt': Timestamp.fromDate(expiresAt),
+        if (clearImage)
+          'imageUrl': FieldValue.delete()
+        else if (imageUrl != null && imageUrl.isNotEmpty)
+          'imageUrl': imageUrl,
       });
       return null;
     } on FirebaseException catch (e) {
@@ -249,10 +260,9 @@ class FirebaseAdminService {
       final role = user['role'] as String?;
       final blocked = user['isBlocked'] == true;
       final status = blocked ? AccountStatus.blocked : AccountStatus.active;
-      final name =
-          (user['displayName'] as String?)?.isNotEmpty == true
-              ? user['displayName'] as String
-              : (user['email'] as String? ?? uid);
+      final name = (user['displayName'] as String?)?.isNotEmpty == true
+          ? user['displayName'] as String
+          : (user['email'] as String? ?? uid);
       if (role == 'vendor') {
         final stall = stallById[uid] ?? const <String, dynamic>{};
         vendors.add(Vendor(
@@ -280,8 +290,12 @@ class FirebaseAdminService {
       }
     });
 
-    final applications = [for (final d in kycSnap.docs) _mapApplication(d, usersById, stallById)];
-    final renewals = [for (final d in renewalsSnap.docs) _mapRenewal(d, stallById)];
+    final applications = [
+      for (final d in kycSnap.docs) _mapApplication(d, usersById, stallById)
+    ];
+    final renewals = [
+      for (final d in renewalsSnap.docs) _mapRenewal(d, stallById)
+    ];
     final auditLogs = [for (final d in auditSnap.docs) _mapAudit(d, usersById)];
     final announcements = [for (final d in annSnap.docs) _mapAnnouncement(d)];
 
@@ -449,7 +463,8 @@ class FirebaseAdminService {
           stallId,
       stallName: (stall['name'] as String?) ?? 'Unknown stall',
       category: (stall['category'] as String?) ?? 'Uncategorized',
-      expiryDate: _asDate(data['periodEnd']) ?? DateTime.now().add(
+      expiryDate: _asDate(data['periodEnd']) ??
+          DateTime.now().add(
             const Duration(days: 365),
           ),
       status: status,
@@ -496,12 +511,17 @@ class FirebaseAdminService {
       summary: (data['body'] as String?) ?? '',
       audience: switch ((data['targetAudience'] as String?)?.toLowerCase()) {
         'customers' || 'customer' => 'Customers',
-        'stallholders' || 'stall holders' || 'vendors' || 'vendor' => 'Stall Holders',
+        'stallholders' ||
+        'stall holders' ||
+        'vendors' ||
+        'vendor' =>
+          'Stall Holders',
         _ => 'All Users',
       },
       createdAt: _asDate(data['createdAt']) ?? DateTime.now(),
       isDraft: false,
       expiresAt: _asDate(data['expiresAt']),
+      imageUrl: (data['imageUrl'] ?? data['image_url']) as String?,
       createdBy: (data['createdBy'] as String?) ?? 'ADM-001',
     );
   }

@@ -18,12 +18,27 @@ class AdminShell extends ConsumerWidget {
   final Widget child;
   static const navItems = [
     ('Overview', 'Overview', '/overview', Icons.home_outlined),
-    ('Sales Reports', 'Sales Reports', '/sales-reports', Icons.bar_chart_rounded),
+    (
+      'Sales Reports',
+      'Sales Reports',
+      '/sales-reports',
+      Icons.bar_chart_rounded
+    ),
     ('Accounts', 'Accounts', '/accounts', Icons.people_outline_rounded),
-    ('Stall Holder Application', 'Applications', '/applications', Icons.verified_user_outlined),
+    (
+      'Stall Holder Application',
+      'Applications',
+      '/applications',
+      Icons.verified_user_outlined
+    ),
     ('Renewal', 'Renewal', '/renewal', Icons.autorenew_rounded),
     ('Complaint', 'Complaint', '/reports', Icons.report_problem_outlined),
-    ('Announcements', 'Announcements', '/announcements', Icons.campaign_rounded),
+    (
+      'Announcements',
+      'Announcements',
+      '/announcements',
+      Icons.campaign_rounded
+    ),
   ];
 
   @override
@@ -125,47 +140,42 @@ class _TopNavigationState extends ConsumerState<_TopNavigation> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Listener(
-                      onPointerSignal: (pointerSignal) {
-                        if (pointerSignal is PointerScrollEvent &&
-                            _scrollController.hasClients) {
-                          final target = (_scrollController.offset +
-                                  pointerSignal.scrollDelta.dy)
-                              .clamp(
-                                  0.0,
-                                  _scrollController
-                                      .position.maxScrollExtent);
-                          _scrollController.jumpTo(target);
-                        }
-                      },
-                      child: ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            ui.PointerDeviceKind.touch,
-                            ui.PointerDeviceKind.mouse,
-                            ui.PointerDeviceKind.trackpad,
-                          },
-                          scrollbars: false,
-                        ),
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (final item in AdminShell.navItems)
-                                _NavItem(
-                                  label: item.$2,
-                                  tooltip: item.$1,
-                                  path: item.$3,
-                                  icon: item.$4,
-                                  active: widget.current == item.$3,
-                                ),
-                            ],
-                          ),
+                  child: Listener(
+                    onPointerSignal: (pointerSignal) {
+                      if (pointerSignal is PointerScrollEvent &&
+                          _scrollController.hasClients) {
+                        final target = (_scrollController.offset +
+                                pointerSignal.scrollDelta.dy)
+                            .clamp(0.0,
+                                _scrollController.position.maxScrollExtent);
+                        _scrollController.jumpTo(target);
+                      }
+                    },
+                    child: ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(context).copyWith(
+                        dragDevices: {
+                          ui.PointerDeviceKind.touch,
+                          ui.PointerDeviceKind.mouse,
+                          ui.PointerDeviceKind.trackpad,
+                        },
+                        scrollbars: false,
+                      ),
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final item in AdminShell.navItems)
+                              _NavItem(
+                                label: item.$2,
+                                tooltip: item.$1,
+                                path: item.$3,
+                                icon: item.$4,
+                                active: widget.current == item.$3,
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -206,6 +216,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
+    final activeColor = active ? colors.activeNavigationText : colors.heroMuted;
 
     final itemWidget = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -233,13 +244,16 @@ class _NavItem extends StatelessWidget {
                   Icon(
                     icon,
                     size: 16,
-                    color: active ? colors.activeNavigationText : colors.heroMuted,
+                    color:
+                        active ? colors.activeNavigationText : colors.heroMuted,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     label,
                     style: GoogleFonts.inter(
-                      color: active ? colors.activeNavigationText : colors.heroMuted,
+                      color: active
+                          ? colors.activeNavigationText
+                          : colors.heroMuted,
                       fontSize: 13,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                     ),
@@ -548,7 +562,8 @@ class _MobileDrawer extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     const Expanded(

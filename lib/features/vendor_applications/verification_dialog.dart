@@ -363,68 +363,66 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       final targetVendorId =
           vendor?.id ?? 'VND-${widget.id.replaceAll(RegExp(r'[^0-9]'), '')}';
 
-      final statusMessage = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF10B981).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: const Color(0xFF10B981).withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              size: 18,
-              color: Color(0xFF059669),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF059669),
+      return Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF10B981).withValues(alpha: 0.3),
               ),
             ),
-          ],
-        ),
-      );
-      final actions = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              context.go('/accounts?accountId=$targetVendorId&open=1');
-            },
-            icon: const Icon(Icons.person_outline_rounded, size: 16),
-            label: const Text('View Account Profile'),
-          ),
-          const SizedBox(width: 10),
-          OutlinedButton.icon(
-            onPressed: processing ? null : _reopenForReview,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: const Text('Reopen for Review'),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: semanticColors(context).subtleBorder),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 18,
+                  color: Color(0xFF059669),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF059669),
+                  ),
+                ),
+              ],
             ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go('/accounts?accountId=$targetVendorId&open=1');
+                },
+                icon: const Icon(Icons.person_outline_rounded, size: 16),
+                label: const Text('View Account Profile'),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: processing ? null : _reopenForReview,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('Reopen for Review'),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: semanticColors(context).subtleBorder),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ],
           ),
         ],
-      );
-      return LayoutBuilder(
-        builder: (context, constraints) => constraints.maxWidth < 900
-            ? Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [statusMessage, actions],
-              )
-            : Row(
-                children: [statusMessage, const Spacer(), actions],
-              ),
       );
     }
 

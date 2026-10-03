@@ -122,8 +122,7 @@ class AuthController extends StateNotifier<bool> {
     bool keepSignedIn,
   ) async {
     if (_firebase) {
-      final error =
-          await FirebaseAdminService.instance.signIn(email, password);
+      final error = await FirebaseAdminService.instance.signIn(email, password);
       if (error == null) state = true;
       return error;
     }

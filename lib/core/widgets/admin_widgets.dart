@@ -772,7 +772,8 @@ class Toolbar extends StatelessWidget {
         decoration: InputDecoration(
           isDense: true,
           filled: true,
-          fillColor: semanticColors(context).hoverSurface.withValues(alpha: 0.95),
+          fillColor:
+              semanticColors(context).hoverSurface.withValues(alpha: 0.95),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           prefixIcon: Icon(
@@ -1595,31 +1596,28 @@ class ScrollableDataTable extends StatelessWidget {
                   ),
                 );
 
-            final content = ConstrainedBox(
-              constraints: BoxConstraints(minWidth: tableWidth),
-              child: AnimatedSwitcher(
-                duration: AppMotion.duration(context, AppMotion.component),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: child,
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: tableWidth),
+                child: AnimatedSwitcher(
+                  duration: AppMotion.duration(context, AppMotion.component),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                  child: rows.isEmpty
+                      ? KeyedSubtree(
+                          key: const ValueKey('empty'),
+                          child: emptyState,
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('rows'),
+                          child: table(tableRows: rows, headingHeight: 48),
+                        ),
                 ),
-                child: rows.isEmpty
-                    ? KeyedSubtree(
-                        key: const ValueKey('empty'),
-                        child: emptyState,
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('rows'),
-                        child: table(tableRows: rows, headingHeight: 48),
-                      ),
               ),
             );
-            return horizontalScroll
-                ? SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: content,
-                  )
-                : content;
           },
         ),
       );

@@ -26,7 +26,8 @@ class AdminSettingsDialog extends ConsumerStatefulWidget {
   const AdminSettingsDialog({super.key});
 
   @override
-  ConsumerState<AdminSettingsDialog> createState() => _AdminSettingsDialogState();
+  ConsumerState<AdminSettingsDialog> createState() =>
+      _AdminSettingsDialogState();
 }
 
 class _AdminSettingsDialogState extends ConsumerState<AdminSettingsDialog> {
@@ -280,7 +281,8 @@ class _AdminSettingsDialogState extends ConsumerState<AdminSettingsDialog> {
                           color: colors.dangerContainer,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -432,7 +434,8 @@ class _AdminSettingsDialogState extends ConsumerState<AdminSettingsDialog> {
               icon: const Icon(Icons.upload_outlined, size: 16),
               label: Text(avatarBytes == null ? 'Add photo' : 'Change photo'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
             ),
             if (avatarBytes != null)
