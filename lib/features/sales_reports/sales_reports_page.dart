@@ -9,13 +9,14 @@ import '../../core/utils/export/admin_export_service.dart';
 import '../../core/utils/export/module_export_data_builders.dart';
 import '../../core/widgets/admin_shell.dart';
 import '../../core/widgets/admin_widgets.dart';
-import '../../core/widgets/sales_overview_card.dart';
+import '../../data/mock_data.dart';
 import '../../data/repositories/analytics_repository.dart';
-import '../../data/repositories/vendor_repository.dart';
 import '../../models/admin_models.dart';
 import '../../models/app_models.dart';
 
 String _fmtMoney(num value) => '₱${NumberFormat('#,##0.00').format(value)}';
+
+enum DatePreset { today, thisWeek, thisMonth, custom, all }
 
 class SalesReportsPage extends ConsumerStatefulWidget {
   const SalesReportsPage({super.key});
@@ -41,7 +42,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   PaymentMethod? paymentMethod;
   String sort = 'Newest first';
   int page = 0;
-  final Set<String> _expandedStallHolders = <String>{};
+  bool showSalesMetric = true; // true = Sales, false = Orders
+  bool topSellersPeriod = true; // true = Period, false = All-Time
 
   @override
   void initState() {
@@ -56,15 +58,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     maximum.dispose();
     tableController.dispose();
     super.dispose();
-  }
-
-  void _scrollToTransactions() {
-    if (!tableController.hasClients) return;
-    tableController.animateTo(
-      tableController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
   }
 
   void _applyPreset(DatePreset preset, {bool updateState = true}) {
@@ -150,17 +143,11 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
 
   Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
-    final today = DateUtils.dateOnly(now);
-    final picked = await showDateRangePicker(
+    final picked = await showDatePicker(
       context: context,
-      initialDateRange: startDate != null && endDate != null
-          ? DateTimeRange(
-              start: DateUtils.dateOnly(startDate!),
-              end: DateUtils.dateOnly(endDate!),
-            )
-          : null,
+      initialDate: startDate ?? now,
       firstDate: DateTime(2020),
-      lastDate: today,
+      lastDate: now.add(const Duration(days: 365)),
       barrierColor: Colors.black.withValues(alpha: 0.45),
       builder: _buildFloatingDatePicker,
     );
@@ -168,8 +155,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     if (picked != null) {
       setState(() {
         selectedPreset = DatePreset.custom;
-        startDate = DateUtils.dateOnly(picked.start);
-        endDate = DateUtils.dateOnly(picked.end);
+        startDate = DateTime(picked.year, picked.month, picked.day);
+        endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
         page = 0;
       });
     }
@@ -180,7 +167,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
       return 'All time';
     }
     if (startDate != null && endDate != null) {
-      return _formatDateRange(startDate!, endDate!);
+      if (startDate!.isAtSameMomentAs(endDate!)) {
+        return DateFormat('MMM d, yyyy').format(startDate!);
+      }
+      return '${DateFormat('MMM d').format(startDate!)} – ${DateFormat('MMM d, yyyy').format(endDate!)}';
     }
     if (startDate != null) {
       return 'From ${DateFormat('MMM d, yyyy').format(startDate!)}';
@@ -188,50 +178,25 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     return 'Until ${DateFormat('MMM d, yyyy').format(endDate!)}';
   }
 
-  String _formatDateRange(DateTime start, DateTime end) {
-    if (DateUtils.isSameDay(start, end)) {
-      return DateFormat('MMM d, yyyy').format(start);
-    }
-    return '${DateFormat('MMM d, yyyy').format(start)} – ${DateFormat('MMM d, yyyy').format(end)}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = semanticColors(context);
     final orders = ref.watch(ordersProvider);
-    final approvedStallHolders = ref
-        .watch(vendorsProvider)
-        .where((item) =>
-            item.status == AccountStatus.active ||
-            item.status == AccountStatus.offline)
-        .toList();
-    final categories = orders
-        .where((order) => order.contributesToSales)
-        .expand((item) => item.items.map((line) => line.category.trim()))
-        .where((category) => category.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    categories.insert(0, 'All Categories');
-    final filteredOrders = _filtered(orders);
-    final salesOrders = filteredOrders
-        .where((order) => order.contributesToSales)
-        .toList();
-    final summary = SalesSummary.fromOrders(salesOrders);
-    final selectedStallHolders = approvedStallHolders
-        .where((item) =>
-            vendor == 'All Stall Holders' || item.name == vendor)
-        .toList();
-    final stallHolderGroups = _groupOrdersByStallHolder(
-      salesOrders,
-      selectedStallHolders,
-      search.text.trim().toLowerCase(),
-    );
+    final categories = <String>{
+      'All Categories',
+      ...orders.expand((item) => item.items.map((line) => line.category)),
+    }.toList();
+    final vendors = <String>{
+      'All Stall Holders',
+      ...orders.map((item) => item.vendorName),
+    }.toList();
 
-    final totalPages = (stallHolderGroups.length / 10).ceil();
+    final filteredOrders = _filtered(orders);
+    final summary = SalesSummary.fromOrders(filteredOrders);
+
+    final totalPages = (filteredOrders.length / 10).ceil();
     final safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
-    final visibleStallHolderGroups =
-        stallHolderGroups.skip(safePage * 10).take(10).toList();
+    final visible = filteredOrders.skip(safePage * 10).take(10).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -243,42 +208,38 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               title: 'Sales Reports',
               subtitle:
                   'Review marketplace sales, orders, payments, refunds, and net revenue.',
-              trailing: _buildHeaderControls(colors, orders, filteredOrders, summary),
+              trailing:
+                  _buildHeaderControls(colors, orders, filteredOrders, summary),
               metrics: [
                 MetricCardData(
                   value: _fmtMoney(summary.grossSales),
                   label: 'TOTAL SALES',
                   icon: Icons.payments_outlined,
                   accent: const Color(0xFF10B981),
-                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.netRevenue),
                   label: 'NET REVENUE',
                   icon: Icons.account_balance_wallet_outlined,
                   accent: const Color(0xFF059669),
-                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: '${summary.totalOrders}',
                   label: 'TOTAL ORDERS',
                   icon: Icons.receipt_long_outlined,
                   accent: const Color(0xFF3B82F6),
-                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: '${summary.completedOrders}',
                   label: 'COMPLETED ORDERS',
                   icon: Icons.check_circle_outline_rounded,
                   accent: const Color(0xFF10B981),
-                  onTap: _scrollToTransactions,
                 ),
                 MetricCardData(
                   value: _fmtMoney(summary.refunds),
                   label: 'REFUNDS',
                   icon: Icons.replay_rounded,
                   accent: const Color(0xFFEF4444),
-                  onTap: _scrollToTransactions,
                 ),
               ],
             ),
@@ -294,7 +255,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 2. ANALYTICS SECTION: SALES OVERVIEW CHART (ROW 1), SALES BY CATEGORY & TOP SELLERS (ROW 2)
-                  _buildSalesOverviewCard(colors, filteredOrders, summary, orders),
+                  _buildSalesOverviewCard(
+                      colors, filteredOrders, summary, orders),
                   const SizedBox(height: 16),
                   if (constraints.maxWidth >= 850)
                     Row(
@@ -302,23 +264,37 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                       children: [
                         Expanded(
                           child: _buildCategorySalesCard(
-                              colors, salesOrders, summary.grossSales),
+                              colors, filteredOrders, summary.grossSales),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: _buildTopSellersCard(
-                              colors, filteredOrders, allOrders: orders),
+                          child: _buildTopSellersCard(colors, filteredOrders,
+                              allOrders: orders),
                         ),
                       ],
                     )
                   else ...[
                     _buildCategorySalesCard(
-                        colors, salesOrders, summary.grossSales),
+                        colors, filteredOrders, summary.grossSales),
                     const SizedBox(height: 16),
-                    _buildTopSellersCard(
-                        colors, filteredOrders, allOrders: orders),
+                    _buildTopSellersCard(colors, filteredOrders,
+                        allOrders: orders),
                   ],
 
+                  const SizedBox(height: 24),
+
+                  // 3. RECENT TRANSACTIONS TABLE
+                  _buildTransactionsSection(
+                    colors: colors,
+                    allOrders: orders,
+                    filteredOrders: filteredOrders,
+                    visibleOrders: visible,
+                    summary: summary,
+                    categories: categories,
+                    vendors: vendors,
+                    safePage: safePage,
+                    totalPages: totalPages,
+                  ),
                 ],
               ),
             ),
@@ -329,13 +305,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // HEADER CONTROLS: DATE RANGE PRESETS
+  // HEADER CONTROLS: DATE RANGE PRESETS & EXPORT
   // ---------------------------------------------------------------------------
-  Widget _buildHeaderControls(
-      AppSemanticColors colors,
-      List<Order> allOrders,
-      List<Order> values,
-      SalesSummary summary) {
+  Widget _buildHeaderControls(AppSemanticColors colors, List<Order> allOrders,
+      List<Order> values, SalesSummary summary) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -343,8 +316,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
       children: [
         // Date Presets
         Container(
-          constraints: const BoxConstraints(minHeight: 38),
-          alignment: Alignment.center,
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.22),
@@ -365,11 +336,30 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                       ? _dateRangeLabel()
                       : 'Custom Date',
                   DatePreset.custom,
-                  icon: Icons.calendar_today_outlined,
                   onTap: _pickCustomDateRange,
+                  icon: Icons.calendar_today_outlined,
                 ),
               ],
             ),
+          ),
+        ),
+
+        // Export Dropdown Menu
+        ExportButton(
+          backgroundColor: Colors.black.withValues(alpha: 0.22),
+          foregroundColor: Colors.white,
+          borderColor: colors.borderOnHero,
+          onExportPdf: () => _exportSales(
+            allOrders: allOrders,
+            filteredOrders: values,
+            summary: summary,
+            format: ExportFormat.pdf,
+          ),
+          onExportExcel: () => _exportSales(
+            allOrders: allOrders,
+            filteredOrders: values,
+            summary: summary,
+            format: ExportFormat.excel,
           ),
         ),
       ],
@@ -417,11 +407,8 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   // SALES OVERVIEW CHART
   // ---------------------------------------------------------------------------
-  Widget _buildSalesOverviewCard(
-      AppSemanticColors colors,
-      List<Order> filteredOrders,
-      SalesSummary summary,
-      List<Order> allOrders) {
+  Widget _buildSalesOverviewCard(AppSemanticColors colors,
+      List<Order> filteredOrders, SalesSummary summary, List<Order> allOrders) {
     // Peak sales day calculation
     final dailyTotals = <DateTime, double>{};
     for (final o in filteredOrders) {
@@ -601,14 +588,12 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
 
     if (startDate != null && endDate != null) {
       final duration = endDate!.difference(startDate!);
-      final prevStart =
-          startDate!.subtract(duration + const Duration(days: 1));
+      final prevStart = startDate!.subtract(duration + const Duration(days: 1));
       final prevEnd = startDate!.subtract(const Duration(seconds: 1));
 
       final prevOrders = allOrders.where((o) =>
           !o.placedAt.isBefore(prevStart) && !o.placedAt.isAfter(prevEnd));
-      final prevGross =
-          prevOrders.fold<double>(0.0, (sum, o) => sum + o.total);
+      final prevGross = prevOrders.fold<double>(0.0, (sum, o) => sum + o.total);
 
       if (prevGross > 0) {
         final pct = ((currentGross - prevGross) / prevGross) * 100;
@@ -672,8 +657,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     );
   }
 
-  Widget _chartMetricToggle(
-      String label, bool isSelected, VoidCallback onTap) {
+  Widget _chartMetricToggle(String label, bool isSelected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(5),
@@ -875,8 +859,9 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   Widget _buildTopSellersCard(
     AppSemanticColors colors,
-    List<Order> orders,
-  ) {
+    List<Order> orders, {
+    List<Order>? allOrders,
+  }) {
     // Dynamic calculation from current filtered orders
     final vendorMap = <String, (int count, double revenue)>{};
     for (final o in orders) {
@@ -886,7 +871,21 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
     final sortedVendors = vendorMap.entries.toList()
       ..sort((a, b) => b.value.$2.compareTo(a.value.$2));
 
-    final count = sortedVendors.length.clamp(0, 4);
+    // Dynamic calculation for all-time orders
+    final allVendorMap = <String, (int count, double revenue)>{};
+    final effectiveAllOrders = allOrders ?? orders;
+    for (final o in effectiveAllOrders) {
+      final current = allVendorMap[o.vendorName] ?? (0, 0.0);
+      allVendorMap[o.vendorName] = (current.$1 + 1, current.$2 + o.total);
+    }
+    final sortedAllVendors = allVendorMap.entries.toList()
+      ..sort((a, b) => b.value.$2.compareTo(a.value.$2));
+
+    final count = topSellersPeriod
+        ? sortedVendors.length.clamp(0, 4)
+        : (sortedAllVendors.isNotEmpty
+            ? sortedAllVendors.length.clamp(0, 4)
+            : topSellerNames.length.clamp(0, 4));
 
     return Container(
       decoration: BoxDecoration(
@@ -922,12 +921,33 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Leading stall holders for ${_dateRangeLabel()}',
+                      topSellersPeriod
+                          ? 'Leading stall holders by sales'
+                          : 'All-time leading stall holders',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: colors.mutedText,
                       ),
                     ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: colors.hoverSurface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: colors.subtleBorder),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _chartMetricToggle('Period', topSellersPeriod, () {
+                      setState(() => topSellersPeriod = true);
+                    }),
+                    _chartMetricToggle('All-Time', !topSellersPeriod, () {
+                      setState(() => topSellersPeriod = false);
+                    }),
                   ],
                 ),
               ),
@@ -981,10 +1001,27 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             )
           else
             ...List.generate(count, (index) {
-              final entry = sortedVendors[index];
-              final sellerName = entry.key;
-              final orderSubtext = '${entry.value.$1} orders';
-              final revenueText = _fmtMoney(entry.value.$2);
+              final String sellerName;
+              final String orderSubtext;
+              final String revenueText;
+
+              if (topSellersPeriod) {
+                final entry = sortedVendors[index];
+                sellerName = entry.key;
+                orderSubtext = '${entry.value.$1} orders';
+                revenueText = _fmtMoney(entry.value.$2);
+              } else if (sortedAllVendors.isNotEmpty) {
+                final entry = sortedAllVendors[index];
+                sellerName = entry.key;
+                orderSubtext = '${entry.value.$1} orders';
+                revenueText = _fmtMoney(entry.value.$2);
+              } else {
+                sellerName = topSellerNames[index];
+                orderSubtext = topSellerOrders[index];
+                revenueText = topSellerRevenue[index].startsWith('₱')
+                    ? topSellerRevenue[index]
+                    : '₱${topSellerRevenue[index]}';
+              }
 
               final isSelected = vendor == sellerName;
 
@@ -1085,62 +1122,79 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   Widget _buildTransactionsSection({
     required AppSemanticColors colors,
     required List<Order> allOrders,
-    required List<Order> exportOrders,
-    required SalesSummary summary,
     required List<Order> filteredOrders,
-    required List<MapEntry<String, List<Order>>> visibleStallHolderGroups,
-    required int totalStallHolders,
+    required List<Order> visibleOrders,
+    required SalesSummary summary,
     required List<String> categories,
+    required List<String> vendors,
     required int safePage,
     required int totalPages,
   }) {
     return DataPanel(
       title: 'Recent Transactions',
-      subtitle:
-          'Showing $totalStallHolders approved stall holders and ${filteredOrders.length} matching sales records',
+      subtitle: 'Showing ${filteredOrders.length} matching order records',
+      headerAction: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          FilterButton(
+            label: 'Filters',
+            icon: Icons.tune_rounded,
+            isActive: category != 'All Categories' ||
+                vendor != 'All Stall Holders' ||
+                orderStatus != null ||
+                paymentStatus != null ||
+                minimum.text.trim().isNotEmpty ||
+                maximum.text.trim().isNotEmpty,
+            onTap: () => _showFilters(categories, vendors),
+          ),
+          FilterMenuButton(
+            label: 'Sort: $sort',
+            icon: Icons.sort_rounded,
+            values: const [
+              'Newest first',
+              'Oldest first',
+              'Highest total',
+              'Lowest total',
+            ],
+            onSelected: (value) => setState(() {
+              sort = value;
+              page = 0;
+            }),
+          ),
+          ExportButton(
+            onExportPdf: () => _exportSales(
+              allOrders: allOrders,
+              filteredOrders: filteredOrders,
+              summary: summary,
+              format: ExportFormat.pdf,
+            ),
+            onExportExcel: () => _exportSales(
+              allOrders: allOrders,
+              filteredOrders: filteredOrders,
+              summary: summary,
+              format: ExportFormat.excel,
+            ),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           // Search & Filter Toolbar
           Toolbar(
             controller: search,
-            searchHint: 'Search order ID, transaction, or stall holder...',
+            searchHint:
+                'Search order ID, transaction, customer, or stall holder...',
             onChanged: (_) => setState(() => page = 0),
             onClear: _clearFilters,
             trailing: [
-              ExportButton(
-                onExportPdf: () => _exportSales(
-                  allOrders: allOrders,
-                  filteredOrders: exportOrders,
-                  summary: summary,
-                  format: ExportFormat.pdf,
+              if (selectedPreset != DatePreset.thisMonth ||
+                  startDate != null ||
+                  endDate != null)
+                _chip(
+                  _dateRangeLabel(),
+                  () => _applyPreset(DatePreset.thisMonth),
                 ),
-                onExportExcel: () => _exportSales(
-                  allOrders: allOrders,
-                  filteredOrders: exportOrders,
-                  summary: summary,
-                  format: ExportFormat.excel,
-                ),
-              ),
-              FilterButton(
-                label: 'Filters',
-                icon: Icons.tune_rounded,
-                isActive: true,
-                onTap: () => _showFilters(categories),
-              ),
-              FilterMenuButton(
-                label: 'Sort: $sort',
-                icon: Icons.sort_rounded,
-                values: const [
-                  'Newest first',
-                  'Oldest first',
-                  'Highest total',
-                  'Lowest total',
-                ],
-                onSelected: (value) => setState(() {
-                  sort = value;
-                  page = 0;
-                }),
-              ),
               if (category != 'All Categories')
                 _chip(category,
                     () => setState(() => category = 'All Categories')),
@@ -1175,7 +1229,9 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
               DataColumn(label: Text('ORDER STATUS')),
               DataColumn(label: Text('ACTION')),
             ],
-            rows: visibleOrders.map((item) => _transactionRow(item, colors)).toList(),
+            rows: visibleOrders
+                .map((item) => _transactionRow(item, colors))
+                .toList(),
             verticalController: tableController,
             minWidth: 1080,
             rowHeight: 56,
@@ -1219,15 +1275,14 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   ],
                 ),
               ),
-            )
-          else
-            ..._stallGroups(visibleStallHolderGroups, colors),
+            ),
+          ),
 
-          if (totalStallHolders > 0)
+          if (filteredOrders.isNotEmpty)
             PaginationBar(
-              total: totalStallHolders,
+              total: filteredOrders.length,
               start: safePage * 10 + 1,
-              end: ((safePage + 1) * 10).clamp(0, totalStallHolders),
+              end: ((safePage + 1) * 10).clamp(0, filteredOrders.length),
               page: safePage,
               pageCount: totalPages,
               onPageChanged: (value) => setState(() => page = value),
@@ -1238,68 +1293,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
         ],
       ),
     );
-  }
-
-  List<MapEntry<String, List<Order>>> _groupOrdersByStallHolder(
-    List<Order> orders,
-    List<Vendor> approvedStallHolders,
-    String query,
-  ) {
-    final groups = <String, List<Order>>{
-      for (final stallHolder in approvedStallHolders) stallHolder.name: [],
-    };
-    final accountNames = <String, String>{
-      for (final stallHolder in approvedStallHolders)
-        stallHolder.name.trim().toLowerCase(): stallHolder.name,
-    };
-    final accountIds = <String, String>{
-      for (final stallHolder in approvedStallHolders)
-        stallHolder.id: stallHolder.name,
-    };
-    String? accountNameFor(Order order) => accountIds[order.transactionId] ??
-        accountNames[order.vendorName.trim().toLowerCase()];
-
-    for (final order in orders) {
-      final accountName = accountNameFor(order);
-      if (accountName != null) {
-        groups[accountName]!.add(order);
-      }
-    }
-    if (query.isNotEmpty) {
-      groups.removeWhere(
-          (name, items) => items.isEmpty && !name.toLowerCase().contains(query));
-    }
-
-    final orderedNames = <String>[];
-    for (final order in orders) {
-      final accountName = accountNameFor(order);
-      if (accountName != null && !orderedNames.contains(accountName)) {
-        orderedNames.add(accountName);
-      }
-    }
-    orderedNames.addAll(groups.keys.where((name) => !orderedNames.contains(name)));
-    return [for (final name in orderedNames) MapEntry(name, groups[name]!)];
-  }
-
-  List<Widget> _stallGroups(
-      List<MapEntry<String, List<Order>>> groups, AppSemanticColors colors) {
-    return [
-      for (final entry in groups) ...[
-        _StallTransactionGroup(
-          stallHolderName: entry.key,
-          orders: entry.value,
-          collapsed: !_expandedStallHolders.contains(entry.key),
-          colors: colors,
-          rowBuilder: (order) => _transactionRow(order, colors),
-          onToggle: () => setState(() {
-            if (!_expandedStallHolders.add(entry.key)) {
-              _expandedStallHolders.remove(entry.key);
-            }
-          }),
-        ),
-        const SizedBox(height: 10),
-      ],
-    ];
   }
 
   DataRow _transactionRow(Order item, AppSemanticColors colors) {
@@ -1328,6 +1321,28 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
           ),
         ),
 
+        // Customer
+        DataCell(
+          Text(
+            item.customerName,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+            ),
+          ),
+        ),
+
+        // Vendor / Stall Holder
+        DataCell(
+          Text(
+            item.vendorName,
+            style: TextStyle(
+              fontSize: 12,
+              color: colors.secondaryText,
+            ),
+          ),
+        ),
+
         // Total
         DataCell(
           Text(
@@ -1347,6 +1362,9 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
             style: const TextStyle(fontSize: 12),
           ),
         ),
+
+        // Payment Status Pill
+        DataCell(_paymentStatusBadge(item.paymentStatus)),
 
         // Order Status Pill
         DataCell(_orderStatusBadge(item.status)),
@@ -1434,7 +1452,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
 
     final list = source.where((item) {
       final searchable =
-          '${item.id} ${item.transactionId} ${item.vendorName} ${item.stallName}'
+          '${item.id} ${item.transactionId} ${item.customerName} ${item.vendorName} ${item.stallName}'
               .toLowerCase();
 
       final startCondition = startDate == null ||
@@ -1486,11 +1504,15 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   // ---------------------------------------------------------------------------
   // FILTERS DIALOG
   // ---------------------------------------------------------------------------
-  Future<void> _showFilters(List<String> categories) async {
+  Future<void> _showFilters(
+      List<String> categories, List<String> vendors) async {
     var nextCategory = category;
+    var nextVendor = vendor;
     var nextOrderStatus = orderStatus;
     var nextPaymentStatus = paymentStatus;
     var nextPaymentMethod = paymentMethod;
+    var nextStart = startDate;
+    var nextEnd = endDate;
     final minController = TextEditingController(text: minimum.text);
     final maxController = TextEditingController(text: maximum.text);
     String? error;
@@ -1501,7 +1523,7 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: Text(
-              'Filters',
+              'Filter Transactions',
               style: GoogleFonts.inter(fontWeight: FontWeight.w700),
             ),
             content: SizedBox(
@@ -1511,8 +1533,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _dropdown('Categories', nextCategory, categories,
+                    _dropdown('Category', nextCategory, categories,
                         (value) => setDialogState(() => nextCategory = value!)),
+                    _dropdown('Stall holder', nextVendor, vendors,
+                        (value) => setDialogState(() => nextVendor = value!)),
                     _dropdown(
                       'Order status',
                       nextOrderStatus == null
@@ -1588,8 +1612,10 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                               );
                               if (picked != null) {
                                 setDialogState(() {
-                                  nextStart = DateTime(picked.year, picked.month, picked.day);
-                                  nextEnd = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+                                  nextStart = DateTime(
+                                      picked.year, picked.month, picked.day);
+                                  nextEnd = DateTime(picked.year, picked.month,
+                                      picked.day, 23, 59, 59);
                                 });
                               }
                             },
@@ -1657,11 +1683,15 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
                   }
                   setState(() {
                     category = nextCategory;
+                    vendor = nextVendor;
                     orderStatus = nextOrderStatus;
                     paymentStatus = nextPaymentStatus;
                     paymentMethod = nextPaymentMethod;
+                    startDate = nextStart;
+                    endDate = nextEnd;
                     minimum.text = minController.text;
                     maximum.text = maxController.text;
+                    selectedPreset = DatePreset.custom;
                     page = 0;
                   });
                   Navigator.pop(dialogContext);
@@ -1754,140 +1784,6 @@ class _SalesReportsPageState extends ConsumerState<SalesReportsPage> {
   }
 }
 
-class _StallTransactionGroup extends StatelessWidget {
-  const _StallTransactionGroup({
-    required this.stallHolderName,
-    required this.orders,
-    required this.collapsed,
-    required this.colors,
-    required this.rowBuilder,
-    required this.onToggle,
-  });
-
-  final String stallHolderName;
-  final List<Order> orders;
-  final bool collapsed;
-  final AppSemanticColors colors;
-  final DataRow Function(Order order) rowBuilder;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = orders.fold<double>(0, (sum, order) => sum + order.total);
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.subtleBorder),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.vertical(
-              top: const Radius.circular(10),
-              bottom: collapsed ? const Radius.circular(10) : Radius.zero,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  AvatarCircle(name: stallHolderName, size: 36),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stallHolderName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: colors.primaryText,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${orders.length} ${orders.length == 1 ? 'order' : 'orders'}',
-                          style: TextStyle(fontSize: 10.5, color: colors.mutedText),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Total Sales: ${_fmtMoney(total)}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: colors.primaryText,
-                        ),
-                      ),
-                      Text(
-                        collapsed ? 'Expand' : 'Collapse',
-                        style: TextStyle(fontSize: 10, color: colors.mutedText),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    collapsed
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.keyboard_arrow_up_rounded,
-                    color: colors.secondaryText,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!collapsed) ...[
-            Divider(height: 1, color: colors.subtleBorder),
-            LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: DataTable(
-                    headingRowColor:
-                        WidgetStatePropertyAll(colors.tableHeader),
-                    headingTextStyle: GoogleFonts.inter(
-                      color: colors.secondaryText,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.3,
-                    ),
-                    dataTextStyle:
-                        TextStyle(fontSize: 12, color: colors.primaryText),
-                    horizontalMargin: 14,
-                    columnSpacing: 28,
-                    headingRowHeight: 42,
-                    dataRowMinHeight: 52,
-                    dataRowMaxHeight: 52,
-                    columns: const [
-                      DataColumn(label: Text('ORDER ID')),
-                      DataColumn(label: Text('DATE & TIME')),
-                      DataColumn(label: Text('TOTAL')),
-                      DataColumn(label: Text('PAYMENT')),
-                      DataColumn(label: Text('ORDER STATUS')),
-                      DataColumn(label: Text('ACTION')),
-                    ],
-                    rows: orders.map(rowBuilder).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 // =============================================================================
 // ORDER DETAILS FLOATING MODAL DIALOG
 // =============================================================================
@@ -1915,7 +1811,7 @@ class _OrderDetailsDialog extends StatelessWidget {
       elevation: 12,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 1040,
+          maxWidth: 620,
           maxHeight: MediaQuery.sizeOf(context).height * 0.88,
         ),
         child: Column(
@@ -1934,21 +1830,12 @@ class _OrderDetailsDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Transaction Details',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: colors.primaryText,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Text(
                               'Order #${order.id}',
                               style: GoogleFonts.inter(
-                                fontSize: 15,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w800,
                                 color: colors.primaryText,
                               ),
@@ -1957,10 +1844,9 @@ class _OrderDetailsDialog extends StatelessWidget {
                             _statusBadge(order.status),
                           ],
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
-                          DateFormat('MMMM d, yyyy • h:mm a')
-                              .format(order.placedAt),
+                          'Transaction: ${order.transactionId}',
                           style: GoogleFonts.inter(
                             fontSize: 11.5,
                             color: colors.mutedText,
@@ -1968,6 +1854,11 @@ class _OrderDetailsDialog extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Close details',
                   ),
                 ],
               ),
@@ -2140,8 +2031,8 @@ class _OrderDetailsDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
 
-                  // Payment details
-                  _sectionHeader('PAYMENT DETAILS', colors),
+                  // Payment & Status
+                  _sectionHeader('PAYMENT & STATUS', colors),
                   _card(
                     colors,
                     child: Column(
@@ -2149,18 +2040,6 @@ class _OrderDetailsDialog extends StatelessWidget {
                         _infoRow(
                           'Payment Method',
                           enumLabel(order.paymentMethod),
-                          colors,
-                        ),
-                        _infoRow(
-                          'Amount Paid',
-                          _fmtMoney(order.paymentStatus == PaymentStatus.paid
-                              ? order.total
-                              : 0),
-                          colors,
-                        ),
-                        _infoRow(
-                          'Transaction Reference',
-                          order.transactionId,
                           colors,
                         ),
                         Padding(
@@ -2210,7 +2089,8 @@ class _OrderDetailsDialog extends StatelessWidget {
                   OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                       side: BorderSide(color: colors.subtleBorder),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -2408,7 +2288,8 @@ class _SalesLineChartState extends State<_SalesLineChart> {
 
             if (x >= chartLeft && x <= chartRight && points.length > 1) {
               final step = chartWidth / (points.length - 1);
-              final idx = ((x - chartLeft) / step).round().clamp(0, points.length - 1);
+              final idx =
+                  ((x - chartLeft) / step).round().clamp(0, points.length - 1);
               setState(() => _hoveredIndex = idx);
             }
           },
@@ -2560,7 +2441,9 @@ class _ChartPainter extends CustomPainter {
       );
 
       final label = isSales
-          ? (value >= 1000 ? '₱${(value / 1000).toStringAsFixed(1)}k' : '₱${value.round()}')
+          ? (value >= 1000
+              ? '₱${(value / 1000).toStringAsFixed(1)}k'
+              : '₱${value.round()}')
           : '${value.round()}';
 
       final tp = TextPainter(
@@ -2579,8 +2462,10 @@ class _ChartPainter extends CustomPainter {
 
     final coords = <Offset>[];
     for (int i = 0; i < count; i++) {
-      final px = count > 1 ? leftMargin + i * stepX : leftMargin + chartWidth / 2;
-      final py = topMargin + chartHeight * (1 - (points[i].value / maxVal).clamp(0.0, 1.0));
+      final px =
+          count > 1 ? leftMargin + i * stepX : leftMargin + chartWidth / 2;
+      final py = topMargin +
+          chartHeight * (1 - (points[i].value / maxVal).clamp(0.0, 1.0));
       coords.add(Offset(px, py));
     }
 
@@ -2612,8 +2497,8 @@ class _ChartPainter extends CustomPainter {
           primaryColor.withValues(alpha: 0.22),
           primaryColor.withValues(alpha: 0.0),
         ],
-      ).createShader(Rect.fromLTWH(
-          leftMargin, topMargin, chartWidth, chartHeight))
+      ).createShader(
+          Rect.fromLTWH(leftMargin, topMargin, chartWidth, chartHeight))
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(fillPath, fillPaint);
