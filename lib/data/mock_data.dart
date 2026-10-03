@@ -186,6 +186,61 @@ List<Customer> seedCustomers() {
   );
 }
 
+/// Seeds deterministic stall inventory, assigning vendors in list order.
+List<Stall> seedStalls(List<Vendor> seededVendors) {
+  final categories = [
+    'Fresh Fish',
+    'Dried Fish',
+    'Meat',
+    'Chicken',
+    'Fruits',
+    'Vegetables',
+    'Maritatas',
+    'SARI-SARI',
+  ];
+
+  final stalls = <Stall>[];
+  var vendorIndex = 0;
+
+  for (final category in categories) {
+    for (int i = 1; i <= 6; i++) {
+      final isOccupied =
+          vendorIndex < seededVendors.length && (i % 2 != 0 || i == 2);
+      Vendor? assignedVendor;
+      StallStatus status = StallStatus.available;
+
+      if (isOccupied && vendorIndex < seededVendors.length) {
+        assignedVendor = seededVendors[vendorIndex];
+        status = StallStatus.occupied;
+        vendorIndex++;
+      } else if (i == 4) {
+        status = StallStatus.reserved;
+      } else if (i == 6) {
+        status = StallStatus.underMaintenance;
+      }
+
+      stalls.add(Stall(
+        id: 'STL-${category.substring(0, 3).toUpperCase()}-00$i',
+        stallNumber: '${category.substring(0, 1).toUpperCase()}-0$i',
+        section: category,
+        status: status,
+        vendorId: assignedVendor?.id,
+        vendorName: assignedVendor?.name,
+        maintenanceNotes: status == StallStatus.underMaintenance
+            ? 'Scheduled for electrical repair and repainting'
+            : null,
+        closureStartDate: status == StallStatus.underMaintenance
+            ? DateTime.now().add(const Duration(days: 1))
+            : null,
+        closureEndDate: status == StallStatus.underMaintenance
+            ? DateTime.now().add(const Duration(days: 3))
+            : null,
+      ));
+    }
+  }
+  return stalls;
+}
+
 List<VendorApplication> seedApplications() {
   final categories = [
     'FRESH FISH',

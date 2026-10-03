@@ -34,9 +34,13 @@ class _VendorApplicationsPageState
   static const _viewedApplicationsPreference = 'applications_viewed_new_badges';
   final search = TextEditingController();
   final tableScrollController = ScrollController();
-  String status = 'All Statuses';
+  String status = 'All Applications';
   String stallCategory = 'All Categories';
-  _ApplicationView view = _ApplicationView.all;
+  _ApplicationView get view => switch (status) {
+        'All Applications' => _ApplicationView.all,
+        'Pending Review' => _ApplicationView.pending,
+        _ => _ApplicationView.history,
+      };
   int page = 0;
   late Set<String> _viewedApplicationIds;
   bool _selectedApplicationOpened = false;
@@ -154,7 +158,6 @@ class _VendorApplicationsPageState
     final rejectedCount = data.applications
         .where((item) => item.status == ApplicationStatus.rejected)
         .length;
-    final historyCount = data.applications.length - pendingCount;
 
     final categories = <String>{
       'All Categories',
@@ -182,17 +185,20 @@ class _VendorApplicationsPageState
                   '${item.id} ${item.applicant} ${item.stallName}'
                       .toLowerCase()
                       .contains(search.text.trim().toLowerCase())) &&
-              (status == 'All Statuses' ||
-                  ((status == 'Re-Upload Requested' || status == 'Invalid Docs')
-                      ? item.status == ApplicationStatus.invalidDocs
-                      : item.status.toString().split('.').last ==
-                          status.toLowerCase().replaceAll(' ', ''))) &&
+              (switch (status) {
+                'All Applications' => true,
+                'Pending Review' =>
+                  item.status == ApplicationStatus.reviewing,
+                'Application History' =>
+                  item.status != ApplicationStatus.reviewing,
+                'Verified' => item.status == ApplicationStatus.verified,
+                'Re-Upload Requested' =>
+                  item.status == ApplicationStatus.invalidDocs,
+                'Rejected' => item.status == ApplicationStatus.rejected,
+                _ => false,
+              }) &&
               (stallCategory == 'All Categories' ||
-                  item.category == stallCategory) &&
-              (view == _ApplicationView.all ||
-                  (view == _ApplicationView.pending
-                      ? item.status == ApplicationStatus.reviewing
-                      : item.status != ApplicationStatus.reviewing)),
+                  item.category == stallCategory),
         )
         .toList()
       ..sort((a, b) {
@@ -208,7 +214,9 @@ class _VendorApplicationsPageState
     final int safePage = totalPages == 0 ? 0 : page.clamp(0, totalPages - 1);
 
     final hasActiveFilters = search.text.trim().isNotEmpty ||
-        status != 'All Statuses' ||
+        (status != 'All Applications' &&
+            status != 'Pending Review' &&
+            status != 'Application History') ||
         stallCategory != 'All Categories';
 
     final Widget emptyStateWidget;
@@ -227,8 +235,7 @@ class _VendorApplicationsPageState
         action: OutlinedButton.icon(
           onPressed: () {
             setState(() {
-              view = _ApplicationView.history;
-              status = 'All Statuses';
+              status = 'Application History';
             });
             _resetTable();
           },
@@ -274,10 +281,9 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF10B981),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.all;
                   search.clear();
                   stallCategory = 'All Categories';
-                  status = 'All Statuses';
+                  status = 'All Applications';
                 });
                 _resetTable();
               },
@@ -289,8 +295,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFF59E0B),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.pending;
-                  status = 'Reviewing';
+                  status = 'Pending Review';
                 });
                 _resetTable();
               },
@@ -302,7 +307,6 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF10B981),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.history;
                   status = 'Verified';
                 });
                 _resetTable();
@@ -315,7 +319,6 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFD97706),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.history;
                   status = 'Re-Upload Requested';
                 });
                 _resetTable();
@@ -328,7 +331,6 @@ class _VendorApplicationsPageState
               accent: const Color(0xFFEF4444),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.history;
                   status = 'Rejected';
                 });
                 _resetTable();
@@ -341,8 +343,7 @@ class _VendorApplicationsPageState
               accent: const Color(0xFF3B82F6),
               onTap: () {
                 setState(() {
-                  view = _ApplicationView.pending;
-                  status = 'All Statuses';
+                  status = 'Pending Review';
                 });
                 _resetTable();
               },
@@ -362,19 +363,6 @@ class _VendorApplicationsPageState
               _ApplicationView.pending => 'Recent Applications',
               _ApplicationView.history => 'Application History',
             },
-            headerAction: _ApplicationViewToggle(
-              view: view,
-              totalCount: data.applications.length,
-              requestsCount: pendingCount,
-              historyCount: historyCount,
-              onChanged: (value) {
-                setState(() {
-                  view = value;
-                  status = 'All Statuses';
-                });
-                _resetTable();
-              },
-            ),
             child: Column(
               children: [
                 Toolbar(
@@ -382,17 +370,17 @@ class _VendorApplicationsPageState
                   onChanged: (_) => _resetTable(),
                   onClear: () {
                     search.clear();
-                    status = 'All Statuses';
+                    status = 'All Applications';
                     stallCategory = 'All Categories';
-                    view = _ApplicationView.all;
                     _resetTable();
                   },
                   trailing: [
                     _filter(
                       status,
                       const [
-                        'All Statuses',
-                        'Reviewing',
+                        'All Applications',
+                        'Pending Review',
+                        'Application History',
                         'Verified',
                         'Re-Upload Requested',
                         'Rejected',
@@ -400,16 +388,6 @@ class _VendorApplicationsPageState
                       (value) {
                         setState(() {
                           status = value;
-                          if (value == 'All Statuses') {
-                            view = _ApplicationView.all;
-                          } else if (value == 'Verified' ||
-                              value == 'Re-Upload Requested' ||
-                              value == 'Invalid Docs' ||
-                              value == 'Rejected') {
-                            view = _ApplicationView.history;
-                          } else if (value == 'Reviewing') {
-                            view = _ApplicationView.pending;
-                          }
                         });
                         _resetTable();
                       },
@@ -502,92 +480,6 @@ class _VendorApplicationsPageState
       ref: ref,
       doc: doc,
       format: format,
-    );
-  }
-}
-
-class _ApplicationViewToggle extends StatelessWidget {
-  const _ApplicationViewToggle({
-    required this.view,
-    required this.totalCount,
-    required this.requestsCount,
-    required this.historyCount,
-    required this.onChanged,
-  });
-
-  final _ApplicationView view;
-  final int totalCount;
-  final int requestsCount;
-  final int historyCount;
-  final ValueChanged<_ApplicationView> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = semanticColors(context);
-    return SegmentedButton<_ApplicationView>(
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const Color(0xFFD1FAE5);
-          }
-          if (states.contains(WidgetState.hovered)) {
-            return colors.hoverSurface;
-          }
-          return colors.cardBackground;
-        }),
-        foregroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const Color(0xFF065F46);
-          }
-          return colors.secondaryText;
-        }),
-        textStyle: WidgetStateProperty.resolveWith((states) {
-          final isSelected = states.contains(WidgetState.selected);
-          return TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          );
-        }),
-        iconColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const Color(0xFF065F46);
-          }
-          return colors.secondaryText;
-        }),
-        side: WidgetStatePropertyAll(
-          BorderSide(color: colors.subtleBorder),
-        ),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-        ),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        ),
-        elevation: const WidgetStatePropertyAll(0),
-        mouseCursor: const WidgetStatePropertyAll(SystemMouseCursors.click),
-      ),
-      segments: [
-        ButtonSegment<_ApplicationView>(
-          value: _ApplicationView.all,
-          label: Text('All Applications ($totalCount)'),
-          icon: const Icon(Icons.list_alt_rounded, size: 15),
-        ),
-        ButtonSegment<_ApplicationView>(
-          value: _ApplicationView.pending,
-          label: Text('Pending Review ($requestsCount)'),
-          icon: const Icon(Icons.assignment_outlined, size: 15),
-        ),
-        ButtonSegment<_ApplicationView>(
-          value: _ApplicationView.history,
-          label: Text('Application History ($historyCount)'),
-          icon: const Icon(Icons.history_rounded, size: 15),
-        ),
-      ],
-      selected: {view},
-      showSelectedIcon: false,
-      onSelectionChanged: (selection) => onChanged(selection.first),
     );
   }
 }

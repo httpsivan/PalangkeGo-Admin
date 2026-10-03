@@ -1,5 +1,57 @@
 import 'dart:typed_data';
 
+enum StallStatus { available, occupied, reserved, underMaintenance }
+
+class Stall {
+  const Stall({
+    required this.id,
+    required this.stallNumber,
+    required this.section,
+    required this.status,
+    this.vendorId,
+    this.vendorName,
+    this.maintenanceNotes,
+    this.closureStartDate,
+    this.closureEndDate,
+  });
+
+  final String id;
+  final String stallNumber;
+  final String section;
+  final StallStatus status;
+  final String? vendorId;
+  final String? vendorName;
+  final String? maintenanceNotes;
+  final DateTime? closureStartDate;
+  final DateTime? closureEndDate;
+
+  /// Use the clear flags to remove nullable relationships or maintenance data.
+  Stall copyWith({
+    String? stallNumber,
+    String? section,
+    StallStatus? status,
+    String? vendorId,
+    String? vendorName,
+    String? maintenanceNotes,
+    DateTime? closureStartDate,
+    DateTime? closureEndDate,
+    bool clearVendor = false,
+    bool clearMaintenance = false,
+  }) {
+    return Stall(
+      id: id,
+      stallNumber: stallNumber ?? this.stallNumber,
+      section: section ?? this.section,
+      status: status ?? this.status,
+      vendorId: clearVendor ? null : (vendorId ?? this.vendorId),
+      vendorName: clearVendor ? null : (vendorName ?? this.vendorName),
+      maintenanceNotes: clearMaintenance ? null : (maintenanceNotes ?? this.maintenanceNotes),
+      closureStartDate: clearMaintenance ? null : (closureStartDate ?? this.closureStartDate),
+      closureEndDate: clearMaintenance ? null : (closureEndDate ?? this.closureEndDate),
+    );
+  }
+}
+
 enum AccountStatus { active, offline, suspended, blocked }
 
 enum ApplicationStatus { verified, reviewing, invalidDocs, rejected }

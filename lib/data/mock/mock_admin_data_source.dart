@@ -15,18 +15,21 @@ class MockAdminDataSource {
 
   static const defaultAdminName = 'Kirren Michael Fraginal';
 
-  /// Initial seed state when no local modifications have occurred.
-  static AppDataSeed initialSeeds() => AppDataSeed(
-        vendors: seedVendors(),
-        customers: seedCustomers(),
-        applications: seedApplications(),
-        renewals: seedRenewals(),
-        reports: seedReports(),
-        announcements: seedAnnouncements(),
-        orders: seedOrders(),
-        auditLogs: seedAuditLogs(),
-        suspensions: seedSuspensions(),
-      );
+  static AppDataSeed initialSeeds() {
+    final vendors = seedVendors();
+    return AppDataSeed(
+      vendors: vendors,
+      customers: seedCustomers(),
+      applications: seedApplications(),
+      renewals: seedRenewals(),
+      reports: seedReports(),
+      announcements: seedAnnouncements(),
+      stalls: seedStalls(vendors),
+      orders: seedOrders(),
+      auditLogs: seedAuditLogs(),
+      suspensions: seedSuspensions(),
+    );
+  }
 
   /// Restores local overrides, status changes, and audits from SharedPreferences.
   AppDataSeed restore(AppDataSeed initial) {
@@ -124,6 +127,7 @@ class MockAdminDataSource {
       renewals: restoredRenewals,
       reports: restoredReports,
       announcements: initial.announcements,
+      stalls: initial.stalls,
       orders: initial.orders,
       auditLogs: effectiveAudits,
       suspensions: effectiveSuspensions,
@@ -381,6 +385,7 @@ class AppDataSeed {
     required this.renewals,
     required this.reports,
     required this.announcements,
+    required this.stalls,
     required this.orders,
     required this.auditLogs,
     required this.suspensions,
@@ -392,6 +397,7 @@ class AppDataSeed {
   final List<RenewalRequest> renewals;
   final List<Report> reports;
   final List<Announcement> announcements;
+  final List<Stall> stalls;
   final List<Order> orders;
   final List<AuditLog> auditLogs;
   final List<Suspension> suspensions;

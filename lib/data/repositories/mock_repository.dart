@@ -23,6 +23,7 @@ class AppDataState {
     required this.renewals,
     required this.reports,
     required this.announcements,
+    this.stalls = const [],
     this.orders = const [],
     this.suspensions = const [],
     this.auditLogs = const [],
@@ -34,6 +35,7 @@ class AppDataState {
   final List<RenewalRequest> renewals;
   final List<Report> reports;
   final List<Announcement> announcements;
+  final List<Stall> stalls;
   final List<Order> orders;
   final List<Suspension> suspensions;
   final List<AuditLog> auditLogs;
@@ -45,6 +47,7 @@ class AppDataState {
     List<RenewalRequest>? renewals,
     List<Report>? reports,
     List<Announcement>? announcements,
+    List<Stall>? stalls,
     List<Order>? orders,
     List<Suspension>? suspensions,
     List<AuditLog>? auditLogs,
@@ -56,6 +59,7 @@ class AppDataState {
       renewals: renewals ?? this.renewals,
       reports: reports ?? this.reports,
       announcements: announcements ?? this.announcements,
+      stalls: stalls ?? this.stalls,
       orders: orders ?? this.orders,
       suspensions: suspensions ?? this.suspensions,
       auditLogs: auditLogs ?? this.auditLogs,
@@ -102,19 +106,24 @@ class AppDataController extends StateNotifier<AppDataState> {
                   renewals: [],
                   reports: [],
                   announcements: [],
+                  stalls: [],
                   orders: [],
                 )
-              : AppDataState(
-                  vendors: seedVendors(),
-                  customers: seedCustomers(),
-                  applications: seedApplications(),
-                  renewals: seedRenewals(),
-                  reports: seedReports(),
-                  announcements: seedAnnouncements(),
-                  orders: seedOrders(),
-                  auditLogs: seedAuditLogs(),
-                  suspensions: seedSuspensions(),
-                ),
+              : () {
+                  final initialVendors = seedVendors();
+                  return AppDataState(
+                    vendors: initialVendors,
+                    customers: seedCustomers(),
+                    applications: seedApplications(),
+                    renewals: seedRenewals(),
+                    reports: seedReports(),
+                    announcements: seedAnnouncements(),
+                    stalls: seedStalls(initialVendors),
+                    orders: seedOrders(),
+                    auditLogs: seedAuditLogs(),
+                    suspensions: seedSuspensions(),
+                  );
+                }(),
         ) {
     if (firebaseEnabled) {
       _liveDataSubscription = FirebaseAdminService.instance.liveDataChanges
@@ -202,10 +211,17 @@ class AppDataController extends StateNotifier<AppDataState> {
       applications: restoredApplications,
       renewals: restoredRenewals,
       reports: restored.reports,
+      stalls: restored.stalls,
       auditLogs: restored.auditLogs,
       suspensions: restored.suspensions,
     );
     await _expireSuspensions();
+  }
+
+  void updateStall(Stall updatedStall) {
+    state = state.copyWith(
+      stalls: state.stalls.map((s) => s.id == updatedStall.id ? updatedStall : s).toList(),
+    );
   }
 
   Future<void> setVendorStatus(String id, AccountStatus status) async {
